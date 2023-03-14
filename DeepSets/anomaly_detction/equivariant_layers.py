@@ -4,6 +4,7 @@ import math
 
 torch.manual_seed(0)
 
+
 class EquivariantLayer(nn.Module):
     def __init__(self, in_channel, out_channel):
         # Input shape x = [BS, input_size, in_channel]
@@ -31,11 +32,10 @@ if __name__ == "__main__":
     layer = EquivariantLayer(3, 4)
 
     test_in = torch.ones((2, 16, 3))
-    #test_in[0] = torch.zeros((2, 3))
+    # test_in[0] = torch.zeros((2, 3))
 
     out = layer(test_in)
 
     print(f'{test_in = }')
     print()
     print(f'{out = }')
-
