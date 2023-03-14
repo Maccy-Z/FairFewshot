@@ -8,7 +8,6 @@ class Dataset:
         self.data_name = data_name
         self.data, self.labels = self.get_data()
 
-
     def get_data(self):
         """
         Dataset format: {folder}_py.dat             predictors
@@ -52,6 +51,3 @@ class Dataset:
 
 if __name__ == "__main__":
     ds = Dataset("adult")
-
-
-
