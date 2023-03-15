@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from toy_dataset import ToyDataloader
+from dataset import Dataloader
 
 torch.manual_seed(0)
 
@@ -29,12 +30,20 @@ class SetSetModel(nn.Module):
 
         self.relu = nn.ReLU()
 
-    def forward(self, x):
-        # x.shape = [BS, x_dim, y_dim, n_samples, 2]
+    def forward(self, xs):
+        # x.shape = [BS][x_dim, y_dim, n_samples, 2]
         # Final dim of x is pair (x_i, y_i)
+        ys = []
+        for x in xs:
+            ys.append(self.forward_layers(x))
 
+        ys = torch.stack(ys)
+
+        return ys
+
+    def forward_layers(self, x):
         # f network
-        x = self.relu(self.f_1(x))  # [BS, x_dim, y_dim, n_samples, h_size]
+        x = self.relu(self.f_1(x))  # [x_dim, y_dim, n_samples, h_size]
         x_r = self.relu(self.f_2_r(x))
         x = x + x_r
         x_r = self.relu(self.f_3_r(x))
@@ -43,13 +52,13 @@ class SetSetModel(nn.Module):
         x = x + x_r
         x = self.relu(self.f_5(x))
 
-        x = torch.mean(x, dim=-2)  # [BS, x_dim, y_dim, h_size]
+        x = torch.mean(x, dim=-2)  # [x_dim, y_dim, h_size]
 
         # g network
         x = self.relu(self.g_1(x))
         x = self.relu(self.g_2(x))
         #
-        x = torch.mean(x, dim=(-2, -3))  # [BS, h_size]
+        x = torch.mean(x, dim=(-2, -3))  # [h_size]
 
         # h network
         x = self.relu(self.h_1(x))
@@ -64,90 +73,98 @@ class SetSetModel(nn.Module):
         return x
 
 
-# Turn data from a table into all pairs of (x_i, y_i)
-def process_batch(xs: torch.Tensor, ys: torch.Tensor):
-    # output.shape = [xdim, ydim, num_samples, 2]
-    # xs.shape, ys.shape = [num_samples, xdim or ydim]
+class ModelTrainer:
+    def __init__(self):
+        self.gamma = 1
 
-    assert xs.shape[0] == ys.shape[0]
+        self.model = SetSetModel(h_size=64, out_size=64)
+        self.optimiser = torch.optim.SGD(self.model.parameters(), lr=1e-3, momentum=0.9)
+        # self.dl = ToyDataloader(bs=6, repeat_frac=1 / 2)
+        self.dl = Dataloader(bs=6, repeat_frac=1 / 2)
 
-    xdim = xs.shape[1]
-    ydim = ys.shape[1]
-    num_samples = ys.shape[0]
+    def train_loop(self):
+        self.dl.steps = 250
 
-    pair_output = torch.zeros([xdim, ydim, num_samples, 2])
-
-    for k in range(num_samples):
-
-        for i, x in enumerate(xs[k]):
-            for j, y in enumerate(ys[k]):
-                pair_output[i, j, k] = torch.tensor([x, y])
-
-    return pair_output
-
-
-def train_batch(model, data_batches: torch.Tensor, ds_labels: torch.Tensor, gamma=1):
-    # data_batches.shape    = [BS, x_dim, y_dim, num_samples]
-    # labels.shape          = [BS]
-    # Reshape data into format
-
-    bs = data_batches.shape[0]
-    assert data_batches.shape[0] == ds_labels.shape[0]
-
-    features = model(data_batches)  # [BS, out_dim]
-
-    # Get every distinct combination of features, ignoring diagonals. Split into same ds and different ds.
-    # Assume number of same and diff are both nonzero.
-
-    same_1, same_2 = [], []
-    diff_1, diff_2 = [], []
-    for i in range(bs):
-        for j in range(0, i, 1):
-            # If features came from same class
-            same = ds_labels[i] == ds_labels[j]
-            if same:
-                same_1.append(features[i])
-                same_2.append(features[j])
-            else:
-                diff_1.append(features[i])
-                diff_2.append(features[j])
-
-    same_1, same_2 = torch.stack(same_1), torch.stack(same_2)
-    diff_1, diff_2 = torch.stack(diff_1), torch.stack(diff_2)
-
-    # Similarity, measured between 0 and 1
-    same_sim = torch.norm(same_1 - same_2, dim=1)  # / (torch.norm(same_diff_1, dim=1) + torch.norm(same_diff_2, dim=1))
-    diff_sim = torch.norm(diff_1 - diff_2, dim=1)  # / (torch.norm(diff_diff_1, dim=1) + torch.norm(diff_diff_2, dim=1))
-
-    # Calculate loss
-    # Original paper uses log of exp. Skip exp-log here and get loss directly.
-    exp_same_sim = - gamma * same_sim
-    loss_same = torch.mean(exp_same_sim)
-    exp_diff_sim = torch.exp(- gamma * diff_sim)
-    loss_diff = torch.mean(torch.log((1 - exp_diff_sim)))
-
-    loss = -(loss_same + loss_diff)
-
-    return loss
-
-
-def train_loop():
-    model = SetSetModel(h_size=64, out_size=64)
-
-    optimiser = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9)
-
-    dl = ToyDataloader(bs=6, repeat_frac=1 / 2)
-
-    for i in range(5000):
-        for data, ds_label in dl:
-            optimiser.zero_grad()
-            loss = train_batch(model, data, ds_label)
+        for i, (data, ds_label) in enumerate(self.dl):
+            self.optimiser.zero_grad()
+            loss, _ = self.process_batch(data, ds_label)
             loss.backward()
-            optimiser.step()
+            self.optimiser.step()
 
-        if i % 10 == 0:
-            print(loss.item())
+            if i % 10 == 0:
+                print(loss.item())
+
+    def test_loop(self):
+        self.dl.steps = 1000
+
+        with torch.no_grad():
+            same_accs, diff_accs = [], []
+            for data, ds_label in self.dl:
+                _, (same_diff, diff_diff) = self.process_batch(data, ds_label)
+
+                same_diff, diff_diff = torch.exp(- self.gamma * same_diff), torch.exp(- self.gamma * diff_diff)
+                # print(same_diff, diff_diff)
+
+                # Define accurate if similarity is more/less than 0.5
+                same_acc = same_diff > 0.5
+                diff_acc = diff_diff < 0.5
+
+                same_accs.append(same_acc)
+                diff_accs.append(diff_acc)
+
+        same_accs = torch.mean(torch.stack(same_accs).float())
+        diff_accs = torch.mean(torch.stack(diff_accs).float())
+
+        same_accs, diff_accs = same_accs.item(), diff_accs.item()
+        print(f'{same_accs = :.4g}, {diff_accs = :.4g}')
+
+    def process_batch(self, data_batches: torch.Tensor, ds_labels: torch.Tensor, ):
+        # data_batches.shape    = [BS, x_dim, y_dim, num_samples]
+        # labels.shape          = [BS]
+
+        bs = len(data_batches)
+        assert len(data_batches) == ds_labels.shape[0]
+        features = self.model(data_batches)  # [BS, out_dim]
+
+        # Get every distinct combination of features, ignoring diagonals. Split into same ds and different ds.
+        # Assume number of same and diff are both nonzero.
+
+        same_1, same_2 = [], []
+        diff_1, diff_2 = [], []
+        for i in range(bs):
+            for j in range(0, i, 1):
+                # If features came from same class
+                same = ds_labels[i] == ds_labels[j]
+                if same:
+                    same_1.append(features[i])
+                    same_2.append(features[j])
+                else:
+                    diff_1.append(features[i])
+                    diff_2.append(features[j])
+
+        same_1, same_2 = torch.stack(same_1), torch.stack(same_2)
+        diff_1, diff_2 = torch.stack(diff_1), torch.stack(diff_2)
+
+        # Similarity, measured between 0 and 1
+        same_diff = torch.norm(same_1 - same_2, dim=1)  # / (torch.norm(same_diff_1, dim=1) + torch.norm(same_diff_2, dim=1))
+        diff_diff = torch.norm(diff_1 - diff_2, dim=1)  # / (torch.norm(diff_diff_1, dim=1) + torch.norm(diff_diff_2, dim=1))
+
+        # Calculate loss
+        # Original paper uses log of exp. Skip exp-log here and get loss directly.
+        exp_same_diff = - self.gamma * same_diff
+        loss_same = torch.mean(exp_same_diff)
+        exp_diff_diff = torch.exp(- self.gamma * diff_diff)
+        loss_diff = torch.mean(torch.log((1 - exp_diff_diff)))
+
+        loss = -(loss_same + loss_diff)
+
+        return loss, (same_diff, diff_diff)
 
 
 if __name__ == "__main__":
-    train_loop()
+    trainer = ModelTrainer()
+
+    trainer.train_loop()
+    print()
+    print()
+    trainer.test_loop()

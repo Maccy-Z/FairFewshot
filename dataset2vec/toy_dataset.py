@@ -23,7 +23,7 @@ class ToyDataset:
 
         self.ds_fn = lambda: ds_fn(nsamples)
 
-    def get_data(self):
+    def get_data(self, split=None):
         xs, ys = self.ds_fn()
         xs = np.reshape(xs, [self.nsamples, -1])  # = [num_samples, xdim]
         ys = np.reshape(ys, [self.nsamples, -1])  # = [num_samples, ydim]
@@ -56,13 +56,14 @@ class ToyDataset:
 
 
 class ToyDataloader:
-    def __init__(self, bs=6, repeat_frac=1 / 2):
+    def __init__(self, bs=6, repeat_frac=1 / 2, steps=5000):
         """
         :param bs: Number of datasets to sample from
         :param repeat_frac: 1 / number of times to repeat datasets.
         """
         self.bs = bs
         self.repeat_frac = repeat_frac
+        self.steps = steps
 
         ds = ["blobs", "circles", "moons"]
         self.num_ds = len(ds)
@@ -83,16 +84,15 @@ class ToyDataloader:
 
     # Sample items from datasets. Make sure there are always repeated datasets.
     def __iter__(self):
-        # Do we sample from every dataset?
+        for _ in range(self.steps):
+            chosen_ds = random.sample(self.ds, self.num_samples) * int(1 / self.repeat_frac)
+            # print(chosen_ds)
+            labels = list(range(self.num_samples)) * int(1 / self.repeat_frac)
 
-        chosen_ds = random.sample(self.ds, self.num_samples) * int(1 / self.repeat_frac)
-        print(chosen_ds)
-        labels = list(range(self.num_samples)) * int(1 / self.repeat_frac)
+            meta_dataset = [ds.get_data() for ds in chosen_ds]
+            meta_dataset = torch.stack(meta_dataset)
 
-        meta_dataset = [ds.get_data() for ds in chosen_ds]
-        meta_dataset = torch.stack(meta_dataset)
-
-        yield meta_dataset, torch.tensor(labels)
+            yield meta_dataset, torch.tensor(labels)
 
 
 if __name__ == "__main__":
