@@ -5,6 +5,8 @@ from dataset import Dataloader
 
 torch.manual_seed(0)
 
+device = torch.device("cpu")
+
 
 class SetSetModel(nn.Module):
     def __init__(self, h_size, out_size):
@@ -77,15 +79,16 @@ class ModelTrainer:
     def __init__(self):
         self.gamma = 1
 
-        self.model = SetSetModel(h_size=64, out_size=64)
-        self.optimiser = torch.optim.SGD(self.model.parameters(), lr=1e-3, momentum=0.9)
+        self.model = SetSetModel(h_size=128, out_size=64).to(device)
+        self.optimiser = torch.optim.SGD(self.model.parameters(), lr=5e-4, momentum=0.9)
         # self.dl = ToyDataloader(bs=6, repeat_frac=1 / 2)
-        self.dl = Dataloader(bs=6, repeat_frac=1 / 2)
+        self.dl = Dataloader(bs=8, bs_num_ds=4, device=device)
 
     def train_loop(self):
-        self.dl.steps = 250
+        self.dl.steps = 1500
 
         for i, (data, ds_label) in enumerate(self.dl):
+
             self.optimiser.zero_grad()
             loss, _ = self.process_batch(data, ds_label)
             loss.backward()
@@ -95,7 +98,7 @@ class ModelTrainer:
                 print(loss.item())
 
     def test_loop(self):
-        self.dl.steps = 1000
+        self.dl.steps = 500
 
         with torch.no_grad():
             same_accs, diff_accs = [], []
@@ -129,25 +132,22 @@ class ModelTrainer:
         # Get every distinct combination of features, ignoring diagonals. Split into same ds and different ds.
         # Assume number of same and diff are both nonzero.
 
-        same_1, same_2 = [], []
-        diff_1, diff_2 = [], []
+        same_diff, diff_diff = [], []
         for i in range(bs):
             for j in range(0, i, 1):
                 # If features came from same class
                 same = ds_labels[i] == ds_labels[j]
                 if same:
-                    same_1.append(features[i])
-                    same_2.append(features[j])
+                    same_diff.append(features[i] - features[j])
                 else:
-                    diff_1.append(features[i])
-                    diff_2.append(features[j])
+                    diff_diff.append(features[i] - features[j])
 
-        same_1, same_2 = torch.stack(same_1), torch.stack(same_2)
-        diff_1, diff_2 = torch.stack(diff_1), torch.stack(diff_2)
+        same_diff = torch.stack(same_diff)
+        diff_diff = torch.stack(diff_diff)
 
         # Similarity, measured between 0 and 1
-        same_diff = torch.norm(same_1 - same_2, dim=1)  # / (torch.norm(same_diff_1, dim=1) + torch.norm(same_diff_2, dim=1))
-        diff_diff = torch.norm(diff_1 - diff_2, dim=1)  # / (torch.norm(diff_diff_1, dim=1) + torch.norm(diff_diff_2, dim=1))
+        same_diff = torch.norm(same_diff, dim=1)
+        diff_diff = torch.norm(diff_diff, dim=1)
 
         # Calculate loss
         # Original paper uses log of exp. Skip exp-log here and get loss directly.

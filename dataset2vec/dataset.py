@@ -76,43 +76,38 @@ class Dataset:
 
         return pair_output
 
+    def __repr__(self):
+        return f'Ds: {self.data_name}'
+
 
 class Dataloader:
-    def __init__(self, bs=6, repeat_frac=1 / 2, steps=5000):
+    def __init__(self, bs=6, bs_num_ds=3, steps=5000, device="cpu"):
         """
         :param bs: Number of datasets to sample from
-        :param repeat_frac: 1 / number of times to repeat datasets.
+        :param bs_num_ds: Number of uniqie datasets to sample from.
         """
         self.bs = bs
-        self.repeat_frac = repeat_frac
         self.steps = steps
+        self.device = device
+        self.bs_num_ds = bs_num_ds
 
-        ds = ["adult", "car", "blood"]
+        ds = ["adult", "car", "blood", "chess-krvk", "bank", "ionosphere"]
         self.num_ds = len(ds)
 
         self.ds = [Dataset(data_name=name) for name in ds]
 
-        # Sanity check that bs and repeat_frac are possible
-        assert (bs * repeat_frac).is_integer()
-        if self.num_ds / self.repeat_frac < self.bs:
-            # Requested too large of a batch, not enough datasets for given repeat fraction.
-            print("Requested too large of a batch, not enough datasets for given repeat fraction.")
-            assert 0
+        # Ensure number of datasets can fit into batch exactly
+        self.num_repeat, remainder = divmod(bs, bs_num_ds)
+        assert remainder == 0
 
-        self.num_samples = int(self.bs * self.repeat_frac)
-
-        if self.num_samples > self.num_ds:
-            self.num_samples = self.num_ds
-
-    # Sample items from datasets. Make sure there are always repeated datasets.
     def __iter__(self):
         for _ in range(self.steps):
-            chosen_ds = random.sample(self.ds, self.num_samples) * int(1 / self.repeat_frac)
+            chosen_ds = random.sample(self.ds, self.bs_num_ds) * self.num_repeat
             # print(chosen_ds)
-            labels = list(range(self.num_samples)) * int(1 / self.repeat_frac)
+            labels = list(range(self.bs_num_ds)) * self.num_repeat
 
-            meta_dataset = [ds.get_data() for ds in chosen_ds]
-            #meta_dataset = torch.stack(meta_dataset)
+            meta_dataset = [ds.get_data().to(self.device) for ds in chosen_ds]
+            # meta_dataset = torch.stack(meta_dataset)
 
             yield meta_dataset, torch.tensor(labels)
 
