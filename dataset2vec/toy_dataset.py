@@ -59,7 +59,7 @@ class ToyDataloader:
     def __init__(self, bs=6, repeat_frac=1 / 2):
         """
         :param bs: Number of datasets to sample from
-        :param repeat_frac: Fraction of datasets that must be repeated.
+        :param repeat_frac: 1 / number of times to repeat datasets.
         """
         self.bs = bs
         self.repeat_frac = repeat_frac
@@ -73,6 +73,7 @@ class ToyDataloader:
         assert (bs * repeat_frac).is_integer()
         if self.num_ds / self.repeat_frac < self.bs:
             # Requested too large of a batch, not enough datasets for given repeat fraction.
+            print("Requested too large of a batch, not enough datasets for given repeat fraction.")
             assert 0
 
         self.num_samples = int(self.bs * self.repeat_frac)
@@ -95,7 +96,7 @@ class ToyDataloader:
 
 
 if __name__ == "__main__":
-    dl = ToyDataloader()
+    dl = ToyDataloader(bs=9, repeat_frac=1/3)
     for i in dl:
         pass
         # print(i)
