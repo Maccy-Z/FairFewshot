@@ -1,9 +1,9 @@
-import numpy as np
+import torch
 
-arr1 = np.array([1, 2, 3, 4])
-arr2 = np.array(['a', 'b', 'c'])
+x = torch.tensor([False, False, False,  True, False, True, False])
 
-pairs = np.transpose([np.repeat(arr1, len(arr2)), np.tile(arr2, len(arr1))])
+y = torch.nonzero(x, as_tuple=True)[0]
+print(y)
+print(x)
 
-#pairs = pairs.reshape(len(arr1), len(arr2), 2)
-print(pairs)
+

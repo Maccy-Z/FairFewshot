@@ -58,7 +58,6 @@ class SetSetModel(nn.Module):
         # g network
         x = self.relu(self.g_1(x))
         x = self.relu(self.g_2(x))
-        #
         x = torch.mean(x, dim=(-2, -3))  # [h_size]
 
         # h network
@@ -78,10 +77,9 @@ class ModelTrainer:
     def __init__(self, device="cpu"):
         self.gamma = 1
 
-        self.model = SetSetModel(h_size=64, out_size=64).to(device)
-        self.optimiser = torch.optim.SGD(self.model.parameters(), lr=5e-4, momentum=0.9)
-        # self.dl = ToyDataloader(bs=6, repeat_frac=1 / 2)
-        self.dl = Dataloader(bs=8, bs_num_ds=4, device=device)
+        self.model = SetSetModel(h_size=64, out_size=32).to(device)
+        self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
+        self.dl = Dataloader(bs=6, bs_num_ds=3, device=device)
 
     def train_loop(self):
         self.dl.steps = 3000
@@ -132,21 +130,25 @@ class ModelTrainer:
         assert len(data_batches) == ds_labels.shape[0]
         features = self.model(data_batches)  # [BS, out_dim]
 
-        # Get every distinct combination of features, ignoring diagonals. Split into same ds and different ds.
-        # Assume number of same and diff are both nonzero.
+        # Calculate distance for pairs of features.
 
         same_diff, diff_diff = [], []
         for i in range(bs):
-            for j in range(0, i, 1):
-                # If features came from same class
-                same = ds_labels[i] == ds_labels[j]
-                if same:
-                    same_diff.append(features[i] - features[j])
-                else:
-                    diff_diff.append(features[i] - features[j])
+            js = torch.arange(i)
+            same = ds_labels[i] == ds_labels[js]
+            same_idx = torch.nonzero(same, as_tuple=True)[0]
+            diff_idx = torch.nonzero(same == 0, as_tuple=True)[0]
 
-        same_diff = torch.stack(same_diff)
-        diff_diff = torch.stack(diff_diff)
+            diffs = features[i] - features[js]
+
+            same_diff.append(diffs[same_idx])
+            diff_diff.append(diffs[diff_idx])
+
+        same_diff = torch.cat(same_diff)
+        diff_diff = torch.cat(diff_diff)
+
+        # same_diff = torch.stack(same_diff)
+        # diff_diff = torch.stack(diff_diff)
 
         # Similarity, measured between 0 and 1
         same_diff = torch.norm(same_diff, dim=1)
