@@ -2,10 +2,9 @@ import torch
 import torch.nn as nn
 from toy_dataset import ToyDataloader
 from dataset import Dataloader
+import time
 
 torch.manual_seed(0)
-
-device = torch.device("cpu")
 
 
 class SetSetModel(nn.Module):
@@ -76,17 +75,19 @@ class SetSetModel(nn.Module):
 
 
 class ModelTrainer:
-    def __init__(self):
+    def __init__(self, device="cpu"):
         self.gamma = 1
 
-        self.model = SetSetModel(h_size=128, out_size=64).to(device)
+        self.model = SetSetModel(h_size=64, out_size=64).to(device)
         self.optimiser = torch.optim.SGD(self.model.parameters(), lr=5e-4, momentum=0.9)
         # self.dl = ToyDataloader(bs=6, repeat_frac=1 / 2)
         self.dl = Dataloader(bs=8, bs_num_ds=4, device=device)
 
     def train_loop(self):
-        self.dl.steps = 1500
+        self.dl.steps = 3000
+        self.dl.train(True)
 
+        st = time.time()
         for i, (data, ds_label) in enumerate(self.dl):
 
             self.optimiser.zero_grad()
@@ -94,11 +95,13 @@ class ModelTrainer:
             loss.backward()
             self.optimiser.step()
 
-            if i % 10 == 0:
-                print(loss.item())
+            if i % 50 == 0:
+                print(f'step {i}, time = {time.time() - st :.2g}s, loss = {loss.item() :.4g}')
+                st = time.time()
 
     def test_loop(self):
-        self.dl.steps = 500
+        self.dl.steps = 250
+        self.dl.train(False)
 
         with torch.no_grad():
             same_accs, diff_accs = [], []
@@ -162,7 +165,9 @@ class ModelTrainer:
 
 
 if __name__ == "__main__":
-    trainer = ModelTrainer()
+    d = torch.device("cpu")
+
+    trainer = ModelTrainer(device=d)
 
     trainer.train_loop()
     print()

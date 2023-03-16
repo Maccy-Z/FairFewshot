@@ -1,9 +1,9 @@
-import torch
+import numpy as np
 
-x = torch.randn(3, 4)
+arr1 = np.array([1, 2, 3, 4])
+arr2 = np.array(['a', 'b', 'c'])
 
-print(x)
+pairs = np.transpose([np.repeat(arr1, len(arr2)), np.tile(arr2, len(arr1))])
 
-torch.nn.init.kaiming_uniform_(x)
-print(x)
-
+#pairs = pairs.reshape(len(arr1), len(arr2), 2)
+print(pairs)
