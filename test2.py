@@ -1,9 +1,7 @@
 import torch
+x = torch.tensor([1, 2, 3])
 
-x = torch.tensor([False, False, False,  True, False, True, False])
 
-y = torch.nonzero(x, as_tuple=True)[0]
+y = x.tile((2,))
+
 print(y)
-print(x)
-
-
