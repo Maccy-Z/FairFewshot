@@ -10,7 +10,7 @@ random.seed(0)
 
 # Mnist isn't sorted, so sort images by label.
 class MnistMetaDataloader:
-    def __init__(self, train, num_class, num_imgs, bs, epoch_len, train_nums=7, device="cuda"):
+    def __init__(self, train, num_class, num_imgs, bs, epoch_len, num_train_class=7, device="cuda"):
         """
 
         :param train: train/test split
@@ -18,7 +18,7 @@ class MnistMetaDataloader:
         :param num_imgs: Images per class
         :param bs: Number batches to sample from each time
         :param epoch_len: Repeats before dataloader stops sending new iterations
-        :param train_nums: Number of digits to use in traing, Rest are used for testing
+        :param num_train_class: Number of digits to use in training, Rest are used for testing
         """
 
         self.num_class = num_class
@@ -33,7 +33,7 @@ class MnistMetaDataloader:
         ds = datasets.MNIST(root='./data', train=train, transform=transform, download=True)
 
         numbers = np.random.choice(range(10), size=10, replace=False)
-        train_nums, test_nums = numbers[:train_nums], numbers[train_nums:]
+        train_nums, test_nums = numbers[:num_train_class], numbers[num_train_class:]
 
         self.train_nums, self.test_nums = train_nums, test_nums
 
@@ -80,8 +80,7 @@ class MnistMetaDataloader:
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
-    # train_ds = MnistAnomaly(num_imgs=3, epoch_len=5, train=True, bs=1)
-    test_ds = MnistMetaDataloader(num_class=3, num_imgs=3, epoch_len=5, train=False, bs=2, device="cpu")
+    test_ds = MnistMetaDataloader(num_class=3, num_imgs=3, epoch_len=5, train=False, bs=2, num_train_class=3, device="cpu")
 
     for imgs, labs in test_ds:
         print(imgs.shape, labs.shape)

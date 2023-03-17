@@ -45,16 +45,16 @@ class CNN(nn.Module):
 
 
 # Prototype network probabilies from predicted features. Take last feature from each class as prediction and rest as conditioning.
-def split_features(features):
+def prototype_probs(features):
     # features.shape # [BS, num_classes, img_per_class, out_dim]
     num_class = features.shape[1]
 
+    # Last image of each class as target.
     test = features[:, :, -1]
     prototypes = features[:, :, :-1]
-    prototypes = torch.mean(prototypes, dim=2)
 
-    test = torch.arange(6).view(1, 3, 2).float()
-    prototypes = torch.tensor([[[0., 1], [3, 4], [10, 10]]])
+    # Prototypes are mean over class
+    prototypes = torch.mean(prototypes, dim=2)
 
     # Find norm between every pair by tiling one and interleaving the other.
     # tile: [1, 2, 3 ,1, 2, 3]
@@ -64,33 +64,38 @@ def split_features(features):
 
     distances = -torch.norm(test - prototypes, dim=-1)
 
-
     # Find true distance on diagonal of matrix.
-    distances = distances.view(-1, num_class, num_class)    # [bs, test no, prototype no]
+    distances = distances.view(-1, num_class, num_class)  # [bs, test no, prototype no]
 
     # Calculates every probabity. Only need diagonal
     probs = torch.nn.Softmax(dim=-1)(distances)
     prob_correct = torch.diagonal(probs, dim1=1, dim2=2)
 
-
-    print(prob_correct)
+    return prob_correct
 
 
 def main():
     num_class = 3
-    dl = MnistMetaDataloader(num_class=num_class, num_imgs=6, epoch_len=5, train=False, bs=2, device="cpu")
+    dl = MnistMetaDataloader(train=False, num_class=num_class, num_imgs=6, bs=8, epoch_len=1000, num_train_class=7, device="cpu")
 
-    model = CNN(out_dim=1)
+    model = CNN(out_dim=16)
     optimiser = torch.optim.Adam(model.parameters(), lr=3e-4)
 
-    for imgs, labels in dl:
-        # imgs.shape = [BS, num_classes * img_per_class, 1, 28, 28]
+    for i, (imgs, _) in enumerate(dl):
+        # imgs.shape = [BS, num_classes, img_per_class, 1, 28, 28]
         # Find features of every image and split out for each class
 
+        optimiser.zero_grad()
         features = model(imgs)
-        split_features(features)
+        prob_correct = prototype_probs(features)
+        prob_correct = torch.mean(prob_correct)
+        loss = - torch.log(prob_correct)
 
-        exit(3)
+        loss.backward()
+        optimiser.step()
+
+        if i % 10 == 0:
+            print(f'loss = {loss.item():.4g}, probability correct = {prob_correct.item():.4g}')
 
 
 if __name__ == "__main__":
