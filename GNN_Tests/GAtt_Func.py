@@ -12,12 +12,10 @@ from torch_geometric.typing import NoneType  # noqa
 from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
 from torch_geometric.utils import add_self_loops, remove_self_loops, softmax, is_sparse
 
-from torch_geometric.nn.inits import glorot, zeros
-
 import torch.nn.functional as tf
 
 
-class GATConv(MessagePassing):
+class GATConv_func(MessagePassing):
     r"""The graph attentional operator from the `"Graph Attention Networks"
     <https://arxiv.org/abs/1710.10903>`_ paper
 
@@ -136,43 +134,41 @@ class GATConv(MessagePassing):
         # self.att_src = Parameter(torch.Tensor(1, heads, out_channels))
         # self.att_dst = Parameter(torch.Tensor(1, heads, out_channels))
 
-    def forward(self, x: Union[Tensor, OptPairTensor], edge_index: Adj, lin_weight, att_src, att_dst, bias,
+    def forward(self, x: Union[Tensor, OptPairTensor], edge_index: Adj,
+                lin_weight, att_src, att_dst, bias,
                 edge_attr: OptTensor = None, size: Size = None,
                 return_attention_weights=None):
-
         H, C = self.heads, self.out_channels
 
         # We first transform the input node features. If a tuple is passed, we
         # transform source and target node features via separate weights:
 
         self.lin_src = tf.linear(x, lin_weight)
-        x_src = x_dst = self.lin_src.view(-1, H, C)
+        xs = self.lin_src.view(-1, H, C)
 
-        x = (x_src, x_dst)
+        x = (xs, xs)
         # Next, we compute node-level attention coefficients, both for source
         # and target nodes (if present):
-        self.att_src, self.att_dst = att_src, att_dst
-        alpha_src = (x_src * self.att_src).sum(dim=-1)
-        alpha_dst = (x_dst * self.att_dst).sum(-1)
+        # Identical to dot product here,
+        alpha_src = (xs * att_src).sum(-1)
+        alpha_dst = (xs * att_dst).sum(-1)
         alpha = (alpha_src, alpha_dst)
 
         # We only want to add self-loops for nodes that appear both as
         # source and target nodes:
-        num_nodes = x_src.size(0)
-
-        num_nodes = min(num_nodes, x_dst.size(0))
+        num_nodes = xs.size(0)
 
         # Add self-loops onto graph.
-        edge_index, edge_attr = remove_self_loops(
-            edge_index, edge_attr)
-        edge_index, edge_attr = add_self_loops(
-            edge_index, edge_attr, fill_value=self.fill_value,
+        edge_index, _ = remove_self_loops(
+            edge_index, None)
+        edge_index, _ = add_self_loops(
+            edge_index, None, fill_value=self.fill_value,
             num_nodes=num_nodes)
 
-        alpha = self.edge_updater(edge_index, alpha=alpha, edge_attr=edge_attr)
-
+        alpha = self.edge_updater(edge_index, alpha=alpha, edge_attr=None)
         out = self.propagate(edge_index, x=x, alpha=alpha, size=size)
 
+        # Concatenate output
         out = out.view(-1, self.heads * self.out_channels)
 
         out = out + bias
@@ -273,7 +269,7 @@ class GATConv(MessagePassing):
 
 
 def main():
-    in_dim, out_dim = 1, 3
+    in_dim, out_dim = 1, 5
     heads = 1
 
     src = torch.rand((1, heads, out_dim))
@@ -282,12 +278,27 @@ def main():
     linear_weight = torch.rand((out_dim, in_dim))
     bias = torch.rand(out_dim)
 
-    model = GATConv(in_dim, out_dim)
+    model = GATConv_func(in_dim, out_dim)
 
     edge_index = torch.tensor([[0, 1, 1, 2],
                                [1, 0, 2, 1]], dtype=torch.long)
     data = torch.tensor([[-1], [0], [1]], dtype=torch.float)
+
+    print("Model functional")
     print(model(data, edge_index, lin_weight=linear_weight, att_src=src, att_dst=dst, bias=bias))
+    print()
+    print()
+
+    from torch_geometric.nn import GATConv
+
+    model2 = GATConv(in_dim, out_dim)
+
+    model2.att_src = torch.nn.Parameter(src)
+    model2.att_dst = torch.nn.Parameter(dst)
+    model2.bias = torch.nn.Parameter(bias)
+    model2.lin_src.weight = torch.nn.Parameter(linear_weight)
+
+    print(model2(data, edge_index))
 
 
 if __name__ == "__main__":
@@ -297,4 +308,3 @@ if __name__ == "__main__":
     # tensor([[0.4632, 0.5067, 0.4027],
     #         [0.1512, 0.1654, 0.1315],
     #         [-0.3556, -0.3889, -0.3091]], grad_fn= < AddBackward0 >)
-

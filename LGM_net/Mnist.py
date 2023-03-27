@@ -78,7 +78,6 @@ class MnistMetaDataloader:
 
 
 if __name__ == "__main__":
-    from matplotlib import pyplot as plt
 
     test_ds = MnistMetaDataloader(num_class=3, num_imgs=3, epoch_len=5, train=False, bs=2, num_train_class=3, device="cpu")
 
