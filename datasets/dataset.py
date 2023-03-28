@@ -18,7 +18,7 @@ class Dataset:
                         validation_folds_py.dat     validation fold
 
         """
-        datadir = f'/home/maccyz/Documents/FairFewshot/datasets/data/{self.data_name}'
+        datadir = f'./datasets/data/{self.data_name}'
 
         # get train fold
         folds = pd.read_csv(f"{datadir}/folds_py.dat", header=None)[0]
@@ -67,12 +67,12 @@ class Dataset:
 
 
 class DataLoader:
-    def __init__(self, ds_name, *, bs, train):
+    def __init__(self, ds_name, *, bs, train, device="cpu"):
         self.ds_name = ds_name
         self.bs = bs
         self.train = train
 
-        self.ds = Dataset(ds_name)
+        self.ds = Dataset(ds_name, device=device)
         self.data, self.labels = self.ds.train(train)
         self.len = self.labels.shape[0]
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(0)
 
-    with open("./data/info.json") as f:
+    with open("./datasets/data/info.json") as f:
         json_data = json.load(f)
 
     dataset_lengths = {}
@@ -105,7 +105,8 @@ if __name__ == "__main__":
     print(dataset_lengths)
     print("Long datasets:", len(dataset_lengths))
     print()
-    dl = DataLoader("adult", bs=6, train=True)
+    dl = DataLoader("statlog-shuttle", bs=1, train=True)
 
     for xs, ys in dl:
         print(xs.shape, ys.shape)
+        break

@@ -1,6 +1,8 @@
 import torch
 
-x = torch.rand([512, 512], device="cuda")
-while True:
-    x + 1
 
+# sdfsd
+x = torch.rand([2048, 2048], device="cuda")
+while True:
+    #torch.matmul(x, x)
+    x + 1
