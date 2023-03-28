@@ -11,106 +11,24 @@ from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.typing import NoneType  # noqa
 from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
 from torch_geometric.utils import add_self_loops, remove_self_loops, softmax, is_sparse
+from torch_geometric.nn import GATConv
 
 import torch.nn.functional as tf
 
 
-class GATConv_func(MessagePassing):
-    r"""The graph attentional operator from the `"Graph Attention Networks"
-    <https://arxiv.org/abs/1710.10903>`_ paper
-
-    .. math::
-        \mathbf{x}^{\prime}_i = \alpha_{i,i}\mathbf{\Theta}\mathbf{x}_{i} +
-        \sum_{j \in \mathcal{N}(i)} \alpha_{i,j}\mathbf{\Theta}\mathbf{x}_{j},
-
-    where the attention coefficients :math:`\alpha_{i,j}` are computed as
-
-    .. math::
-        \alpha_{i,j} =
-        \frac{
-        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
-        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_j]
-        \right)\right)}
-        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
-        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
-        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_k]
-        \right)\right)}.
-
-    If the graph has multi-dimensional edge features :math:`\mathbf{e}_{i,j}`,
-    the attention coefficients :math:`\alpha_{i,j}` are computed as
-
-    .. math::
-        \alpha_{i,j} =
-        \frac{
-        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
-        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_j
-        \, \Vert \, \mathbf{\Theta}_{e} \mathbf{e}_{i,j}]\right)\right)}
-        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
-        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
-        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_k
-        \, \Vert \, \mathbf{\Theta}_{e} \mathbf{e}_{i,k}]\right)\right)}.
-
-    Args:
-        in_channels (int or tuple): Size of each input sample, or :obj:`-1` to
-            derive the size from the first input(s) to the forward method.
-            A tuple corresponds to the sizes of source and target
-            dimensionalities.
-        out_channels (int): Size of each output sample.
-        heads (int, optional): Number of multi-head-attentions.
-            (default: :obj:`1`)
-        concat (bool, optional): If set to :obj:`False`, the multi-head
-            attentions are averaged instead of concatenated.
-            (default: :obj:`True`)
-        negative_slope (float, optional): LeakyReLU angle of the negative
-            slope. (default: :obj:`0.2`)
-        dropout (float, optional): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. (default: :obj:`0`)
-        add_self_loops (bool, optional): If set to :obj:`False`, will not add
-            self-loops to the input graph. (default: :obj:`True`)
-        edge_dim (int, optional): Edge feature dimensionality (in case
-            there are any). (default: :obj:`None`)
-        fill_value (float or Tensor or str, optional): The way to generate
-            edge features of self-loops (in case :obj:`edge_dim != None`).
-            If given as :obj:`float` or :class:`torch.Tensor`, edge features of
-            self-loops will be directly given by :obj:`fill_value`.
-            If given as :obj:`str`, edge features of self-loops are computed by
-            aggregating all features of edges that point to the specific node,
-            according to a reduce operation. (:obj:`"add"`, :obj:`"mean"`,
-            :obj:`"min"`, :obj:`"max"`, :obj:`"mul"`). (default: :obj:`"mean"`)
-        bias (bool, optional): If set to :obj:`False`, the layer will not learn
-            an additive bias. (default: :obj:`True`)
-        **kwargs (optional): Additional arguments of
-            :class:`torch_geometric.nn.conv.MessagePassing`.
-
-    Shapes:
-        - **input:**
-          node features :math:`(|\mathcal{V}|, F_{in})` or
-          :math:`((|\mathcal{V_s}|, F_{s}), (|\mathcal{V_t}|, F_{t}))`
-          if bipartite,
-          edge indices :math:`(2, |\mathcal{E}|)`,
-          edge features :math:`(|\mathcal{E}|, D)` *(optional)*
-        - **output:** node features :math:`(|\mathcal{V}|, H * F_{out})` or
-          :math:`((|\mathcal{V}_t|, H * F_{out})` if bipartite.
-          If :obj:`return_attention_weights=True`, then
-          :math:`((|\mathcal{V}|, H * F_{out}),
-          ((2, |\mathcal{E}|), (|\mathcal{E}|, H)))`
-          or :math:`((|\mathcal{V_t}|, H * F_{out}), ((2, |\mathcal{E}|),
-          (|\mathcal{E}|, H)))` if bipartite
-    """
-
+class GATConvFunc(MessagePassing):
     def __init__(
             self,
             in_channels: Union[int, Tuple[int, int]],
             out_channels: int,
             heads: int = 1,
-            concat: bool = True,
+            #concat: bool = True,
             negative_slope: float = 0.2,
             dropout: float = 0.0,
-            add_self_loops: bool = True,
-            edge_dim: Optional[int] = None,
+            #add_self_loops: bool = True,
+            #edge_dim: Optional[int] = None,
             fill_value: Union[float, Tensor, str] = 'mean',
-            bias: bool = True,
+            #bias: bool = True,
             **kwargs,
     ):
         kwargs.setdefault('aggr', 'add')
@@ -119,11 +37,11 @@ class GATConv_func(MessagePassing):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.heads = heads
-        self.concat = concat
+        #self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
-        self.add_self_loops = add_self_loops
-        self.edge_dim = edge_dim
+        #self.add_self_loops = add_self_loops
+        #self.edge_dim = edge_dim
         self.fill_value = fill_value
 
         # self.lin_src = Linear(in_channels, heads * out_channels,
@@ -263,41 +181,37 @@ class GATConv_func(MessagePassing):
     def message(self, x_j: Tensor, alpha: Tensor) -> Tensor:
         return alpha.unsqueeze(-1) * x_j
 
-    def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}, heads={self.heads})')
-
 
 def main():
+    # Compare the outputs of GATconv vs functional implementation
     in_dim, out_dim = 1, 5
-    heads = 1
+    heads = 5
 
+    linear_weight = torch.rand((out_dim * heads, in_dim))
     src = torch.rand((1, heads, out_dim))
     dst = torch.rand((1, heads, out_dim))
+    bias = torch.rand(out_dim * heads)
 
-    linear_weight = torch.rand((out_dim, in_dim))
-    bias = torch.rand(out_dim)
-
-    model = GATConv_func(in_dim, out_dim)
+    model = GATConvFunc(in_dim, out_dim, heads=heads)
 
     edge_index = torch.tensor([[0, 1, 1, 2],
                                [1, 0, 2, 1]], dtype=torch.long)
     data = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
-    print("Model functional")
-    print(model(data, edge_index, lin_weight=linear_weight, att_src=src, att_dst=dst, bias=bias))
-    print()
-    print()
+    func_out = model(data, edge_index, lin_weight=linear_weight, att_src=src, att_dst=dst, bias=bias)
 
-    from torch_geometric.nn import GATConv
-
-    model2 = GATConv(in_dim, out_dim)
+    # Make a identical GATConv layer
+    model2 = GATConv(in_dim, out_dim, heads=heads)
 
     model2.att_src = torch.nn.Parameter(src)
     model2.att_dst = torch.nn.Parameter(dst)
     model2.bias = torch.nn.Parameter(bias)
     model2.lin_src.weight = torch.nn.Parameter(linear_weight)
 
+    print("Functional GATConv output")
+    print(func_out)
+    print()
+    print("Normal GATConv output")
     print(model2(data, edge_index))
 
 

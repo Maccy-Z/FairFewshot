@@ -1,19 +1,45 @@
 from datasets.dataset import DataLoader
-# from GAtt_Func import GATConv_func
+from GAtt_Func import GATConvFunc
 
 import torch
-from torch_geometric.nn import GATConv, GCNConv
 import numpy as np
 import torch.nn as nn
+from torch.nn import Parameter as P
+
+
+class GATConv(nn.Module):
+    def __init__(self, in_dim, out_dim, heads=1):
+        super().__init__()
+        # Init weights
+        lin_weight = torch.zeros((out_dim * heads, in_dim))
+        src = torch.zeros((1, heads, out_dim))
+        dst = torch.zeros((1, heads, out_dim))
+        bias = torch.zeros(out_dim * heads)
+
+        # Everything except bias has xavier uniform init
+        torch.nn.init.xavier_uniform_(lin_weight)
+        torch.nn.init.xavier_uniform_(src)
+        torch.nn.init.xavier_uniform_(dst)
+
+        # Make into trainable parameters
+        self.lin_weight = P(lin_weight)
+        self.att_src = P(src)
+        self.att_dst = P(dst)
+        self.bias = P(bias)
+
+        self.GAT_layer = GATConvFunc(in_dim, out_dim, heads=heads)
+
+    def forward(self, x, edge_idx):
+        x = self.GAT_layer.forward(x, edge_idx, self.lin_weight, self.att_dst, self.att_src, self.bias)
+        return x
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, hid_dim, out_dim, in_nodes):
+    def __init__(self, hid_dim, out_dim, in_nodes, heads=2):
         super().__init__()
 
         self.x_pos = torch.nn.Parameter(torch.zeros(in_nodes).view(-1, 1).to(torch.float32))
 
-        heads = 2
         hid_out = int(hid_dim / heads)
 
         self.l1 = GATConv(2, hid_out, heads=heads)
@@ -24,13 +50,8 @@ class GNN(torch.nn.Module):
         self.lin1 = nn.Linear(2, hid_dim)
         self.lin2 = nn.Linear(hid_dim, hid_dim)
 
-
     def forward(self, x, edge_idx):
         x = torch.cat([x, self.x_pos], dim=-1)
-
-        #x = self.lin1(x)
-        # x = F.relu(x)
-        # x = self.lin2(x)
 
         x = self.l1(x, edge_idx)
 
@@ -75,12 +96,11 @@ def test(model, device="cpu"):
     accs = []
 
     for i, (xs, ys) in enumerate(dl):
+        # Balance dataset by dropping 1/3 of y=0 values
         if ys == 0 and i % 3 != 0:
             continue
 
         xs = xs.view(-1, 1)
-        #
-
         ys = ys.to(int).view(-1)
 
         with torch.no_grad():
@@ -102,7 +122,8 @@ def train(device="cpu"):
     xs, ys = next(iter(dl))
 
     in_nodes, out_dim = xs.shape[1], ys.shape[1]
-    model = GNN(32, 2, in_nodes).to(device)
+
+    model = GNN(32, 2, in_nodes, 2).to(device)
     optim = torch.optim.Adam(model.parameters(), lr=3e-4)
 
     # Adult is categorical dataset
@@ -150,3 +171,4 @@ if __name__ == "__main__":
     dev = torch.device("cpu")
     m = train(device=dev)
     test(m, device=dev)
+

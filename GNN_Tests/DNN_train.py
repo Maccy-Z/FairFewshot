@@ -2,41 +2,33 @@ from datasets.dataset import DataLoader
 # from GAtt_Func import GATConv_func
 
 import torch
-from torch_geometric.nn import GATConv, GCNConv
-import numpy as np
+import torch.nn.functional as F
 import torch.nn as nn
+import numpy as np
 
 
-class GNN(torch.nn.Module):
-    def __init__(self, hid_dim, out_dim, in_nodes):
+class DNN(torch.nn.Module):
+    def __init__(self, in_dim, hid_dim, out_dim):
         super().__init__()
 
-        self.x_pos = torch.nn.Parameter(torch.zeros(in_nodes).view(-1, 1).to(torch.float32))
+        # x_pos = torch.arange(in_nodes).to(torch.float32).view(-1, 1)
+        # self.x_pos = x_pos - in_nodes / 2
 
-        heads = 2
-        hid_out = int(hid_dim / heads)
+        self.l1 = nn.Linear(in_dim, hid_dim)
+        self.l2 = nn.Linear(hid_dim, hid_dim)
+        self.l3 = nn.Linear(hid_dim, hid_dim)
+        self.out = nn.Linear(hid_dim, out_dim)
 
-        self.l1 = GATConv(2, hid_out, heads=heads)
-        self.l2 = GATConv(hid_dim, hid_out, heads=heads)
-        # self.l3 = GATConv(hid_dim, hid_out, heads=heads)
-        self.out = GATConv(hid_dim, out_dim, heads=1)
+        self.relu = nn.ReLU()
 
-        self.lin1 = nn.Linear(2, hid_dim)
-        self.lin2 = nn.Linear(hid_dim, hid_dim)
+    def forward(self, x):
 
-
-    def forward(self, x, edge_idx):
-        x = torch.cat([x, self.x_pos], dim=-1)
-
-        #x = self.lin1(x)
-        # x = F.relu(x)
-        # x = self.lin2(x)
-
-        x = self.l1(x, edge_idx)
-
-        x = self.l2(x, edge_idx)
+        x = self.l1(x)
+        x = self.relu(x)
+        x = self.l2(x)
+        x = self.relu(x)
         # x = self.l3(x, edge_idx)
-        x = self.out(x, edge_idx)
+        x = self.out(x)
 
         # Classification by taking average over graph
         x = torch.mean(x, dim=(-2))
@@ -44,33 +36,10 @@ class GNN(torch.nn.Module):
         return x
 
 
-# Generate additional fixed embeddings / graph
-def graph_and_embeddings(in_nodes):
-    # Densely connected graph
-    nodes = torch.arange(in_nodes)
-    interleave = torch.repeat_interleave(nodes, in_nodes)
-    repeat = torch.tile(nodes, (in_nodes,))
-    edge_idx = torch.stack([interleave, repeat])
-
-    # Positional embeddings
-    x_pos = torch.arange(in_nodes).to(torch.float32).view(-1, 1)
-    x_pos = x_pos - in_nodes / 2
-
-    return edge_idx, x_pos
-
-
 def test(model, device="cpu"):
-    model.eval()
-
     dl = DataLoader("adult", train=False, bs=1, device=device)
 
     # Sample data to get dimensions
-    xs, ys = next(iter(dl))
-
-    in_nodes, out_dim = xs.shape[1], ys.shape[1]
-
-    edge_idx, x_pos = graph_and_embeddings(in_nodes)
-    edge_idx, x_pos = edge_idx.to(device), x_pos.to(device)
 
     accs = []
 
@@ -78,13 +47,10 @@ def test(model, device="cpu"):
         if ys == 0 and i % 3 != 0:
             continue
 
-        xs = xs.view(-1, 1)
-        #
-
         ys = ys.to(int).view(-1)
 
         with torch.no_grad():
-            ys_pred = model(xs, edge_idx).view(1, -1)
+            ys_pred = model(xs).view(1, -1)
 
         predicted_labels = torch.argmax(ys_pred, dim=1)
         accuracy = (predicted_labels == ys).sum().item()
@@ -102,14 +68,11 @@ def train(device="cpu"):
     xs, ys = next(iter(dl))
 
     in_nodes, out_dim = xs.shape[1], ys.shape[1]
-    model = GNN(32, 2, in_nodes).to(device)
+    model = DNN(in_nodes, 64, 2).to(device)
     optim = torch.optim.Adam(model.parameters(), lr=3e-4)
 
     # Adult is categorical dataset
     loss_fn = torch.nn.CrossEntropyLoss()
-
-    edge_idx, x_pos = graph_and_embeddings(in_nodes)
-    edge_idx, x_pos = edge_idx.to(device), x_pos.to(device)
 
     accs = []
 
@@ -119,11 +82,9 @@ def train(device="cpu"):
             if ys == 0 and i % 3 != 0:
                 continue
 
-            xs = xs.view(-1, 1)
-
             ys = ys.to(int).view(-1)
 
-            ys_pred = model(xs, edge_idx).view(1, -1)
+            ys_pred = model(xs).view(1, -1)
 
             loss = loss_fn(ys_pred, ys)
             loss.backward()
@@ -145,7 +106,7 @@ def train(device="cpu"):
 
 
 if __name__ == "__main__":
-    torch.manual_seed(5)
+    torch.manual_seed(0)
 
     dev = torch.device("cpu")
     m = train(device=dev)
