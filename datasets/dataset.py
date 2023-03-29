@@ -1,3 +1,4 @@
+# Loads datasets.
 import torch
 import numpy as np
 import pandas as pd
@@ -5,7 +6,7 @@ import random
 
 torch.manual_seed(0)
 
-
+# Loads a single dataset. Split into train and valid.
 class Dataset:
     def __init__(self, data_name, dtype=torch.float32, device="cpu"):
         self.data_name = data_name
@@ -66,6 +67,7 @@ class Dataset:
         return data, labels
 
 
+# Randomly samples from dataset.
 class DataLoader:
     def __init__(self, ds_name, *, bs, train, device="cpu"):
         self.ds_name = ds_name
