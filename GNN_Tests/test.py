@@ -1,10 +1,10 @@
 import numpy as np
 
-# Create two lists
-list1 = [1, 2, 3, 4, 5]
-list2 = [3, 4, 5, 6, 7]
+# example list
+my_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-# Get the non-overlapping items
-non_overlap = np.setdiff1d(list1, list2)
+indicies = np.random.choice(10, size=10, replace=False)
 
-print(non_overlap)
+a, b, c = np.split(indicies, (3, 4))
+print(a, b, c)
+

@@ -9,18 +9,11 @@ torch.manual_seed(0)
 
 # Loads a single dataset. Split into train and valid.
 class Dataset:
-    def __init__(self, data_name, dtype=torch.float32, device="cpu"):
+    def __init__(self, data_name, split="train", dtype=torch.float32, device="cpu"):
         self.data_name = data_name
         self.device = device
         self.dtype = dtype
-        """
-        Dataset format: {folder}_py.dat             predictors
-                        labels_py.dat               labels for predictors
-                        folds_py.dat                test fold
-                        validation_folds_py.dat     validation fold
-        
-        Combine data and label into single table to sample from. 
-        
+        """      
         Data columns and num_catagories, 
         0, Age: 76
         1, Workclass: 9
@@ -39,54 +32,30 @@ class Dataset:
         14, Income >50k: 2
         
         """
-        datadir = f'./datasets/data/{self.data_name}'
-
-        # Get train and test folds
-        folds = pd.read_csv(f"{datadir}/folds_py.dat", header=None)[0]
-        folds = np.asarray(folds)
-        vldfold = pd.read_csv(f"{datadir}/validation_folds_py.dat", header=None)[0]
-        vldfold = np.asarray(vldfold)
+        datadir = f'./datasets/data_split/{self.data_name}'
 
         # Read data and labels
-        predictors = pd.read_csv(f"{datadir}/{self.data_name}_py.dat", header=None)
-        predictors = np.asarray(predictors)
-        targets = pd.read_csv(f"{datadir}/labels_py.dat", header=None)
-        targets = np.asarray(targets)
-
-        full_dataset = np.concatenate([predictors, targets], axis=-1)
+        full_dataset = pd.read_csv(f"{datadir}/{split}", header=None)
+        full_dataset = np.asarray(full_dataset)
 
         # Combine validation and test folds together
-        data = {}
-        data_train = full_dataset[(1 - folds) == 1 & (vldfold == 0)]
-        data_valid = full_dataset[(vldfold == 1) | (folds == 1)]
 
-        data["train"] = self._to_tensor(data_train)
-        data["valid"] = self._to_tensor(data_valid)
-
-        self.all_data = data
+        self.data = self._to_tensor(full_dataset)
 
     def _to_tensor(self, array: np.array):
         return torch.from_numpy(array).to(self.device).to(self.dtype)
 
-    def train(self, train: bool):
-        if train:
-            return self.all_data["train"]
 
-        else:
-            return self.all_data["valid"]
-
-
-# Randomly samples from dataset.
+# Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, num_rows, bs, num_xs, train, device="cpu"):
+    def __init__(self, *, num_rows, bs, num_xs, device="cpu", split="train"):
         self.num_rows = num_rows
-        self.train = train
         self.bs = bs
         self.num_xs = num_xs
 
-        self.ds = Dataset("adult", device=device)
+        self.ds = Dataset("adult", device=device, split=split)
 
-        self.data = self.ds.train(train)
+        self.data = self.ds.data
         self.len = self.data.shape[0]
         self.cols = self.data.shape[1]
 
@@ -100,6 +69,9 @@ class AdultDataLoader:
     # Pick out bs rows from dataset. Select 1 column to be target and random columns as predictors.
     # Only certain column can be targets since some are continuous.
     def __iter__(self):
+        """
+        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+        """
         num_rows = self.num_rows
         permutation = torch.randperm(self.data.shape[0])
         data = self.data[permutation]
@@ -107,27 +79,59 @@ class AdultDataLoader:
         allowed_targets = [9, 14]
         cols = np.arange(self.cols)
 
-        for st in torch.arange(0, self.len - num_rows, num_rows):
-            # Target
-            target_col = np.random.choice(allowed_targets)
-            target_col = torch.tensor([target_col])
+        for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
+            # Get target and predictor columns
+            target_cols = np.random.choice(allowed_targets, size=self.bs)
 
-            # Predictors
-            predict_cols = np.setdiff1d(cols, target_col)
-            predict_cols = np.random.choice(predict_cols, size=self.num_xs, replace=False)
-            predict_cols = torch.from_numpy(predict_cols)
+            predict_cols = np.empty((self.bs, self.num_xs))
+            for batch, target in enumerate(target_cols):
+                row_cols = np.setdiff1d(cols, target)
+                predict_cols[batch] = np.random.choice(row_cols, size=self.num_xs, replace=False)
+
+            target_cols = torch.from_numpy(target_cols).int()
+            predict_cols = torch.from_numpy(predict_cols).int()
 
             # Rows of data to select
-            selected_data = data[st:st + num_rows]
+            select_data = data[st:st + num_rows * self.bs]
 
-            xs = torch.index_select(selected_data, dim=1, index=predict_cols)
-            ys = torch.index_select(selected_data, dim=1, index=target_col)
+            # Pick out wanted columns
+            predict_idxs = predict_cols.repeat_interleave(self.num_rows, dim=0)
+            target_idxs = target_cols.repeat_interleave(self.num_rows)
 
-            yield xs, ys.int()
+            xs = select_data[np.arange(10).reshape(-1, 1), predict_idxs]
+            ys = select_data[np.arange(10), target_idxs]
 
+            xs = xs.view(self.bs, self.num_rows, self.num_xs)       # [bs, num_rows, num_cols]
+            ys = ys.view(self.bs, self.num_rows, 1)                 # [bs, num_rows, 1]
+
+            # Convert ys to binary 0, 1. Using .int() works here for this specific dataset.
+            yield xs, ys.long()
+
+    # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
+    def dataset_2_vec_dl(self, xs, ys):
+        xs = xs.view(self.bs * self.num_rows, self.num_xs)
+        ys = ys.view(self.bs * self.num_rows, 1)
+
+        pair_flat = torch.empty(self.bs * self.num_rows, self.num_xs, 2)
+        for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
+
+            # Only allow 1D for ys
+            ys_k = ys_k.repeat(self.num_xs)
+            pairs = torch.stack([xs_k, ys_k], dim=-1)
+
+            pair_flat[k] = pairs
+
+        pairs = pair_flat.view(self.bs, self.num_rows, self.num_xs, 2)
+
+        return pairs
 
 if __name__ == "__main__":
-    dl = AdultDataLoader(num_rows=5, bs=5, num_xs=10, train=True)
+    np.random.seed(0)
+    dl = AdultDataLoader(num_rows=5, bs=2, num_xs=10)
 
-    for _ in dl:
-        print(_)
+    for x, y in dl:
+        p = dl.dataset_2_vec_dl(x, y)
+        print(p)
+        break
+
+
