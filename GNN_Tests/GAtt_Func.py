@@ -19,48 +19,39 @@ import torch.nn.functional as tf
 class GATConvFunc(MessagePassing):
     def __init__(
             self,
-            in_channels: Union[int, Tuple[int, int]],
-            out_channels: int,
-            heads: int = 1,
-            #concat: bool = True,
+            #in_channels: Union[int, Tuple[int, int]],
+            #out_channels: int,
+            #heads: int = 1,
+            # concat: bool = True,
             negative_slope: float = 0.2,
             dropout: float = 0.0,
-            #add_self_loops: bool = True,
-            #edge_dim: Optional[int] = None,
+            # add_self_loops: bool = True,
+            # edge_dim: Optional[int] = None,
             fill_value: Union[float, Tensor, str] = 'mean',
-            #bias: bool = True,
+            # bias: bool = True,
             **kwargs,
     ):
         kwargs.setdefault('aggr', 'add')
         super().__init__(node_dim=0, **kwargs)
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.heads = heads
-        #self.concat = concat
+        #self.in_channels = in_channels
+        #self.out_channels = out_channels
+        #self.heads = heads
+        # self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
-        #self.add_self_loops = add_self_loops
-        #self.edge_dim = edge_dim
+        # self.add_self_loops = add_self_loops
+        # self.edge_dim = edge_dim
         self.fill_value = fill_value
 
-        # self.lin_src = Linear(in_channels, heads * out_channels,
-        #                       bias=False, weight_initializer='glorot')
-        # self.lin_dst = self.lin_src
-
-        # The learnable parameters to compute attention coefficients:
-        # self.att_src = Parameter(torch.Tensor(1, heads, out_channels))
-        # self.att_dst = Parameter(torch.Tensor(1, heads, out_channels))
-
     def forward(self, x: Union[Tensor, OptPairTensor], edge_index: Adj,
-                lin_weight, att_src, att_dst, bias,
-                edge_attr: OptTensor = None, size: Size = None,
-                return_attention_weights=None):
-        H, C = self.heads, self.out_channels
+                lin_weight, att_src, att_dst, bias):
+
+        #H, C = self.heads, self.out_channels
+        H, C = att_src.shape[-2], att_dst.shape[-1]
 
         # We first transform the input node features. If a tuple is passed, we
         # transform source and target node features via separate weights:
-
         self.lin_src = tf.linear(x, lin_weight)
         xs = self.lin_src.view(-1, H, C)
 
@@ -84,10 +75,10 @@ class GATConvFunc(MessagePassing):
             num_nodes=num_nodes)
 
         alpha = self.edge_updater(edge_index, alpha=alpha, edge_attr=None)
-        out = self.propagate(edge_index, x=x, alpha=alpha, size=size)
+        out = self.propagate(edge_index, x=x, alpha=alpha, size=None)
 
         # Concatenate output
-        out = out.view(-1, self.heads * self.out_channels)
+        out = out.view(-1, H * C)
 
         out = out + bias
 
@@ -172,7 +163,6 @@ class GATConvFunc(MessagePassing):
         # we simply need to sum them up to "emulate" concatenation:
 
         alpha = alpha_j + alpha_i
-
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = softmax(alpha, index, ptr, size_i)
         alpha = F.dropout(alpha, p=self.dropout, training=self.training)
@@ -185,14 +175,14 @@ class GATConvFunc(MessagePassing):
 def main():
     # Compare the outputs of GATconv vs functional implementation
     in_dim, out_dim = 1, 5
-    heads = 5
+    heads = 2
 
     linear_weight = torch.rand((out_dim * heads, in_dim))
     src = torch.rand((1, heads, out_dim))
     dst = torch.rand((1, heads, out_dim))
     bias = torch.rand(out_dim * heads)
 
-    model = GATConvFunc(in_dim, out_dim, heads=heads)
+    model = GATConvFunc()
 
     edge_index = torch.tensor([[0, 1, 1, 2],
                                [1, 0, 2, 1]], dtype=torch.long)

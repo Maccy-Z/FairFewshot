@@ -48,7 +48,7 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, num_rows, bs, num_xs, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_xs, device="cpu", split="train"):
         self.num_rows = num_rows
         self.bs = bs
         self.num_xs = num_xs
@@ -58,13 +58,6 @@ class AdultDataLoader:
         self.data = self.ds.data
         self.len = self.data.shape[0]
         self.cols = self.data.shape[1]
-
-        # for i in range(len(self.data[0])):
-        #     column = self.data[:, i]
-        #
-        #     unique_values = np.unique(column)
-        #
-        #     print(f"{i}, Number of unique values:", len(unique_values))
 
     # Pick out bs rows from dataset. Select 1 column to be target and random columns as predictors.
     # Only certain column can be targets since some are continuous.
@@ -98,11 +91,11 @@ class AdultDataLoader:
             predict_idxs = predict_cols.repeat_interleave(self.num_rows, dim=0)
             target_idxs = target_cols.repeat_interleave(self.num_rows)
 
-            xs = select_data[np.arange(10).reshape(-1, 1), predict_idxs]
-            ys = select_data[np.arange(10), target_idxs]
+            xs = select_data[np.arange(self.bs * self.num_rows).reshape(-1, 1), predict_idxs]
+            ys = select_data[np.arange(self.bs * self.num_rows), target_idxs]
 
-            xs = xs.view(self.bs, self.num_rows, self.num_xs)       # [bs, num_rows, num_cols]
-            ys = ys.view(self.bs, self.num_rows, 1)                 # [bs, num_rows, 1]
+            xs = xs.view(self.bs, self.num_rows, self.num_xs)  # [bs, num_rows, num_cols]
+            ys = ys.view(self.bs, self.num_rows, 1)  # [bs, num_rows, 1]
 
             # Convert ys to binary 0, 1. Using .int() works here for this specific dataset.
             yield xs, ys.long()
@@ -114,7 +107,6 @@ class AdultDataLoader:
 
         pair_flat = torch.empty(self.bs * self.num_rows, self.num_xs, 2)
         for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-
             # Only allow 1D for ys
             ys_k = ys_k.repeat(self.num_xs)
             pairs = torch.stack([xs_k, ys_k], dim=-1)
@@ -125,13 +117,15 @@ class AdultDataLoader:
 
         return pairs
 
+
 if __name__ == "__main__":
     np.random.seed(0)
-    dl = AdultDataLoader(num_rows=5, bs=2, num_xs=10)
+    dl = AdultDataLoader(bs=2, num_rows=5, num_xs=10)
 
     for x, y in dl:
+        print(x, y)
+
         p = dl.dataset_2_vec_dl(x, y)
         print(p)
+        print(p.shape)
         break
-
-

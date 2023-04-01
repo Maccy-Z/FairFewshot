@@ -5,6 +5,7 @@ import pandas as pd
 import random
 import os
 import csv
+
 torch.manual_seed(0)
 
 
@@ -52,8 +53,6 @@ def dataset(data_name, train_frac, val_frac):
 
 
 if __name__ == "__main__":
-
-
     torch.manual_seed(0)
 
-    dl = dataset("adult", train_frac=0.7, val_frac=0.1)
+    dataset("adult", train_frac=0.7, val_frac=0.1)

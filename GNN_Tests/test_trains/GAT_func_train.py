@@ -1,5 +1,5 @@
 from datasets.dataset import DataLoader
-from GAtt_Func import GATConvFunc
+from GNN_Tests.GAtt_Func import GATConvFunc
 
 import torch
 import numpy as np
@@ -27,7 +27,7 @@ class GATConv(nn.Module):
         self.att_dst = P(dst)
         self.bias = P(bias)
 
-        self.GAT_layer = GATConvFunc(in_dim, out_dim, heads=heads)
+        self.GAT_layer = GATConvFunc()
 
     def forward(self, x, edge_idx):
         x = self.GAT_layer.forward(x, edge_idx, self.lin_weight, self.att_dst, self.att_src, self.bias)
@@ -52,7 +52,7 @@ class GNN(torch.nn.Module):
 
     def forward(self, x, edge_idx):
         x = torch.cat([x, self.x_pos], dim=-1)
-
+        print(x.shape)
         x = self.l1(x, edge_idx)
 
         x = self.l2(x, edge_idx)
