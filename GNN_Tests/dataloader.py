@@ -48,10 +48,9 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_xs, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, device="cpu", split="train"):
         self.num_rows = num_rows
         self.bs = bs
-        self.num_xs = num_xs
 
         self.ds = Dataset("adult", device=device, split=split)
 
@@ -61,11 +60,14 @@ class AdultDataLoader:
 
     # Pick out bs rows from dataset. Select 1 column to be target and random columns as predictors.
     # Only certain column can be targets since some are continuous.
+    # TODO: Handle dataset splits better.
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         num_rows = self.num_rows
+
+        # Randomise data order
         permutation = torch.randperm(self.data.shape[0])
         data = self.data[permutation]
 
@@ -73,6 +75,9 @@ class AdultDataLoader:
         cols = np.arange(self.cols)
 
         for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
+            # TODO: Allow flexible number of columns within a batch. Currently, each batch is fixed num_xs.
+            self.num_xs = 10
+
             # Get target and predictor columns
             target_cols = np.random.choice(allowed_targets, size=self.bs)
 
@@ -97,11 +102,15 @@ class AdultDataLoader:
             xs = xs.view(self.bs, self.num_rows, self.num_xs)  # [bs, num_rows, num_cols]
             ys = ys.view(self.bs, self.num_rows, 1)  # [bs, num_rows, 1]
 
-            # Convert ys to binary 0, 1. Using .int() works here for this specific dataset.
-            yield xs, ys.long()
+            # TODO: Better solution than using .long() to convert to bianry.
+            ys = ys.long()
+
+            pairs = self.d2v_iter(xs, ys)
+
+            yield xs, ys, pairs
 
     # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
-    def dataset_2_vec_dl(self, xs, ys):
+    def d2v_iter(self, xs, ys):
         xs = xs.view(self.bs * self.num_rows, self.num_xs)
         ys = ys.view(self.bs * self.num_rows, 1)
 
@@ -120,12 +129,12 @@ class AdultDataLoader:
 
 if __name__ == "__main__":
     np.random.seed(0)
-    dl = AdultDataLoader(bs=2, num_rows=5, num_xs=10)
+    dl = AdultDataLoader(bs=2, num_rows=5)
 
     for x, y in dl:
         print(x, y)
+        break
 
-        p = dl.dataset_2_vec_dl(x, y)
-        print(p)
-        print(p.shape)
+    for pair in dl.d2v_iter():
+        print(pair)
         break
