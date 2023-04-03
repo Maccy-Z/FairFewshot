@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from DeepSets.anomaly_detction.mnist_anomaly_dl import MnistAnomaly
-from DeepSets.anomaly_detction.equivariant_layers import EquivariantLayer
+from old.DeepSets.anomaly_detction.mnist_anomaly_dl import MnistAnomaly
+from old.DeepSets.anomaly_detction.equivariant_layers import EquivariantLayer
 
 import random
 

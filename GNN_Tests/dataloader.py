@@ -105,26 +105,27 @@ class AdultDataLoader:
             # TODO: Better solution than using .long() to convert to bianry.
             ys = ys.long()
 
-            pairs = self.d2v_iter(xs, ys)
+            yield xs, ys
 
-            yield xs, ys, pairs
 
-    # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
-    def d2v_iter(self, xs, ys):
-        xs = xs.view(self.bs * self.num_rows, self.num_xs)
-        ys = ys.view(self.bs * self.num_rows, 1)
+# Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
+def d2v_pairer(xs, ys):
+    bs, num_rows, num_xs = xs.shape
 
-        pair_flat = torch.empty(self.bs * self.num_rows, self.num_xs, 2)
-        for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-            # Only allow 1D for ys
-            ys_k = ys_k.repeat(self.num_xs)
-            pairs = torch.stack([xs_k, ys_k], dim=-1)
+    xs = xs.view(bs * num_rows, num_xs)
+    ys = ys.view(bs * num_rows, 1)
 
-            pair_flat[k] = pairs
+    pair_flat = torch.empty(bs * num_rows, num_xs, 2)
+    for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
+        # Only allow 1D for ys
+        ys_k = ys_k.repeat(num_xs)
+        pairs = torch.stack([xs_k, ys_k], dim=-1)
 
-        pairs = pair_flat.view(self.bs, self.num_rows, self.num_xs, 2)
+        pair_flat[k] = pairs
 
-        return pairs
+    pairs = pair_flat.view(bs, num_rows, num_xs, 2)
+
+    return pairs
 
 
 if __name__ == "__main__":

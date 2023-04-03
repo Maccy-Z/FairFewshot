@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from dataloader import AdultDataLoader
+from dataloader import AdultDataLoader, d2v_pairer
 from GAtt_Func import GATConvFunc
 
 
@@ -262,15 +262,25 @@ def train():
     optim_target = torch.optim.SGD(model.target_params(), lr=0.001, momentum=0.9)
 
     accs = []
-    for batch_no, ((xs_meta, ys_meta, pairs_meta), (xs_target, ys_target, pairs_target)) in enumerate(zip(dl_train, dl_valid)):
+    for batch_no, ((xs_meta, ys_meta), (xs_target, ys_target)) in enumerate(zip(dl_train, dl_valid)):
         # xs.shape = [bs, num_rows, num_xs]
 
-        # One pass with the meta-set and one pass with target-set.
-        # Meta pass
         # Temp target
+        label = torch.randint(0, 2, (1,))
+        ys_meta = torch.ones_like(ys_meta) * label
+        xs_meta = torch.ones_like(xs_meta) * label
 
-        ys_meta = torch.ones_like(ys_meta)
+        label = torch.randint(0, 2, (1,))
+        ys_target = torch.ones_like(ys_target) * label
+        xs_target = torch.ones_like(xs_target) * label
 
+        # Reshape for dataset2vec
+        pairs_meta = d2v_pairer(xs_meta, ys_meta)
+        pairs_target = d2v_pairer(xs_target, ys_target)
+
+        # One pass with the meta-set and one pass with target-set.
+
+        # Meta pass
         ys_pred_meta = model(xs_meta, pairs_meta)
 
         ys_meta = ys_meta.view(-1)
@@ -284,9 +294,6 @@ def train():
         optim_target.zero_grad()
 
         # Target pass
-        # Temp target
-        ys_target = torch.ones_like(ys_target)
-
         ys_pred_targ = model(xs_target, pairs_target)
 
         ys_target = ys_target.view(-1)
@@ -299,15 +306,17 @@ def train():
         optim_target.zero_grad()
         optim_meta.zero_grad()
 
+        # Accuracy recording
         predicted_labels = torch.argmax(ys_pred_targ, dim=1)
         accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
         accs.append(accuracy)
 
-        if batch_no % 2 == 0:
-            print()
-            print(np.mean(accs))
+        if batch_no % 50 == 0:
+            print(f'{np.mean(accs)*100:.2f}')
             accs = []
 
 
 if __name__ == "__main__":
+    np.random.seed(0)
+    torch.manual_seed(0)
     train()

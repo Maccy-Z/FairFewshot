@@ -1,5 +1,5 @@
 import torch
-from DeepSets.anomaly_detction.mnist_anomaly_dl import MnistAnomaly
+from old.DeepSets.anomaly_detction.mnist_anomaly_dl import MnistAnomaly
 import random
 
 random.seed(0)
