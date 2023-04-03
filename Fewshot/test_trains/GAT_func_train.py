@@ -1,5 +1,5 @@
 from datasets.dataset import DataLoader
-from GNN_Tests.GAtt_Func import GATConvFunc
+from Fewshot.GAtt_Func import GATConvFunc
 
 import torch
 import numpy as np
