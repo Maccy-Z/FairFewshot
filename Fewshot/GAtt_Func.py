@@ -7,10 +7,9 @@ from torch.nn import Parameter
 from torch_sparse import SparseTensor, set_diag
 
 from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.typing import NoneType  # noqa
 from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
-from torch_geometric.utils import add_self_loops, remove_self_loops, softmax, is_sparse
+from torch_geometric.utils import add_self_loops, remove_self_loops, softmax
 from torch_geometric.nn import GATConv
 
 import torch.nn.functional as tf

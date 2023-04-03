@@ -48,9 +48,10 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_target, device="cpu", split="train"):
         self.num_rows = num_rows
         self.bs = bs
+        self.num_target = num_target
 
         self.ds = Dataset("adult", device=device, split=split)
 
@@ -65,7 +66,7 @@ class AdultDataLoader:
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
-        num_rows = self.num_rows
+        num_rows = self.num_rows + self.num_target
 
         # Randomise data order
         permutation = torch.randperm(self.data.shape[0])
@@ -93,23 +94,28 @@ class AdultDataLoader:
             select_data = data[st:st + num_rows * self.bs]
 
             # Pick out wanted columns
-            predict_idxs = predict_cols.repeat_interleave(self.num_rows, dim=0)
-            target_idxs = target_cols.repeat_interleave(self.num_rows)
+            predict_idxs = predict_cols.repeat_interleave(num_rows, dim=0)
+            target_idxs = target_cols.repeat_interleave(num_rows)
 
-            xs = select_data[np.arange(self.bs * self.num_rows).reshape(-1, 1), predict_idxs]
-            ys = select_data[np.arange(self.bs * self.num_rows), target_idxs]
+            xs = select_data[np.arange(self.bs * num_rows).reshape(-1, 1), predict_idxs]
+            ys = select_data[np.arange(self.bs * num_rows), target_idxs]
 
-            xs = xs.view(self.bs, self.num_rows, self.num_xs)  # [bs, num_rows, num_cols]
-            ys = ys.view(self.bs, self.num_rows, 1)  # [bs, num_rows, 1]
+            xs = xs.view(self.bs, num_rows, self.num_xs)  # [bs, num_rows, num_cols]
+            ys = ys.view(self.bs, num_rows, 1)  # [bs, num_rows, 1]
 
             # TODO: Better solution than using .long() to convert to bianry.
             ys = ys.long()
+
+            # Flip to balance dataset
+            if np.random.randint(0, 2):
+                ys = (ys == 0).long()
 
             yield xs, ys
 
 
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
 def d2v_pairer(xs, ys):
+#    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
     bs, num_rows, num_xs = xs.shape
 
     xs = xs.view(bs * num_rows, num_xs)
@@ -130,7 +136,7 @@ def d2v_pairer(xs, ys):
 
 if __name__ == "__main__":
     np.random.seed(0)
-    dl = AdultDataLoader(bs=2, num_rows=5)
+    dl = AdultDataLoader(bs=2, num_rows=5, num_target=3)
 
     for x, y in dl:
         print(x, y)

@@ -1,14 +1,16 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 from dataloader import AdultDataLoader, d2v_pairer
 from GAtt_Func import GATConvFunc
 
+from config import get_config
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size):
+    def __init__(self, h_size, out_size, pos_enc_dim):
         super().__init__()
         self.h_size = h_size
         self.out_size = out_size
@@ -17,7 +19,7 @@ class SetSetModel(nn.Module):
         self.f_1 = nn.Linear(2, h_size)
         self.f_2_r = nn.Linear(h_size, h_size)
         self.f_3_r = nn.Linear(h_size, h_size)
-        self.f_4_r = nn.Linear(h_size, h_size)
+        #self.f_4_r = nn.Linear(h_size, h_size)
         self.f_5 = nn.Linear(h_size, h_size)
 
         # g network
@@ -28,8 +30,12 @@ class SetSetModel(nn.Module):
         self.h_1 = nn.Linear(h_size, h_size)
         self.h_2_r = nn.Linear(h_size, h_size)
         self.h_3_r = nn.Linear(h_size, h_size)
-        self.h_4_r = nn.Linear(h_size, h_size)
+        #self.h_4_r = nn.Linear(h_size, h_size)
         self.h_5 = nn.Linear(h_size, out_size)
+
+        # Embedding Network
+        self.p_1 = nn.Linear(h_size, h_size)
+        self.p_2 = nn.Linear(h_size, pos_enc_dim)
 
         self.relu = nn.ReLU()
 
@@ -38,27 +44,32 @@ class SetSetModel(nn.Module):
         # Final dim of x is pair (x_i, y)
 
         # TODO: Properly handle batches
-        ys = []
+        ys, pos_encs = [], []
         for x in xs:
-            ys.append(self.forward_layers(x))
+            outs, embeds = self.forward_layers(x)
+            ys.append(outs)
+            pos_encs.append(embeds)
 
         ys = torch.stack(ys)
+        pos_encs = torch.stack(pos_encs)
 
-        return ys
+        return ys, pos_encs
 
     def forward_layers(self, x):
+        # x.shape = [num_rows, num_cols, 2]
+
         # f network
-        # x.shape = [x_dim, n_samples, 2]
-        x = self.relu(self.f_1(x))  # [x_dim, n_samples, h_size]
+        x = self.relu(self.f_1(x))  # [num_rows, num_cols, h_size]
         x_r = self.relu(self.f_2_r(x))
         x = x + x_r
         x_r = self.relu(self.f_3_r(x))
         x = x + x_r
-        x_r = self.relu(self.f_4_r(x))
-        x = x + x_r
+        # x_r = self.relu(self.f_4_r(x))
+        # x = x + x_r
         x = self.relu(self.f_5(x))
 
-        x = torch.mean(x, dim=-2)  # [x_dim, y_dim, h_size]
+        x = torch.mean(x, dim=0)  # [num_rows, y_dim, h_size]
+        x_save = x
 
         # g network
         x = self.relu(self.g_1(x))
@@ -71,18 +82,25 @@ class SetSetModel(nn.Module):
         x = x + x_r
         x_r = self.relu(self.h_3_r(x))
         x = x + x_r
-        x_r = self.relu(self.h_4_r(x))
-        x = x + x_r
+        # x_r = self.relu(self.h_4_r(x))
+        # x = x + x_r
         x = self.relu(self.h_5(x))
 
-        return x
+        # Embedding
+
+        pos_enc = self.p_1(x_save)
+        pos_enc = self.relu(pos_enc)
+        pos_enc = self.p_2(pos_enc)
+
+        return x, pos_enc
 
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
     def __init__(self, in_dim, hid_dim, out_sizes: list):
         """
-        :param in_size: Dim of input from dataset2vec
+        :param in_dim: Dim of input from dataset2vec
+        :param hid_dim: Internal hidden size
         :param out_sizes: List of params for GATConv layers [num_layers][in_dim, out_dim, heads]
             Each GATConv layer requires:
                 linear_weight = (out_dim * heads, in_dim)
@@ -103,6 +121,16 @@ class WeightGenerator(nn.Module):
 
             # Need to register each module manually
             self.add_module(f'weight_gen_{i}', model)
+
+        # Weights for final linear classificaion layer
+        self.num_classes = 2
+        self.gat_out_dim = self.out_sizes[-1][-2]
+        lin_out_dim = self.gat_out_dim * self.num_classes
+        self.weight_gen_linear = nn.Sequential(
+            nn.Linear(self.gen_in_dim, self.gen_hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.gen_hid_dim, lin_out_dim)
+        )
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -126,19 +154,19 @@ class WeightGenerator(nn.Module):
 
         return module, weight_idxs, (gat_in_dim, gat_out_dim, gat_heads)
 
-    def forward(self, d2v_xs):
-        # d2v_xs.shape = [BS, d2v_out]
+    def forward(self, d2v_embed):
+        # d2v_embed.shape = [BS, d2v_out]
 
         layer_weights = []
         for module, split_idxs, (gat_in, gat_out, gat_heads) in self.layer_model:
 
-            all_weights = module(d2v_xs)  # [BS, layers_size]
+            all_weights = module(d2v_embed)  # [BS, layers_size]
 
             # Split weights into individual matrices and a list of batches.
             batch = []
             for batch_weights in all_weights:
                 lin, src, dst, bias = torch.split(batch_weights, split_idxs)
-
+                lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
                 # Reshape each weight matrix
                 lin = lin.view(gat_out * gat_heads, gat_in)
                 src = src.view(1, gat_heads, gat_out)
@@ -148,20 +176,22 @@ class WeightGenerator(nn.Module):
                 batch.append((lin, src, dst, bias))
             layer_weights.append(batch)
 
-        layer_weights = list(zip(*layer_weights))
+        layer_weights = list(zip(*layer_weights))  # [BS, num_layers, tensor[4]]
 
-        # layer_weights.shape = [BS, num_layers, tensor[4]]
-        return layer_weights
+        # Weights for linear layer
+        lin_weights = self.weight_gen_linear(d2v_embed)
+        lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
+
+        return layer_weights, lin_weights
 
 
 class GNN(nn.Module):
-    def __init__(self, gat_out_dim):
+    def __init__(self):
         super().__init__()
         self.GATConv = GATConvFunc()
-        self.out_lin = nn.Linear(gat_out_dim, 2)
 
     # Generate additional fixed embeddings / graph
-    def graph_and_embeddings(self, num_rows, num_xs):
+    def graph_matrix(self, num_rows, num_xs):
         # Densely connected graph
         nodes = torch.arange(num_xs)
         interleave = torch.repeat_interleave(nodes, num_xs)
@@ -175,32 +205,29 @@ class GNN(nn.Module):
 
         edge_idx = torch.cat(edge_idx, dim=-1)
 
-        # Positional embeddings
-        x_pos = torch.zeros(num_xs * num_rows).view(-1, 1)
+        return edge_idx
 
-        return edge_idx, x_pos
-
-    def forward(self, xs, weight_list: list[list[torch.Tensor]]):
+    def forward(self, xs, pos_enc, weight_list: tuple[list[list[torch.Tensor]], list]):
         """
-        :param xs:               x.shape = [BS, num_rows, num_xs]
-        :param weight_list:     weight_list.shape = [BS, num_layers, tensor[4]]
+        :param xs:              shape = [BS, num_rows, num_xs]
+        :param pos_enc:         shape = [BS, num_xs, enc_dim]
+        :param weight_list:     shape[0] = [BS, num_layers, tensor[4]]
+                                shape[1] = [BS, tensor[1]]
 
-        :return output:         output.shape = [BS, num_rows, num_xs, 2]
+        :return output:         shape = [BS, num_rows, num_xs, 2]
         """
+        bs, num_rows, num_cols = xs.shape
+        gat_weights, lin_weights = weight_list
 
-        bs, num_rows, num_xs = xs.shape
         # Flatten each table
-        xs = xs.view(bs, -1)
+        pos_enc = pos_enc.unsqueeze(1).repeat(1, num_rows, 1, 1).view(bs, num_rows*num_cols, -1)
+        xs = xs.view(bs, num_rows*num_cols, 1)
+        xs = torch.cat([xs, pos_enc], dim=-1)
 
-        edge_idx, x_pos_embed = self.graph_and_embeddings(num_rows, num_xs)
-
-        # TODO: positional embedding.
-        x_pos_embed = torch.zeros_like(xs)
-
-        xs = torch.stack([xs, x_pos_embed], dim=-1)
+        edge_idx = self.graph_matrix(num_rows, num_cols)
 
         output = []
-        for batch_weights, x in zip(weight_list, xs):
+        for batch_weights, final_weight, x in zip(gat_weights, lin_weights, xs):
 
             # Forward a single batch
             for layer_weights in batch_weights:
@@ -209,100 +236,102 @@ class GNN(nn.Module):
                 x = self.GATConv(x, edge_idx, lin_weight, src_weight, dst_weight, bias_weight)
 
             # Sum GAT node outputs for final predictions.
-            x = x.view(num_rows, num_xs, -1)
+            x = x.view(num_rows, num_cols, -1)
             x = x.sum(-2)
 
+            # Final linear classification layer
+            x = F.linear(x, final_weight)
             output.append(x)
 
         output = torch.stack(output)
-        output = output.view(bs, num_rows, -1)
-
-        output = self.out_lin(output)
-
         return output
 
 
 class ModelHolder(nn.Module):
     def __init__(self):
         super().__init__()
+        cfg = get_config()["NN_dims"]
 
-        set_h_dim = 64
-        set_out_dim = 32
-        weight_hid_dim = 64
-        gat_heads = 2
-        gat_hid_dim = 64
-        gat_in_dim = 2
-        gat_out_dim = 16
+        pos_enc_dim = cfg["pos_enc_dim"]
+        set_h_dim = cfg["set_h_dim"]
+        set_out_dim = cfg["set_out_dim"]
+        weight_hid_dim = cfg["weight_hid_dim"]
+        gat_heads = cfg["gat_heads"]
+        gat_hid_dim = cfg["gat_hid_dim"]
+        gat_in_dim = cfg["gat_in_dim"]
+        gat_out_dim = cfg["gat_out_dim"]
 
-        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim)
+        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim, pos_enc_dim=pos_enc_dim)
         self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim, out_sizes=[(gat_in_dim, gat_hid_dim, gat_heads), (gat_hid_dim, gat_out_dim, gat_heads)])
-        self.gnn_model = GNN(gat_out_dim)
+        self.gnn_model = GNN()
 
-    def forward(self, xs, pairs):
-        output = self.d2v_model(pairs)
-        weights = self.weight_model(output)
-        preds = self.gnn_model(xs, weights)
+    # Forward Meta set and train
+    def forward_meta(self, xs_meta, pairs_meta):
+        embed_meta, pos_enc = self.d2v_model(pairs_meta)
+        weights_meta = self.weight_model(embed_meta)
+        preds_meta = self.gnn_model(xs_meta, pos_enc, weights_meta)
 
-        return preds
+        return preds_meta, embed_meta.detach(), pos_enc.detach()
 
-    def meta_params(self):
-        return self.d2v_model.parameters()
+    def forward_target(self, xs_target, embed_meta, pos_enc):
+        weights_target = self.weight_model(embed_meta)
+        preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
 
-    def target_params(self):
-        return list(self.weight_model.parameters()) + list(self.gnn_model.parameters())
+        return preds_meta
 
 
 def train():
-    dl_train = AdultDataLoader(bs=3, num_rows=5, split="train")
-    dl_valid = AdultDataLoader(bs=3, num_rows=5, split="val")
+    cfg = get_config()["LR"]
+    meta_lr = cfg["meta_lr"]
+    target_lr = cfg["target_lr"]
+
+    cfg = get_config()["DL_params"]
+    print(cfg)
+    bs = cfg["bs"]
+    num_rows = cfg["num_rows"]
+    num_targets = cfg["num_targets"]
+
+    dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
 
     model = ModelHolder()
 
-    optim_meta = torch.optim.SGD(model.meta_params(), lr=0.001, momentum=0.9)
-    optim_target = torch.optim.SGD(model.target_params(), lr=0.001, momentum=0.9)
+    optim_meta = torch.optim.Adam(model.d2v_model.parameters(), lr=meta_lr)
+    optim_target = torch.optim.Adam(model.weight_model.parameters(), lr=target_lr)
 
     accs = []
-    for batch_no, ((xs_meta, ys_meta), (xs_target, ys_target)) in enumerate(zip(dl_train, dl_valid)):
+    for batch_no, (xs, ys) in enumerate(dl):
         # xs.shape = [bs, num_rows, num_xs]
 
-        # Temp target
-        label = torch.randint(0, 2, (1,))
-        ys_meta = torch.ones_like(ys_meta) * label
-        xs_meta = torch.ones_like(xs_meta) * label
-
-        label = torch.randint(0, 2, (1,))
-        ys_target = torch.ones_like(ys_target) * label
-        xs_target = torch.ones_like(xs_target) * label
+        xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+        ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+        # Splicing like this changes the tensor's stride. Fix here:
+        xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+        ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
 
         # Reshape for dataset2vec
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
-        pairs_target = d2v_pairer(xs_target, ys_target)
 
-        # One pass with the meta-set and one pass with target-set.
-
-        # Meta pass
-        ys_pred_meta = model(xs_meta, pairs_meta)
+        # First pass with the meta-set, train d2v and get embedding.
+        ys_pred_meta, embed_meta, pos_enc = model.forward_meta(xs_meta, pairs_meta)
 
         ys_meta = ys_meta.view(-1)
         ys_pred_meta = ys_pred_meta.view(-1, 2)
 
-        loss = torch.nn.functional.cross_entropy(ys_pred_meta, ys_meta)
+        loss_meta = torch.nn.functional.cross_entropy(ys_pred_meta, ys_meta)
+        loss_meta.backward()
+        model.weight_model.zero_grad()
 
-        loss.backward()
-        optim_meta.step()
-        optim_meta.zero_grad()
-        optim_target.zero_grad()
-
-        # Target pass
-        ys_pred_targ = model(xs_target, pairs_target)
+        # Second pass using previous embedding and train weight encoder
+        # During testing, rows of the dataset don't interact.
+        ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc)
 
         ys_target = ys_target.view(-1)
         ys_pred_targ = ys_pred_targ.view(-1, 2)
 
-        loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
-
-        loss.backward()
+        loss_target = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+        loss_target.backward()
         optim_target.step()
+        optim_meta.step()
         optim_target.zero_grad()
         optim_meta.zero_grad()
 
@@ -311,12 +340,13 @@ def train():
         accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
         accs.append(accuracy)
 
-        if batch_no % 50 == 0:
-            print(f'{np.mean(accs)*100:.2f}')
+        if batch_no % 100 == 0:
+            print(predicted_labels)
+            print(f'Mean accuracy: {np.mean(accs) * 100:.2f}')
             accs = []
 
 
 if __name__ == "__main__":
-    np.random.seed(0)
-    torch.manual_seed(0)
+    np.random.seed(1)
+    torch.manual_seed(1)
     train()
