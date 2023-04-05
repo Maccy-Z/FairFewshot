@@ -14,15 +14,15 @@ def write_toml():
                              "set_out_dim": 32,
                              "weight_hid_dim": 64,
                              "gat_heads": 2,
-                             "gat_hid_dim": 64,
+                             "gat_hid_dim": 128,
                              "gat_in_dim": 4,
                              "gat_out_dim": 16},
-                 "LR": {"meta_lr": 1e-4,
-                        "target_lr": 1e-4},
+                 "LR": {"meta_lr": 3e-4,
+                        "target_lr": 3e-4},
                  "DL_params": {"bs": 2,
-                               "num_rows": 5,
-                               "num_targets": 3},
-
+                               "num_rows": 10,
+                               "num_targets": 5,
+                               "flip": False},
                  }
 
     with open("./Fewshot/defaults.toml", "w") as f:

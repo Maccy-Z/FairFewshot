@@ -2,10 +2,6 @@
 import torch
 import numpy as np
 import pandas as pd
-import random
-
-torch.manual_seed(0)
-
 
 # Loads a single dataset. Split into train and valid.
 class Dataset:
@@ -48,10 +44,11 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_target, device="cpu", split="train"):
-        self.num_rows = num_rows
+    def __init__(self, *, bs, num_rows, num_target, flip=True, device="cpu", split="train"):
         self.bs = bs
+        self.num_rows = num_rows
         self.num_target = num_target
+        self.flip = flip
 
         self.ds = Dataset("adult", device=device, split=split)
 
@@ -72,7 +69,7 @@ class AdultDataLoader:
         permutation = torch.randperm(self.data.shape[0])
         data = self.data[permutation]
 
-        allowed_targets = [9, 14]
+        allowed_targets = [0]#[9, 14]
         cols = np.arange(self.cols)
 
         for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
@@ -101,21 +98,27 @@ class AdultDataLoader:
             ys = select_data[np.arange(self.bs * num_rows), target_idxs]
 
             xs = xs.view(self.bs, num_rows, self.num_xs)  # [bs, num_rows, num_cols]
-            ys = ys.view(self.bs, num_rows, 1)  # [bs, num_rows, 1]
+            ys = ys.view(self.bs, num_rows)  # [bs, num_rows]
 
-            # TODO: Better solution than using .long() to convert to bianry.
-            ys = ys.long()
-
-            # Flip to balance dataset
-            if np.random.randint(0, 2):
-                ys = (ys == 0).long()
-
+            ys = self.binarise_data(ys)
             yield xs, ys
+
+    # Convert target columns into a binary classification task.
+    def binarise_data(self, ys):
+        median = torch.median(ys[:, :self.num_rows], dim=1, keepdim=True)[0]
+        ys = (ys > median)
+
+        if self.flip:
+            # Random flip to balance dataset
+            flip = torch.randint(0, 2, (self.bs, 1))
+            ys = torch.logical_xor(ys, flip)
+
+        return ys.long()
 
 
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
 def d2v_pairer(xs, ys):
-#    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
+    #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
     bs, num_rows, num_xs = xs.shape
 
     xs = xs.view(bs * num_rows, num_xs)
@@ -135,13 +138,21 @@ def d2v_pairer(xs, ys):
 
 
 if __name__ == "__main__":
+    # Test if dataloader works.
     np.random.seed(0)
-    dl = AdultDataLoader(bs=2, num_rows=5, num_target=3)
+    torch.manual_seed(0)
 
+    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3)
+    #
+    # for i in range(15):
+    #     num_unique = np.unique(dl.data[:, i])
+    #     print(i, len(num_unique))
+
+    means = []
     for x, y in dl:
-        print(x, y)
-        break
+        y_mean = torch.mean(y, dtype=float)
+        means.append(y_mean)
 
-    for pair in dl.d2v_iter():
-        print(pair)
-        break
+    means = torch.stack(means)
+    means = torch.mean(means)
+    print(means)
