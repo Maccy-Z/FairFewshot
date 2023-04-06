@@ -17,12 +17,19 @@ def write_toml():
                              "gat_hid_dim": 128,
                              "gat_in_dim": 4,
                              "gat_out_dim": 16},
-                 "LR": {"meta_lr": 3e-4,
-                        "target_lr": 3e-4},
+
+                 "Optim": {"lr": 3e-4},
+
                  "DL_params": {"bs": 2,
                                "num_rows": 10,
                                "num_targets": 5,
                                "flip": False},
+
+                 "Settings": {"num_epochs": 10000,
+                              "print_interval": 100,
+                              "save_dir": "",
+                              "save_epoch": 1,
+                              }
                  }
 
     with open("./Fewshot/defaults.toml", "w") as f:

@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import pandas as pd
 
+
 # Loads a single dataset. Split into train and valid.
 class Dataset:
     def __init__(self, data_name, split="train", dtype=torch.float32, device="cpu"):
@@ -58,7 +59,6 @@ class AdultDataLoader:
 
     # Pick out bs rows from dataset. Select 1 column to be target and random columns as predictors.
     # Only certain column can be targets since some are continuous.
-    # TODO: Handle dataset splits better.
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
@@ -69,7 +69,7 @@ class AdultDataLoader:
         permutation = torch.randperm(self.data.shape[0])
         data = self.data[permutation]
 
-        allowed_targets = [0]#[9, 14]
+        allowed_targets = [0]  # [9, 14]
         cols = np.arange(self.cols)
 
         for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
@@ -114,6 +114,10 @@ class AdultDataLoader:
             ys = torch.logical_xor(ys, flip)
 
         return ys.long()
+
+    def __len__(self):
+        num_batches = self.len // ((self.num_rows + self.num_target) * self.bs)
+        return num_batches
 
 
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.

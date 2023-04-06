@@ -8,12 +8,17 @@ gat_hid_dim = 128
 gat_in_dim = 4
 gat_out_dim = 16
 
-[LR]
-meta_lr = 0.0003
-target_lr = 0.0003
+[Optim]
+lr = 0.0003
 
 [DL_params]
 bs = 2
 num_rows = 10
 num_targets = 5
 flip = false
+
+[Settings]
+num_epochs = 10000
+print_interval = 100
+save_dir = ""
+save_epoch = 1
