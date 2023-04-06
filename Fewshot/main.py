@@ -269,12 +269,12 @@ class ModelHolder(nn.Module):
         self.gnn_model = GNN()
 
     # Forward Meta set and train
-    def forward_meta(self, xs_meta, pairs_meta):
+    def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
-        weights_meta = self.weight_model(embed_meta)
-        preds_meta = self.gnn_model(xs_meta, pos_enc, weights_meta)
+        # weights_meta = self.weight_model(embed_meta)
+        # preds_meta = self.gnn_model(xs_meta, pos_enc, weights_meta)
 
-        return preds_meta, embed_meta.detach(), pos_enc.detach()
+        return embed_meta, pos_enc
 
     def forward_target(self, xs_target, embed_meta, pos_enc):
         weights_target = self.weight_model(embed_meta)
@@ -317,14 +317,7 @@ def train():
             pairs_meta = d2v_pairer(xs_meta, ys_meta)
 
             # First pass with the meta-set, train d2v and get embedding.
-            ys_pred_meta, embed_meta, pos_enc = model.forward_meta(xs_meta, pairs_meta)
-
-            ys_meta = ys_meta.view(-1)
-            ys_pred_meta = ys_pred_meta.view(-1, 2)
-
-            loss_meta = torch.nn.functional.cross_entropy(ys_pred_meta, ys_meta)
-            loss_meta.backward()
-            model.weight_model.zero_grad()
+            embed_meta, pos_enc = model.forward_meta(pairs_meta)
 
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
