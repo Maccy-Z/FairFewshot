@@ -1,4 +1,4 @@
-import torch
+x = list(range(10))
 
-x = torch.t
+print(x[-20:])
 

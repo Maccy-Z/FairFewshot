@@ -5,6 +5,7 @@ import numpy as np
 
 from dataloader import AdultDataLoader, d2v_pairer
 from GAtt_Func import GATConvFunc
+from save_holder import SaveHolder
 
 from config import get_config
 
@@ -284,27 +285,36 @@ class ModelHolder(nn.Module):
 
 
 def train():
-    cfg = get_config()["LR"]
-    meta_lr = cfg["meta_lr"]
-    target_lr = cfg["target_lr"]
+    save_holder = SaveHolder("./")
 
-    cfg = get_config()["DL_params"]
+    all_cfgs = get_config()
+    cfg = all_cfgs["Optim"]
+    lr = cfg["lr"]
+
+    cfg = all_cfgs["DL_params"]
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     flip = cfg["flip"]
 
-    dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    cfg = all_cfgs["Settings"]
+    num_epochs = cfg["num_epochs"]
+    print_interval = cfg["print_interval"]
+    save_epoch = cfg["save_epoch"]
+
+    train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    val_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="val")
 
     model = ModelHolder()
 
-    optim_meta = torch.optim.Adam(model.d2v_model.parameters(), lr=meta_lr)
-    optim_target = torch.optim.Adam(model.weight_model.parameters(), lr=target_lr)
+    optim = torch.optim.Adam(model.parameters(), lr=lr)
 
-    for epoch in range(100000):
-        accs = []
-
-        for batch_no, (xs, ys) in enumerate(dl):
+    accs, losses = [], []
+    val_accs, val_losses = [], []
+    for epoch in range(num_epochs):
+        # Train loop
+        model.train()
+        for batch_no, (xs, ys) in enumerate(train_dl):
             # xs.shape = [bs, num_rows, num_xs]
 
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -312,39 +322,72 @@ def train():
             # Splicing like this changes the tensor's stride. Fix here:
             xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
             ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+            ys_target = ys_target.view(-1)
 
             # Reshape for dataset2vec
             pairs_meta = d2v_pairer(xs_meta, ys_meta)
 
             # First pass with the meta-set, train d2v and get embedding.
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
-
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc)
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
 
-            ys_target = ys_target.view(-1)
-            ys_pred_targ = ys_pred_targ.view(-1, 2)
-
-            loss_target = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
-            loss_target.backward()
-            optim_target.step()
-            optim_meta.step()
-            optim_target.zero_grad()
-            optim_meta.zero_grad()
+            loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+            loss.backward()
+            optim.step()
+            optim.zero_grad()
 
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
-            accs.append(accuracy)
 
-            if batch_no % 100 == 0:
+            accs.append(accuracy), losses.append(loss.item())
+
+            if batch_no % print_interval == 0:
                 print()
                 print(f'{epoch=}, {batch_no=}')
                 print("Targets:    ", ys_target.numpy())
                 print("Predictions:", predicted_labels.numpy())
-                print(f'Mean accuracy: {np.mean(accs) * 100:.2f}')
-                accs = []
+                print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}')
+
+        # val_loop
+        model.eval()
+        epoch_accs, epoch_losses = [], []
+        for batch_no, (xs, ys) in enumerate(val_dl):
+            # xs.shape = [bs, num_rows, num_xs]
+
+            xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+            ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+            # Splicing like this changes the tensor's stride. Fix here:
+            xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+            ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+            ys_target = ys_target.view(-1)
+            # Reshape for dataset2vec
+            pairs_meta = d2v_pairer(xs_meta, ys_meta)
+
+            with torch.no_grad():
+                embed_meta, pos_enc = model.forward_meta(pairs_meta)
+                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+
+            loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+
+            # Accuracy recording
+            predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+            accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
+
+            epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+
+        print()
+        print(f'Validation Stats: ')
+        print(f'Accuracy: {np.mean(epoch_accs) * 100:.2f}, Loss: {np.mean(epoch_losses) :.4g}')
+        val_accs.append(epoch_accs)
+        val_losses.append(epoch_losses)
+
+        if epoch % save_epoch == 0:
+            save_holder.save_model(model)
+            history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_losses": val_losses}
+            save_holder.save_history(history)
 
 
 if __name__ == "__main__":
