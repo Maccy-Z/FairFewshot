@@ -6,13 +6,21 @@ from matplotlib import pyplot as plt
 import shutil
 import numpy as np
 
+
 # Save into file. Automatically make a new folder for every new save.
 class SaveHolder:
     def __init__(self, base_dir):
-        now = datetime.datetime.now()
-        fmt_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+        dir_path = f'{base_dir}/saves'
+        files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+        existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
 
-        self.save_dir = f'{base_dir}/saves/{fmt_time}'
+        if existing_saves:
+            save_no = existing_saves[-1] + 1
+        else:
+            save_no = 0
+
+        self.save_dir = f'{base_dir}/saves/save_{save_no}'
+
         print("Making new save folder at: ")
         print(self.save_dir)
         os.mkdir(self.save_dir)
@@ -48,16 +56,20 @@ class SaveLoader:
         train_accs = np.array_split(train_accs, 100)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
-        plt.plot(np.linspace(0, 1, val_accs.shape[0]), val_accs, label="Validation Acc")
-        plt.plot(np.linspace(0, 1, train_accs.shape[0]), train_accs, label="Train Acc")
+        plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
+                 val_accs, label="Validation Acc")
+        plt.plot(np.linspace(0, val_accs.shape[0], train_accs.shape[0]),
+                 train_accs, label="Train Acc")
         plt.legend()
         plt.show()
 
 
 if __name__ == "__main__":
-    BASEDIR = "/home/maccyz/Documents/FairFewshot/saves"
-    saves = os.listdir(BASEDIR)
+    BASEDIR = "/home/maccyz/Documents/FairFewshot"
+    saves = os.listdir(f'{BASEDIR}/saves')
     saves = sorted(saves)
 
-    h = SaveLoader(save_dir=f'{BASEDIR}/{saves[-1]}')
-    h.plot_history()
+    h = SaveHolder(base_dir=f'{BASEDIR}')
+
+    # h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-3]}')
+    # h.plot_history()
