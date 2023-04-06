@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from dataloader import AdultDataLoader, d2v_pairer
+from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 
 from config import get_config
@@ -294,7 +295,8 @@ def train():
     num_targets = cfg["num_targets"]
     flip = cfg["flip"]
 
-    dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    # dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4, config={}, new_models=True)
 
     model = ModelHolder()
 
