@@ -302,6 +302,7 @@ def train():
     print_interval = cfg["print_interval"]
     save_epoch = cfg["save_epoch"]
 
+
     train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
     val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
 
