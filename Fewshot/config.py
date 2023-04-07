@@ -20,7 +20,7 @@ def write_toml():
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
                              "gat_layers": 3,
-                             "reparam_weight": True,
+                             "reparam_weight": False,
                              "reparam_pos_enc": True},
 
                  "Optim": {"lr": 3e-4},
@@ -50,6 +50,8 @@ def write_toml():
                               "print_interval": 100,
                               "save_dir": "",
                               "save_batch": 500,
+                              "val_duration": 100,
+                              "val_interval": 500
                               }
                  }
 

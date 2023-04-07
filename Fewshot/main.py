@@ -303,24 +303,29 @@ class ModelHolder(nn.Module):
     def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
 
-        # Reparametrisation trick. Keep copies of log_var here
+        # Reparametrisation trick. Save mean and log_var.
         if self.reparam_weight:
             embed_means, embed_lvar = embed_meta[:, 0], embed_meta[:, 1]
-            std = torch.exp(0.5 * embed_lvar)
-            eps = torch.randn_like(std)
-            embed_meta = embed_means + eps * std
+            if self.trainig:
+                std = torch.exp(0.5 * embed_lvar)
+                eps = torch.randn_like(std)
+                embed_meta = embed_means + eps * std
+                self.embed_lvar = embed_lvar
+                self.embed_means = embed_means
 
-            self.embed_lvar = embed_lvar
-            self.embed_means = embed_means
+            else:
+                embed_meta = embed_means
 
         if self.reparam_pos_enc:
             pos_means, pos_lvar = pos_enc[:, 0], pos_enc[:, 1]
-            std = torch.exp(0.5 * pos_lvar)
-            eps = torch.randn_like(std)
-            pos_enc = pos_means + eps * std
-
-            self.pos_lvar = pos_lvar
-            self.pos_means = pos_means
+            if self.training:
+                std = torch.exp(0.5 * pos_lvar)
+                eps = torch.randn_like(std)
+                pos_enc = pos_means + eps * std
+                self.pos_lvar = pos_lvar
+                self.pos_means = pos_means
+            else:
+                pos_enc = pos_means
 
         return embed_meta, pos_enc
 
@@ -342,8 +347,7 @@ class ModelHolder(nn.Module):
             div = 1 + self.pos_lvar - self.pos_means.square() - self.pos_lvar.exp()  # [BS, num_cols, emb_dim]
             kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
 
-        loss = cross_entropy + 0.1 * kl_div
-        return loss
+        return cross_entropy + kl_div
 
         # kl_div = -0.5 * torch.sum()
 
@@ -365,23 +369,26 @@ def train():
     num_epochs = cfg["num_epochs"]
     print_interval = cfg["print_interval"]
     save_batch = cfg["save_batch"]
+    val_interval = cfg["val_interval"]
+    val_duration = cfg["val_duration"]
 
     # train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
     # val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
-    train_dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4, config=all_cfgs["MLP_DL_params"])
+    dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4, config=all_cfgs["MLP_DL_params"])
+    val_dl = iter(dl)
 
     model = ModelHolder()
 
     optim = torch.optim.Adam(model.parameters(), lr=lr)
 
     accs, losses = [], []
-    # val_accs, val_losses = [], []
+    val_accs, val_losses = [], []
     batch_no = 0
     for epoch in range(num_epochs):
-        # Train loop
-        model.train()
-        for xs, ys in train_dl:
+        for xs, ys in dl:
             batch_no += 1
+            # Train loop
+            model.train()
 
             # xs.shape = [bs, num_rows, num_xs]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -411,6 +418,41 @@ def train():
 
             accs.append(accuracy), losses.append(loss.item())
 
+            # val_loop
+            if batch_no % val_interval == 0:
+                model.eval()
+                epoch_accs, epoch_losses = [], []
+                for _ in range(val_duration):
+                    xs, ys = next(val_dl)
+                    # xs.shape = [bs, num_rows, num_xs]
+
+                    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+                    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+                    # Splicing like this changes the tensor's stride. Fix here:
+                    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+                    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+                    ys_target = ys_target.view(-1)
+                    # Reshape for dataset2vec
+                    pairs_meta = d2v_pairer(xs_meta, ys_meta)
+
+                    with torch.no_grad():
+                        embed_meta, pos_enc = model.forward_meta(pairs_meta)
+                        ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+
+                    loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+
+                    # Accuracy recording
+                    predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+                    accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
+
+                    epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+
+                print()
+                print(f'Validation Stats: ')
+                print(f'Accuracy: {np.mean(epoch_accs) * 100:.2f}, Loss: {np.mean(epoch_losses) :.4g}')
+                val_accs.append(epoch_accs)
+                val_losses.append(epoch_losses)
+
             if batch_no % print_interval == 0:
                 print()
                 print(f'{epoch=}, {batch_no=}')
@@ -419,42 +461,9 @@ def train():
                 print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}')
                 print(torch.mean(model.pos_lvar).item(), torch.mean(model.pos_means).item())
 
-            # # val_loop
-            # model.eval()
-            # epoch_accs, epoch_losses = [], []
-            # for batch_no, (xs, ys) in enumerate(val_dl):
-            #     # xs.shape = [bs, num_rows, num_xs]
-            #
-            #     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            #     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            #     # Splicing like this changes the tensor's stride. Fix here:
-            #     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            #     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-            #     ys_target = ys_target.view(-1)
-            #     # Reshape for dataset2vec
-            #     pairs_meta = d2v_pairer(xs_meta, ys_meta)
-            #
-            #     with torch.no_grad():
-            #         embed_meta, pos_enc = model.forward_meta(pairs_meta)
-            #         ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-            #
-            #     loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
-            #
-            #     # Accuracy recording
-            #     predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-            #     accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
-            #
-            #     epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-            #
-            # print()
-            # print(f'Validation Stats: ')
-            # print(f'Accuracy: {np.mean(epoch_accs) * 100:.2f}, Loss: {np.mean(epoch_losses) :.4g}')
-            # val_accs.append(epoch_accs)
-            # val_losses.append(epoch_losses)
-
             if batch_no % save_batch == 0:
                 save_holder.save_model(model)
-                history = {"accs": accs, "loss": losses}
+                history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses}
                 save_holder.save_history(history)
 
 

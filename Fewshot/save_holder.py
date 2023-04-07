@@ -48,24 +48,38 @@ class SaveLoader:
             self.history = pickle.load(f)
 
     def plot_history(self):
-        # val_accs = self.history["val_accs"]
-        # val_accs = np.array(val_accs)
-        # val_accs = np.mean(val_accs, axis=-1)
+        val_accs = self.history["val_accs"]
+        val_accs = np.array(val_accs)
+        val_accs = np.mean(val_accs, axis=-1)
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, len(train_accs) // 500)
+        train_accs = np.array_split(train_accs, 100)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
-        plt.plot(train_accs, label="Train Acc")
+        plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
+                 val_accs, label="Validation Acc")
+        plt.plot(np.linspace(0, val_accs.shape[0], train_accs.shape[0]),
+                 train_accs, label="Train Acc")
         plt.legend()
         plt.show()
 
 
 if __name__ == "__main__":
+    import re
+
     BASEDIR = "/mnt/storage_ssd/FairFewshot"
+
+
+    def sort_key(filename):
+        match = re.compile(r'(\d+)').search(filename)
+        if match:
+            return int(match.group(1))
+        else:
+            return filename
+
     saves = os.listdir(f'{BASEDIR}/saves')
-    saves = sorted(saves)
+    saves = sorted(saves, key=sort_key)
 
     # h = SaveHolder(base_dir=f'{BASEDIR}')
     h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
