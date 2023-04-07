@@ -12,32 +12,35 @@ from config import get_config
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size, pos_enc_dim):
+    def __init__(self, h_size, out_size, pos_enc_dim, model_depths):
         super().__init__()
-        self.h_size = h_size
-        self.out_size = out_size
+        f_depth, g_depth, h_depth, pos_depth = model_depths
 
         # f network
-        self.f_1 = nn.Linear(2, h_size)
-        self.f_2_r = nn.Linear(h_size, h_size)
-        self.f_3_r = nn.Linear(h_size, h_size)
-        # self.f_4_r = nn.Linear(h_size, h_size)
-        self.f_5 = nn.Linear(h_size, h_size)
+        self.f_in = nn.Linear(2, h_size)
+        self.fs = nn.ModuleList([])
+        for _ in range(f_depth - 2):
+            self.fs.append(nn.Linear(h_size, h_size))
+        self.f_out = nn.Linear(h_size, h_size)
 
         # g network
-        self.g_1 = nn.Linear(h_size, h_size)
-        self.g_2 = nn.Linear(h_size, h_size)
+        self.gs = nn.ModuleList([])
+        for _ in range(g_depth):
+            self.gs.append(nn.Linear(h_size, h_size))
 
         # h network
-        self.h_1 = nn.Linear(h_size, h_size)
-        self.h_2_r = nn.Linear(h_size, h_size)
-        self.h_3_r = nn.Linear(h_size, h_size)
-        # self.h_4_r = nn.Linear(h_size, h_size)
-        self.h_5 = nn.Linear(h_size, out_size)
+        self.h_in = nn.Linear(h_size, h_size)
+        self.hs = nn.ModuleList([])
+        for _ in range(h_depth - 2):
+            self.hs.append(nn.Linear(h_size, h_size))
+        self.h_out = nn.Linear(h_size, out_size)
 
         # Embedding Network
-        self.p_1 = nn.Linear(h_size, h_size)
-        self.p_2 = nn.Linear(h_size, pos_enc_dim)
+        self.p_in = nn.Linear(h_size, h_size)
+        self.ps = nn.ModuleList([])
+        for _ in range(pos_depth - 2):
+            self.ps.append(nn.Linear(h_size, h_size))
+        self.p_out = nn.Linear(h_size, pos_enc_dim)
 
         self.relu = nn.ReLU()
 
@@ -61,44 +64,39 @@ class SetSetModel(nn.Module):
         # x.shape = [num_rows, num_cols, 2]
 
         # f network
-        x = self.relu(self.f_1(x))  # [num_rows, num_cols, h_size]
-        x_r = self.relu(self.f_2_r(x))
-        x = x + x_r
-        # x_r = self.relu(self.f_3_r(x))
-        # x = x + x_r
-        # x_r = self.relu(self.f_4_r(x))
-        # x = x + x_r
-        x = self.relu(self.f_5(x))
+        x = self.relu(self.f_in(x))  # [num_rows, num_cols, h_size]
+        for layer in self.fs:
+            x_r = self.relu(layer(x))
+            x = x + x_r
+        x = self.relu(self.f_out(x))
 
         x = torch.mean(x, dim=0)  # [num_rows, y_dim, h_size]
         x_save = x
 
         # g network
-        x = self.relu(self.g_1(x))
-        x = self.relu(self.g_2(x))
+        for layer in self.gs:
+            x = self.relu(layer(x))
         x = torch.mean(x, dim=0)  # [h_size]
 
         # h network
-        x = self.relu(self.h_1(x))
-        x_r = self.relu(self.h_2_r(x))
-        x = x + x_r
-        # x_r = self.relu(self.h_3_r(x))
-        # x = x + x_r
-        # x_r = self.relu(self.h_4_r(x))
-        # x = x + x_r
-        x = self.relu(self.h_5(x))
+        x = self.relu(self.h_in(x))
+        for layer in self.hs:
+            x_r = self.relu(layer(x))
+            x = x + x_r
+        x = self.relu(self.h_out(x))
 
         # Positional Encoding
-        pos_enc = self.p_1(x_save)
-        pos_enc = self.relu(pos_enc)
-        pos_enc = self.p_2(pos_enc)
+        pos_enc = self.relu(self.p_in(x_save))
+        for layer in self.ps:
+            pos_enc = self.relu(layer(pos_enc))
+        pos_enc = self.p_out(pos_enc)
 
         return x, pos_enc
 
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list):
+    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -113,6 +111,7 @@ class WeightGenerator(nn.Module):
         self.gen_in_dim = in_dim
         self.gen_hid_dim = hid_dim
         self.out_sizes = out_sizes
+        self.gen_layers = gen_layers
 
         # Each GAT layer has a submodel to generate weights
         self.layer_model = []
@@ -147,11 +146,13 @@ class WeightGenerator(nn.Module):
         # Save indices of weights
         weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
 
-        module = nn.Sequential(
-            nn.Linear(self.gen_in_dim, self.gen_hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.gen_hid_dim, tot_params)
-        )
+        module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
+        for _ in range(self.gen_layers - 2):
+            module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
+            module.append(nn.ReLU())
+        module.append(nn.Linear(self.gen_hid_dim, tot_params))
+
+        module = nn.Sequential(*module)
 
         return module, weight_idxs, (gat_in_dim, gat_out_dim, gat_heads)
 
@@ -253,20 +254,25 @@ class ModelHolder(nn.Module):
         super().__init__()
         cfg = get_config()["NN_dims"]
 
-        pos_enc_dim = cfg["pos_enc_dim"]
         set_h_dim = cfg["set_h_dim"]
         set_out_dim = cfg["set_out_dim"]
+        pos_enc_dim = cfg["pos_enc_dim"]
+
         weight_hid_dim = cfg["weight_hid_dim"]
+
         gat_heads = cfg["gat_heads"]
         gat_hid_dim = cfg["gat_hid_dim"]
         gat_in_dim = cfg["gat_in_dim"]
         gat_out_dim = cfg["gat_out_dim"]
 
-        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim, pos_enc_dim=pos_enc_dim)
-        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
-                                            out_sizes=[(gat_in_dim, gat_hid_dim, gat_heads),
-                                                       (gat_hid_dim, gat_hid_dim, gat_heads),
-                                                       (gat_hid_dim, gat_out_dim, gat_heads)])
+        d2v_layers = cfg["d2v_layers"]
+        gen_layers = cfg["gen_layers"]
+        gat_layers = cfg["gat_layers"]
+
+        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers-2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
+
+        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim, pos_enc_dim=pos_enc_dim, model_depths=d2v_layers)
+        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim, out_sizes=gat_shapes, gen_layers=gen_layers)
         self.gnn_model = GNN()
 
     # Forward Meta set and train
@@ -301,7 +307,6 @@ def train():
     num_epochs = cfg["num_epochs"]
     print_interval = cfg["print_interval"]
     save_epoch = cfg["save_epoch"]
-
 
     train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
     val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")

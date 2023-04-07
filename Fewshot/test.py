@@ -1,4 +1,5 @@
-x = list(range(10))
-
-print(x[-20:])
-
+self.linear_layer = nn.Sequential(
+    nn.Linear(self.in_dim, self.hid_dim),
+    nn.ReLU(),
+    nn.Linear(self.hid_dim, out_dim)
+)

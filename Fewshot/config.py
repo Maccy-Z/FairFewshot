@@ -16,7 +16,11 @@ def write_toml():
                              "gat_heads": 2,
                              "gat_hid_dim": 128,
                              "gat_in_dim": 4,
-                             "gat_out_dim": 16},
+                             "gat_out_dim": 16,
+                             "d2v_layers": [3, 2, 3, 2],
+                             "gen_layers": 2,
+                             "gat_layers": 3},
+
 
                  "Optim": {"lr": 3e-4},
 
