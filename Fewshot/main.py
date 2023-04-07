@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from dataloader import AdultDataLoader, d2v_pairer
+from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 
@@ -12,9 +13,14 @@ from config import get_config
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size, pos_enc_dim, model_depths):
+    def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc):
         super().__init__()
+        self.reparam_weight = reparam_weight
+        self.reparam_pos_enc = reparam_pos_enc
+
         f_depth, g_depth, h_depth, pos_depth = model_depths
+
+        self.relu = nn.ReLU()
 
         # f network
         self.f_in = nn.Linear(2, h_size)
@@ -34,6 +40,8 @@ class SetSetModel(nn.Module):
         for _ in range(h_depth - 2):
             self.hs.append(nn.Linear(h_size, h_size))
         self.h_out = nn.Linear(h_size, out_size)
+        if reparam_weight:
+            self.h_out_lvar = nn.Linear(h_size, out_size)
 
         # Embedding Network
         self.p_in = nn.Linear(h_size, h_size)
@@ -41,24 +49,8 @@ class SetSetModel(nn.Module):
         for _ in range(pos_depth - 2):
             self.ps.append(nn.Linear(h_size, h_size))
         self.p_out = nn.Linear(h_size, pos_enc_dim)
-
-        self.relu = nn.ReLU()
-
-    def forward(self, xs):
-        # xs.shape = [BS][x_dim, n_samples, 2]
-        # Final dim of x is pair (x_i, y)
-
-        # TODO: Properly handle batches
-        ys, pos_encs = [], []
-        for x in xs:
-            outs, embeds = self.forward_layers(x)
-            ys.append(outs)
-            pos_encs.append(embeds)
-
-        ys = torch.stack(ys)
-        pos_encs = torch.stack(pos_encs)
-
-        return ys, pos_encs
+        if self.reparam_pos_enc:
+            self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
     def forward_layers(self, x):
         # x.shape = [num_rows, num_cols, 2]
@@ -83,20 +75,42 @@ class SetSetModel(nn.Module):
         for layer in self.hs:
             x_r = self.relu(layer(x))
             x = x + x_r
-        x = self.relu(self.h_out(x))
+        x_out = self.h_out(x)
+        if self.reparam_weight:
+            x_lvar = self.h_out_lvar(x)
+            x_out = torch.stack([x_out, x_lvar])
 
         # Positional Encoding
         pos_enc = self.relu(self.p_in(x_save))
         for layer in self.ps:
             pos_enc = self.relu(layer(pos_enc))
-        pos_enc = self.p_out(pos_enc)
+        pos_out = self.p_out(pos_enc)
+        if self.reparam_pos_enc:
+            pos_lvar = self.p_out_lvar(pos_enc)
+            pos_out = torch.stack([pos_out, pos_lvar])
 
-        return x, pos_enc
+        return x_out, pos_out
+
+    def forward(self, xs):
+        # xs.shape = [BS][x_dim, n_samples, 2]
+        # Final dim of x is pair (x_i, y).
+
+        # TODO: Properly handle batches
+        ys, pos_encs = [], []
+        for x in xs:
+            outs, embeds = self.forward_layers(x)
+            ys.append(outs)
+            pos_encs.append(embeds)
+
+        ys = torch.stack(ys)
+        pos_encs = torch.stack(pos_encs)
+
+        return ys, pos_encs
 
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers):
+    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers, reparam_weight, reparam_pos_enc):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -254,6 +268,11 @@ class ModelHolder(nn.Module):
         super().__init__()
         cfg = get_config()["NN_dims"]
 
+        reparam_weight = cfg["reparam_weight"]
+        reparam_pos_enc = cfg["reparam_pos_enc"]
+        self.reparam_weight = reparam_weight
+        self.reparam_pos_enc = reparam_pos_enc
+
         set_h_dim = cfg["set_h_dim"]
         set_out_dim = cfg["set_out_dim"]
         pos_enc_dim = cfg["pos_enc_dim"]
@@ -269,17 +288,39 @@ class ModelHolder(nn.Module):
         gen_layers = cfg["gen_layers"]
         gat_layers = cfg["gat_layers"]
 
-        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers-2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
+        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [
+            (gat_hid_dim, gat_out_dim, gat_heads)]
 
-        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim, pos_enc_dim=pos_enc_dim, model_depths=d2v_layers)
-        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim, out_sizes=gat_shapes, gen_layers=gen_layers)
+        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
+                                     pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
+                                     reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
+        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
+                                            out_sizes=gat_shapes, gen_layers=gen_layers,
+                                            reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
         self.gnn_model = GNN()
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
-        # weights_meta = self.weight_model(embed_meta)
-        # preds_meta = self.gnn_model(xs_meta, pos_enc, weights_meta)
+
+        # Reparametrisation trick. Keep copies of log_var here
+        if self.reparam_weight:
+            embed_means, embed_lvar = embed_meta[:, 0], embed_meta[:, 1]
+            std = torch.exp(0.5 * embed_lvar)
+            eps = torch.randn_like(std)
+            embed_meta = embed_means + eps * std
+
+            self.embed_lvar = embed_lvar
+            self.embed_means = embed_means
+
+        if self.reparam_pos_enc:
+            pos_means, pos_lvar = pos_enc[:, 0], pos_enc[:, 1]
+            std = torch.exp(0.5 * pos_lvar)
+            eps = torch.randn_like(std)
+            pos_enc = pos_means + eps * std
+
+            self.pos_lvar = pos_lvar
+            self.pos_means = pos_means
 
         return embed_meta, pos_enc
 
@@ -288,6 +329,23 @@ class ModelHolder(nn.Module):
         preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
 
         return preds_meta
+
+    def loss_fn(self, preds, targs):
+        cross_entropy = torch.nn.functional.cross_entropy(preds, targs)
+
+        kl_div = 0
+        if self.reparam_weight:
+            div = 1 + self.embed_lvar - self.embed_means.square() - self.embed_lvar.exp()  # [BS, embed_dim]
+            kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
+
+        if self.reparam_pos_enc:
+            div = 1 + self.pos_lvar - self.pos_means.square() - self.pos_lvar.exp()  # [BS, num_cols, emb_dim]
+            kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
+
+        loss = cross_entropy + 0.1 * kl_div
+        return loss
+
+        # kl_div = -0.5 * torch.sum()
 
 
 def train():
@@ -306,23 +364,26 @@ def train():
     cfg = all_cfgs["Settings"]
     num_epochs = cfg["num_epochs"]
     print_interval = cfg["print_interval"]
-    save_epoch = cfg["save_epoch"]
+    save_batch = cfg["save_batch"]
 
-    train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
-    val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+    # train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    # val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+    train_dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4, config=all_cfgs["MLP_DL_params"])
 
     model = ModelHolder()
 
     optim = torch.optim.Adam(model.parameters(), lr=lr)
 
     accs, losses = [], []
-    val_accs, val_losses = [], []
+    # val_accs, val_losses = [], []
+    batch_no = 0
     for epoch in range(num_epochs):
         # Train loop
         model.train()
-        for batch_no, (xs, ys) in enumerate(train_dl):
-            # xs.shape = [bs, num_rows, num_xs]
+        for xs, ys in train_dl:
+            batch_no += 1
 
+            # xs.shape = [bs, num_rows, num_xs]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
             # Splicing like this changes the tensor's stride. Fix here:
@@ -339,7 +400,7 @@ def train():
             # During testing, rows of the dataset don't interact.
             ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
 
-            loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+            loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
             optim.step()
             optim.zero_grad()
@@ -356,47 +417,52 @@ def train():
                 print("Targets:    ", ys_target.numpy())
                 print("Predictions:", predicted_labels.numpy())
                 print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}')
+                print(torch.mean(model.pos_lvar).item(), torch.mean(model.pos_means).item())
 
-        # val_loop
-        model.eval()
-        epoch_accs, epoch_losses = [], []
-        for batch_no, (xs, ys) in enumerate(val_dl):
-            # xs.shape = [bs, num_rows, num_xs]
+            # # val_loop
+            # model.eval()
+            # epoch_accs, epoch_losses = [], []
+            # for batch_no, (xs, ys) in enumerate(val_dl):
+            #     # xs.shape = [bs, num_rows, num_xs]
+            #
+            #     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+            #     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+            #     # Splicing like this changes the tensor's stride. Fix here:
+            #     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+            #     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+            #     ys_target = ys_target.view(-1)
+            #     # Reshape for dataset2vec
+            #     pairs_meta = d2v_pairer(xs_meta, ys_meta)
+            #
+            #     with torch.no_grad():
+            #         embed_meta, pos_enc = model.forward_meta(pairs_meta)
+            #         ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+            #
+            #     loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+            #
+            #     # Accuracy recording
+            #     predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+            #     accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
+            #
+            #     epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+            #
+            # print()
+            # print(f'Validation Stats: ')
+            # print(f'Accuracy: {np.mean(epoch_accs) * 100:.2f}, Loss: {np.mean(epoch_losses) :.4g}')
+            # val_accs.append(epoch_accs)
+            # val_losses.append(epoch_losses)
 
-            xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # Splicing like this changes the tensor's stride. Fix here:
-            xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-            ys_target = ys_target.view(-1)
-            # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
-
-            with torch.no_grad():
-                embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-
-            loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
-
-            # Accuracy recording
-            predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-            accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
-
-            epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-
-        print()
-        print(f'Validation Stats: ')
-        print(f'Accuracy: {np.mean(epoch_accs) * 100:.2f}, Loss: {np.mean(epoch_losses) :.4g}')
-        val_accs.append(epoch_accs)
-        val_losses.append(epoch_losses)
-
-        if epoch % save_epoch == 0:
-            save_holder.save_model(model)
-            history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_losses": val_losses}
-            save_holder.save_history(history)
+            if batch_no % save_batch == 0:
+                save_holder.save_model(model)
+                history = {"accs": accs, "loss": losses}
+                save_holder.save_history(history)
 
 
 if __name__ == "__main__":
+    import random
+
+    random.seed(1)
     np.random.seed(1)
     torch.manual_seed(1)
+
     train()

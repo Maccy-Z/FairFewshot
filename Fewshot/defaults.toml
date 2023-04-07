@@ -10,18 +10,34 @@ gat_out_dim = 16
 d2v_layers = [ 3, 2, 3, 2,]
 gen_layers = 2
 gat_layers = 3
+reparam_weight = true
+reparam_pos_enc = true
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
-bs = 2
+bs = 3
 num_rows = 10
 num_targets = 5
 flip = false
+
+[MLP_DL_params]
+noise_std = 0.3
+pre_sample_weights = false
+hidden_dim = 3
+num_causes = 2
+num_layers = 3
+is_causal = true
+dropout_prob = 0.5
+init_std = 1
+pre_sample_causes = false
+in_clique = true
+is_effect = true
+sort_features = true
 
 [Settings]
 num_epochs = 10000
 print_interval = 100
 save_dir = ""
-save_epoch = 1
+save_batch = 500

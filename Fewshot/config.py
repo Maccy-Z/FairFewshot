@@ -19,19 +19,37 @@ def write_toml():
                              "gat_out_dim": 16,
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
-                             "gat_layers": 3},
+                             "gat_layers": 3,
+                             "reparam_weight": True,
+                             "reparam_pos_enc": True},
 
                  "Optim": {"lr": 3e-4},
 
-                 "DL_params": {"bs": 2,
+                 "DL_params": {"bs": 3,
                                "num_rows": 10,
                                "num_targets": 5,
                                "flip": False},
 
+                 "MLP_DL_params": {"noise_std": 0.3,
+                                   "pre_sample_weights": False,
+                                   # "activation": "Sigmoid",
+                                   "hidden_dim": 3,
+                                   "num_causes": 2,
+                                   "num_layers": 3,
+                                   "is_causal": True,
+                                   "dropout_prob": 0.5,
+                                   "init_std": 1,
+                                   "pre_sample_causes": False,
+                                   # "causes_mean": None,
+                                   # "causes_std": None,
+                                   "in_clique": True,
+                                   "is_effect": True,
+                                   "sort_features": True},
+
                  "Settings": {"num_epochs": 10000,
                               "print_interval": 100,
                               "save_dir": "",
-                              "save_epoch": 1,
+                              "save_batch": 500,
                               }
                  }
 

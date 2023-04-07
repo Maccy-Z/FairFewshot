@@ -41,35 +41,32 @@ from main import *
 
 class SaveLoader:
     def __init__(self, save_dir):
-        self.model = torch.load(f'{save_dir}/model.pt')
+        print(f"Loading save at {save_dir}")
+        # self.model = torch.load(f'{save_dir}/model.pt')
 
         with open(f'{save_dir}/history.pkl', "rb") as f:
             self.history = pickle.load(f)
 
     def plot_history(self):
-        val_accs = self.history["val_accs"]
-        val_accs = np.array(val_accs)
-        val_accs = np.mean(val_accs, axis=-1)
+        # val_accs = self.history["val_accs"]
+        # val_accs = np.array(val_accs)
+        # val_accs = np.mean(val_accs, axis=-1)
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, 100)
+        train_accs = np.array_split(train_accs, len(train_accs) // 500)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
-        plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
-                 val_accs, label="Validation Acc")
-        plt.plot(np.linspace(0, val_accs.shape[0], train_accs.shape[0]),
-                 train_accs, label="Train Acc")
+        plt.plot(train_accs, label="Train Acc")
         plt.legend()
         plt.show()
 
 
 if __name__ == "__main__":
-    BASEDIR = "/home/maccyz/Documents/FairFewshot"
+    BASEDIR = "/mnt/storage_ssd/FairFewshot"
     saves = os.listdir(f'{BASEDIR}/saves')
     saves = sorted(saves)
 
-    h = SaveHolder(base_dir=f'{BASEDIR}')
-
-    # h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-3]}')
-    # h.plot_history()
+    # h = SaveHolder(base_dir=f'{BASEDIR}')
+    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
+    h.plot_history()
