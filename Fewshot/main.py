@@ -291,7 +291,7 @@ class ModelHolder(nn.Module):
 
 
 def train():
-    save_holder = SaveHolder("./")
+    save_holder = SaveHolder(".")
 
     all_cfgs = get_config()
     cfg = all_cfgs["Optim"]

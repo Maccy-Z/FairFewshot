@@ -21,7 +21,6 @@ def write_toml():
                              "gen_layers": 2,
                              "gat_layers": 3},
 
-
                  "Optim": {"lr": 3e-4},
 
                  "DL_params": {"bs": 2,
