@@ -131,25 +131,77 @@ class MLP(nn.Module):
 
 class MLPDataLoader:
     def __init__(self, bs, num_rows, num_target, num_cols, config, 
-                 new_models=False, device="cpu", split="train"):
+                 device="cpu", split="train", num_models=None, 
+                 restore_data=False, save_dir=None):
             self.bs = bs
             self.num_rows = num_rows
             self.num_target = num_target
-            self.num_columns = num_cols
+            self.num_cols = num_cols
+            self.num_models = num_models
             
-            if new_models:
-                self.model = lambda m: MLP(config, num_rows + num_target, num_cols)
+            if restore_data:
+                if num_models > 0:
+                    models = [torch.load(f'{save_dir}/data_model_{i}.pt') 
+                              for i in range(num_models)]
+                    self.model = lambda i: models[i]
+                else:
+                    raise Exception(
+                        "Model restoration not available with inifnite number of models")
+            
+            if num_models == -1:
+                self.model = lambda i: MLP(config, num_rows + num_target, self.num_cols)
             else:
-                model = MLP(config, num_rows + num_target, num_cols)
-                self.model = lambda m: model
+                models = [MLP(config, num_rows + num_target, self.num_cols) 
+                          for i in range(num_models)]
+                self.model = lambda i: models[i]
 
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            xs, ys = list(zip(*[self.model(i).forward() for i in range(self.bs)]))
+            if self.num_models == -1:
+                model_idx = [None] * self.bs
+                xs, ys = list(zip(*[self.model(i).forward() for i in range(self.bs)]))
+            else:
+                model_idx = np.random.randint(self.num_models, size=self.bs)
+                xs, ys = list(zip(*[self.model(
+                    model_idx[i]).forward() for i in range(self.bs)]))
+
             xs = torch.stack(xs).squeeze()
             ys = torch.stack(ys).squeeze(axis=3)
-            yield xs, ys.long()
+            yield xs, ys.long(), model_idx
+    
+    def save_models(self, save_dir):
+        if not self.new_models:
+            for i in range(self.num_models):
+                torch.save(self.model(i), f'{save_dir}/data_model_{i}.pt')
+        else:
+            raise Exception("Model saving not available if new_models=True")
 
+class MLPRandomDimDataLoader:
+    def __init__(self, bs, num_rows, num_target, num_cols_range, config, 
+                 device="cpu", split="train"):
+            self.bs = bs
+            self.num_rows = num_rows
+            self.num_target = num_target
+            self.num_cols_range = num_cols_range
+            self.config = config
+
+    def __iter__(self):
+        """
+        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+        """
+        while True:
+            num_features = np.random.randint(
+                self.num_cols_range[0], self.num_cols_range[1])
+            model = lambda i: MLP(
+                config=self.config, 
+                seq_len=self.num_rows + self.num_target, 
+                num_features=num_features
+            )
+            xs, ys = list(zip(*[model(i).forward() for i in range(self.bs)]))
+
+            xs = torch.stack(xs).squeeze()
+            ys = torch.stack(ys).squeeze(axis=3)
+            yield xs, ys.long(), None
