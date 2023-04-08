@@ -202,9 +202,10 @@ class WeightGenerator(nn.Module):
 
 
 class GNN(nn.Module):
-    def __init__(self):
+    def __init__(self, device="cpu"):
         super().__init__()
         self.GATConv = GATConvFunc()
+        self.device = device
 
     # Generate additional fixed embeddings / graph
     def graph_matrix(self, num_rows, num_xs):
@@ -240,7 +241,7 @@ class GNN(nn.Module):
         xs = xs.view(bs, num_rows * num_cols, 1)
         xs = torch.cat([xs, pos_enc], dim=-1)
 
-        edge_idx = self.graph_matrix(num_rows, num_cols)
+        edge_idx = self.graph_matrix(num_rows, num_cols).to(self.device)
 
         output = []
         for batch_weights, final_weight, x in zip(gat_weights, lin_weights, xs):
@@ -264,7 +265,7 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self):
+    def __init__(self, device="cpu"):
         super().__init__()
         cfg = get_config()["NN_dims"]
 
@@ -297,7 +298,7 @@ class ModelHolder(nn.Module):
         self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
                                             out_sizes=gat_shapes, gen_layers=gen_layers,
                                             reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
-        self.gnn_model = GNN()
+        self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
@@ -306,7 +307,7 @@ class ModelHolder(nn.Module):
         # Reparametrisation trick. Save mean and log_var.
         if self.reparam_weight:
             embed_means, embed_lvar = embed_meta[:, 0], embed_meta[:, 1]
-            if self.trainig:
+            if self.training:
                 std = torch.exp(0.5 * embed_lvar)
                 eps = torch.randn_like(std)
                 embed_meta = embed_means + eps * std
@@ -331,6 +332,7 @@ class ModelHolder(nn.Module):
 
     def forward_target(self, xs_target, embed_meta, pos_enc):
         weights_target = self.weight_model(embed_meta)
+
         preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
 
         return preds_meta
@@ -338,7 +340,7 @@ class ModelHolder(nn.Module):
     def loss_fn(self, preds, targs):
         cross_entropy = torch.nn.functional.cross_entropy(preds, targs)
 
-        kl_div = 0
+        kl_div: torch.Tensor = 0
         if self.reparam_weight:
             div = 1 + self.embed_lvar - self.embed_means.square() - self.embed_lvar.exp()  # [BS, embed_dim]
             kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
@@ -347,12 +349,12 @@ class ModelHolder(nn.Module):
             div = 1 + self.pos_lvar - self.pos_means.square() - self.pos_lvar.exp()  # [BS, num_cols, emb_dim]
             kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
 
-        return cross_entropy + kl_div
+        return cross_entropy + 0.1 * kl_div
 
         # kl_div = -0.5 * torch.sum()
 
 
-def train():
+def train(device="cpu"):
     save_holder = SaveHolder(".")
 
     all_cfgs = get_config()
@@ -374,12 +376,14 @@ def train():
 
     # train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
     # val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
-    dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4, config=all_cfgs["MLP_DL_params"])
+    dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
+                       config=all_cfgs["MLP_DL_params"])
     val_dl = iter(dl)
 
-    model = ModelHolder()
+    model = ModelHolder(device=device).to(device)
+    # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -387,6 +391,7 @@ def train():
     for epoch in range(num_epochs):
         for xs, ys in dl:
             batch_no += 1
+            xs, ys = xs.to(device), ys.to(device)
             # Train loop
             model.train()
 
@@ -400,8 +405,8 @@ def train():
 
             # Reshape for dataset2vec
             pairs_meta = d2v_pairer(xs_meta, ys_meta)
-
             # First pass with the meta-set, train d2v and get embedding.
+
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
@@ -424,6 +429,8 @@ def train():
                 epoch_accs, epoch_losses = [], []
                 for _ in range(val_duration):
                     xs, ys = next(val_dl)
+                    xs, ys = xs.to(device), ys.to(device)
+
                     # xs.shape = [bs, num_rows, num_xs]
 
                     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -456,10 +463,10 @@ def train():
             if batch_no % print_interval == 0:
                 print()
                 print(f'{epoch=}, {batch_no=}')
-                print("Targets:    ", ys_target.numpy())
-                print("Predictions:", predicted_labels.numpy())
+                print("Targets:    ", ys_target.cpu().numpy())
+                print("Predictions:", predicted_labels.cpu().numpy())
                 print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}')
-                print(torch.mean(model.pos_lvar).item(), torch.mean(model.pos_means).item())
+                # print(torch.mean(model.pos_lvar).item(), torch.mean(model.pos_means).item())
 
             if batch_no % save_batch == 0:
                 save_holder.save_model(model)
@@ -474,4 +481,5 @@ if __name__ == "__main__":
     np.random.seed(1)
     torch.manual_seed(1)
 
-    train()
+    dev = torch.device("cpu")
+    train(device=dev)

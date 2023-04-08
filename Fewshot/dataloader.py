@@ -128,7 +128,7 @@ def d2v_pairer(xs, ys):
     xs = xs.view(bs * num_rows, num_xs)
     ys = ys.view(bs * num_rows, 1)
 
-    pair_flat = torch.empty(bs * num_rows, num_xs, 2)
+    pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
     for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
         # Only allow 1D for ys
         ys_k = ys_k.repeat(num_xs)

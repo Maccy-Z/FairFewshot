@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import random
 
-device = 'cpu'
+# device = 'cpu'
 
 
 class GaussianNoise(nn.Module):
@@ -17,11 +17,13 @@ class GaussianNoise(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, config, seq_len, num_features, num_outputs=1):
+    def __init__(self, config, seq_len, num_features, num_outputs=1, device="cpu"):
         super(MLP, self).__init__()
         self.num_outputs = num_outputs
         self.num_features = num_features
         self.seq_len = seq_len
+        self.device = device
+
         self.noise_std = config.get('noise_std', 0.3)
         self.pre_sample_weights = config.get('pre_sample_weights', False)
         self.activation = config.get('activation', torch.nn.Sigmoid)
@@ -87,7 +89,7 @@ class MLP(nn.Module):
             causes = torch.normal(self.causes_mean, self.causes_std.abs()).float()
         else:
             causes = torch.normal(
-                0., 1., (self.seq_len, 1, self.num_causes), device=device).float()
+                0., 1., (self.seq_len, 1, self.num_causes), device=self.device).float()
 
         outputs = [causes]
         for layer in self.layers:
@@ -103,10 +105,10 @@ class MLP(nn.Module):
                         random.randint(0, outputs_flat.shape[-1]
                                        - self.num_outputs - self.num_features)
                         + torch.randperm(self.num_outputs
-                                         + self.num_features, device=device))
+                                         + self.num_features, device=self.device))
             else:  # select any nodes from output nodes
                 random_perm = torch.randperm(
-                    outputs_flat.shape[-1] - 1, device=device)
+                    outputs_flat.shape[-1] - 1, device=self.device)
 
             random_idx_y = (
                 list(range(-self.num_outputs, -0)) if self.y_is_effect
