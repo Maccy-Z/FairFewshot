@@ -9,19 +9,19 @@ def get_config():
 
 
 def write_toml():
-    save_dict = {"NN_dims": {"pos_enc_dim": 3,
+    save_dict = {"NN_dims": {"pos_enc_dim": 7,
                              "set_h_dim": 64,
                              "set_out_dim": 32,
                              "weight_hid_dim": 64,
                              "gat_heads": 2,
                              "gat_hid_dim": 128,
-                             "gat_in_dim": 4,
+                             # "gat_in_dim": 4,
                              "gat_out_dim": 16,
-                             "d2v_layers": [3, 2, 3, 2],
+                             "d2v_layers": [5, 2, 5, 2],
                              "gen_layers": 2,
                              "gat_layers": 3,
-                             "reparam_weight": True,
-                             "reparam_pos_enc": True},
+                             "reparam_weight": False,
+                             "reparam_pos_enc": False},
 
                  "Optim": {"lr": 3e-4},
 
@@ -31,10 +31,9 @@ def write_toml():
                                "flip": False},
 
                  "Settings": {"num_epochs": 10000,
-                              "print_interval": 100,
                               "save_dir": "",
-                              "val_duration": 150,
-                              "val_interval": 1000,
+                              "val_duration": 200,
+                              "val_interval": 2000,
                               "dataset": "adult",
                               },
 
@@ -57,6 +56,7 @@ def write_toml():
 
                  }
 
+    save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] + 1
     with open("./Fewshot/defaults.toml", "w") as f:
         toml.dump(save_dict, f)
 

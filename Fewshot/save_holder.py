@@ -52,16 +52,23 @@ class SaveLoader:
         val_accs = self.history["val_accs"]
         val_accs = np.array(val_accs)
         val_accs = np.mean(val_accs, axis=-1)
+        max_val_acc = np.max(val_accs)
+
+        print(max_val_acc)
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, 100)
+        train_accs = np.array_split(train_accs, 200)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
         plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
                  val_accs, label="Validation Acc")
         plt.plot(np.linspace(0, val_accs.shape[0], train_accs.shape[0]),
                  train_accs, label="Train Acc")
+
+        plt.title(f'Maximum valdation accuracy: {max_val_acc}')
+        plt.ylabel("Accuracy %")
+        plt.xlabel("Epoch")
         plt.legend()
         plt.show()
 

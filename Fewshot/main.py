@@ -368,7 +368,7 @@ def main(device="cpu"):
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
-    print_interval = cfg["print_interval"]
+    # print_interval = cfg["print_interval"]
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
@@ -452,8 +452,7 @@ def main(device="cpu"):
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
                 ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-
-            loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+                loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
 
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
@@ -466,7 +465,7 @@ def main(device="cpu"):
 
         print("Targets:    ", ys_target.cpu().numpy())
         print("Predictions:", predicted_labels.cpu().numpy())
-        print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}%')
+        print(f'Mean accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
         # Save stats
         save_holder.save_model(model, optim)
