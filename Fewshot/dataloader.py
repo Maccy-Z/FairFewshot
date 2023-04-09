@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import os
 import pandas as pd
+import random
 
 DATADIR = './datasets/data'
 
@@ -150,8 +151,9 @@ def binarise_data(ys):
 def one_vs_all(ys):
     # identify the most common class and set it to 1, set everything else as 0
     mode = ys.mode()[0]
-    ys[ys == mode] = 1
-    ys[ys != mode] = 0
+    idx = ys == mode
+    ys = torch.zeros(ys.shape[0])
+    ys[idx] = 1
     return ys
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -169,7 +171,7 @@ class MyDataSet():
                 f'{DATADIR}/{data_name}/{data_name}_train_py.dat', 
                 header=None)
             self.train = to_tensor(np.asarray(self.train), device=self.device, dtype=dtype)
-            self.n_predictors = self.train.shape[1] - 1
+            self.num_predictors = self.train.shape[1] - 1
 
         elif split == "val":
             self.predictors = pd.read_csv(
@@ -181,14 +183,15 @@ class MyDataSet():
                 f'{DATADIR}/{data_name}/labels_py.dat', 
                 header=None).iloc[:, 0]
             n_classes = len(np.unique(self.targets))
-            if n_classes > 1:
-                self.targets = one_vs_all(self.targets)
+            # if n_classes > 1:
+            #     self.targets = one_vs_all(self.targets)
             self.targets = to_tensor(
                 np.asarray(self.targets), device=self.device, dtype=dtype)
-            self.n_predictors = self.predictors.shape[1]
+            self.num_predictors = self.predictors.shape[1]
+            self.num_total_rows = self.predictors.shape[0]
 
     def sample(self, num_rows, num_cols):
-        if num_cols > self.n_predictors:
+        if num_cols > self.num_predictors:
             raise Exception("More columns requested than available predictors")
         
         if self.split == "train":
@@ -207,6 +210,8 @@ class MyDataSet():
             xs = self.predictors[:, col_idx][row_idx, :]
             xs = xs[:num_rows, :num_cols]
             ys = self.targets[row_idx][:num_rows]
+            if max(ys) > 1:
+                ys = one_vs_all(ys)
 
         return xs, ys
 
@@ -216,34 +221,37 @@ class AllDatasetDataLoader():
             self, bs, num_rows, num_target, device="cpu", split="train"):
 
         self.bs = bs
-        self.num_rows = num_rows
-        self.num_target = num_target
-        self.data_names = os.listdir(DATADIR)
-        self.data_names.remove('info.json')
-        self.data_names = pd.Series(self.data_names)
+        self.num_rows = num_rows + num_target
         self.split = split
         self.device = device
+        self.get_valid_datasets()
 
+    def get_valid_datasets(self):
+        all_data_names = os.listdir(DATADIR)
+        all_data_names.remove('info.json')
+        self.all_datasets = [
+                MyDataSet(d, split="val", device=self.device) 
+                for d in all_data_names
+            ]
+        self.datasets = [
+            d for d in self.all_datasets if d.num_total_rows >= self.num_rows
+        ]
+    
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            num_rows = self.num_rows + self.num_target
-            data_names = self.data_names.sample(self.bs, replace=True)
-            datasets = [
-                MyDataSet(d, split=self.split, device=self.device) 
-                for d in data_names
-            ]
-            print(data_names)
-            max_num_cols = min([d.n_predictors for d in datasets])
+            datasets = random.sample(self.datasets, self.bs)
+            datanames = [d.data_name for d in datasets]
+            max_num_cols = min([d.num_predictors for d in datasets])
             num_cols = np.random.randint(1, max_num_cols + 1)
             xs, ys = list(zip(*[
-                datasets[i].sample(num_rows=num_rows, num_cols=num_cols) 
+                datasets[i].sample(num_rows=self.num_rows, num_cols=num_cols) 
                 for  i in range(self.bs)]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-            yield xs, ys, data_names.values
+            yield xs, ys, datanames
 
 if __name__ == "__main__":
     # Test if dataloader works.
@@ -265,9 +273,10 @@ if __name__ == "__main__":
     # means = torch.mean(means)
     # print(means)
 
-    dl = AllDatasetDataLoader(bs=2, num_rows=5, num_target=5, split="val")
+    dl = AllDatasetDataLoader(bs=2, num_rows=5, num_target=5, split="train")
 
     for i, (xs, ys, data_names) in enumerate(dl):
         print(xs)
         print(ys)
+        print(data_names)
         break
