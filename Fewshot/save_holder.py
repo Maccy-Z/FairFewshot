@@ -27,8 +27,9 @@ class SaveHolder:
 
         shutil.copy(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
 
-    def save_model(self, model: torch.nn.Module):
-        torch.save(model, f'{self.save_dir}/model.pt')
+    def save_model(self, model: torch.nn.Module, optim):
+        torch.save({"model_state_dict": model.state_dict(),
+                    "optim_state_dict": optim.state_dict()}, f'{self.save_dir}/model.pt')
 
     def save_history(self, hist_dict: dict):
         with open(f'{self.save_dir}/history.pkl', 'wb') as f:

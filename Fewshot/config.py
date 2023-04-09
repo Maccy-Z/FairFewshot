@@ -20,7 +20,7 @@ def write_toml():
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
                              "gat_layers": 3,
-                             "reparam_weight": True,
+                             "reparam_weight": False,
                              "reparam_pos_enc": True},
 
                  "Optim": {"lr": 3e-4},
@@ -29,6 +29,15 @@ def write_toml():
                                "num_rows": 10,
                                "num_targets": 5,
                                "flip": False},
+
+                 "Settings": {"num_epochs": 10000,
+                              "print_interval": 100,
+                              "save_dir": "",
+                              "save_batch": 500,
+                              "val_duration": 150,
+                              "val_interval": 1000,
+                              "dataset": "adult",
+                              },
 
                  "MLP_DL_params": {"noise_std": 0.3,
                                    "pre_sample_weights": False,
@@ -46,13 +55,7 @@ def write_toml():
                                    "is_effect": True,
                                    "sort_features": True},
 
-                 "Settings": {"num_epochs": 10000,
-                              "print_interval": 100,
-                              "save_dir": "",
-                              "save_batch": 500,
-                              "val_duration": 100,
-                              "val_interval": 500
-                              }
+
                  }
 
     with open("./Fewshot/defaults.toml", "w") as f:
