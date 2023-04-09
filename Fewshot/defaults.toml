@@ -1,5 +1,5 @@
 [NN_dims]
-pos_enc_dim = 7
+pos_enc_dim = 3
 set_h_dim = 64
 set_out_dim = 32
 weight_hid_dim = 64
@@ -11,7 +11,7 @@ gen_layers = 2
 gat_layers = 3
 reparam_weight = false
 reparam_pos_enc = false
-gat_in_dim = 8
+gat_in_dim = 4
 
 [Optim]
 lr = 0.0003

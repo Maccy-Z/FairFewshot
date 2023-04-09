@@ -95,13 +95,13 @@ if __name__ == "__main__":
 
     torch.manual_seed(0)
 
-    with open("./datasets/data/info.json") as f:
+    with open("./data/info.json") as f:
         json_data = json.load(f)
 
     dataset_lengths = {}
     for k, v in json_data.items():
         length = int(v['cardinality']['train'])
-        if length > 5000:
+        if length > 1000:
             dataset_lengths[k] = v['cardinality']['train']
 
     print(dataset_lengths)

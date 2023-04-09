@@ -9,7 +9,7 @@ def get_config():
 
 
 def write_toml():
-    save_dict = {"NN_dims": {"pos_enc_dim": 7,
+    save_dict = {"NN_dims": {"pos_enc_dim": 3,
                              "set_h_dim": 64,
                              "set_out_dim": 32,
                              "weight_hid_dim": 64,
@@ -52,8 +52,6 @@ def write_toml():
                                    "in_clique": True,
                                    "is_effect": True,
                                    "sort_features": True},
-
-
                  }
 
     save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] + 1

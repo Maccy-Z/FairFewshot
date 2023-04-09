@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from toy_dataset import ToyDataloader
-from dataset import Dataloader
+from d2v_dataset import Dataloader
 import time
 
 torch.manual_seed(0)

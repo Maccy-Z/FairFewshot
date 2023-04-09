@@ -22,7 +22,7 @@ class Dataset:
                         validation_folds_py.dat     validation fold
 
         """
-        datadir = f'./datasets/{self.data_name}'
+        datadir = f'./datasets/data/{self.data_name}'
 
         # get train fold
         folds = pd.read_csv(f"{datadir}/folds_py.dat", header=None)[0]
@@ -74,13 +74,6 @@ class Dataset:
             ys = ys[:, y_idx]
 
         # Turn data from table of x and table of y to all paris of (x, y)
-        # DO THIS BUT USING VECTORISED NUMPY
-        # pair_output = torch.zeros([num_xdim, num_ydim, self.nsamples, 2])
-        # for k in range(self.nsamples):
-        #     for i, x in enumerate(xs[k]):
-        #         for j, y in enumerate(ys[k]):
-        #             pair_output[i, j, k] = torch.tensor([x, y])
-
         pair_output = []
         for k in range(self.nsamples):
             xs_k, ys_k = xs[k], ys[k]

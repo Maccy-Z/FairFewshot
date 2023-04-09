@@ -6,6 +6,6 @@ benchmarks = openml.study.get_suite("OpenML-CC18")
 #     print(x)
 
 
-task = openml.tasks.get_task(23)
+task = openml.tasks.get_task(1501)
 xs,ys  = task.get_X_and_y()
 print(xs,ys)

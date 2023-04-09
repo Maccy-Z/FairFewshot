@@ -70,7 +70,7 @@ class AdultDataLoader:
             permutation = torch.randperm(self.data.shape[0])
             data = self.data[permutation]
 
-            allowed_targets = [0]  # [9, 14]
+            allowed_targets = range(15)
             cols = np.arange(self.cols)
 
             for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
