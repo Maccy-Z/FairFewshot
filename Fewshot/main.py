@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from dataloader import AdultDataLoader, d2v_pairer
+from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader
+from data_generation import MLPDataLoader, MLPRandomDimDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 
@@ -291,7 +292,7 @@ class ModelHolder(nn.Module):
 
 
 def train():
-    save_holder = SaveHolder("./")
+    save_holder = SaveHolder(".")
 
     all_cfgs = get_config()
     cfg = all_cfgs["Optim"]
@@ -302,15 +303,24 @@ def train():
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     flip = cfg["flip"]
+    num_models = cfg["num_models"]
 
     cfg = all_cfgs["Settings"]
     num_epochs = cfg["num_epochs"]
     print_interval = cfg["print_interval"]
     save_epoch = cfg["save_epoch"]
 
-    train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
-    val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+    # train_dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
+    # val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+    
+    train_dl = AllDatasetDataLoader(
+        bs=3, num_rows=num_rows, num_target=num_targets, split="train"
+    )
 
+    val_dl = AllDatasetDataLoader(
+        bs=1, num_rows=num_rows, num_target=num_targets, split="val"
+    )
+    
     model = ModelHolder()
 
     optim = torch.optim.Adam(model.parameters(), lr=lr)
@@ -320,9 +330,8 @@ def train():
     for epoch in range(num_epochs):
         # Train loop
         model.train()
-        for batch_no, (xs, ys) in enumerate(train_dl):
+        for batch_no, (xs, ys, model_idx) in enumerate(train_dl):
             # xs.shape = [bs, num_rows, num_xs]
-
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
             # Splicing like this changes the tensor's stride. Fix here:
@@ -353,14 +362,16 @@ def train():
             if batch_no % print_interval == 0:
                 print()
                 print(f'{epoch=}, {batch_no=}')
-                print("Targets:    ", ys_target.numpy())
-                print("Predictions:", predicted_labels.numpy())
+                # print("Targets:    ", ys_target.numpy())
+                # print("Predictions:", predicted_labels.numpy())
                 print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}')
+            if batch_no == 1000:
+                break
 
         # val_loop
         model.eval()
         epoch_accs, epoch_losses = [], []
-        for batch_no, (xs, ys) in enumerate(val_dl):
+        for batch_no, (xs, ys, model_idx) in enumerate(val_dl):
             # xs.shape = [bs, num_rows, num_xs]
 
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -383,6 +394,8 @@ def train():
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
             epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+            if batch_no == 100:
+                break
 
         print()
         print(f'Validation Stats: ')

@@ -26,8 +26,9 @@ def write_toml():
 
                  "DL_params": {"bs": 2,
                                "num_rows": 10,
-                               "num_targets": 5,
-                               "flip": False},
+                               "num_targets": 10,
+                               "flip": False
+                 },
 
                  "Settings": {"num_epochs": 10000,
                               "print_interval": 100,
