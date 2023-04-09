@@ -213,17 +213,17 @@ class MyDataSet():
             if max(ys) > 1:
                 ys = one_vs_all(ys)
 
-        return xs, ys
+        return xs, ys.long()
 
 class AllDatasetDataLoader():
-    # TODO : Add checker for datasets having at least 'x' num_rows
     def __init__(
-            self, bs, num_rows, num_target, device="cpu", split="train"):
+            self, bs, num_rows, num_target, num_cols=-1, device="cpu", split="train"):
 
         self.bs = bs
         self.num_rows = num_rows + num_target
         self.split = split
         self.device = device
+        self.num_cols = num_cols
         self.get_valid_datasets()
 
     def get_valid_datasets(self):
@@ -236,6 +236,10 @@ class AllDatasetDataLoader():
         self.datasets = [
             d for d in self.all_datasets if d.num_total_rows >= self.num_rows
         ]
+        if self.num_cols != -1:
+            self.datasets = [
+                d for d in self.datasets if d.num_predictors == self.num_cols
+            ]
     
     def __iter__(self):
         """
@@ -245,7 +249,10 @@ class AllDatasetDataLoader():
             datasets = random.sample(self.datasets, self.bs)
             datanames = [d.data_name for d in datasets]
             max_num_cols = min([d.num_predictors for d in datasets])
-            num_cols = np.random.randint(1, max_num_cols + 1)
+            if self.num_cols == -1:
+                num_cols = np.random.randint(1, max_num_cols + 1)
+            else:
+                num_cols = self.num_cols
             xs, ys = list(zip(*[
                 datasets[i].sample(num_rows=self.num_rows, num_cols=num_cols) 
                 for  i in range(self.bs)]))
