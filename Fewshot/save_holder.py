@@ -27,6 +27,8 @@ class SaveHolder:
 
         shutil.copy(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
 
+        self.grads = []
+
     def save_model(self, model: torch.nn.Module, optim):
         torch.save({"model_state_dict": model.state_dict(),
                     "optim_state_dict": optim.state_dict()}, f'{self.save_dir}/model.pt')
@@ -35,6 +37,11 @@ class SaveHolder:
         with open(f'{self.save_dir}/history.pkl', 'wb') as f:
             pickle.dump(hist_dict, f)
 
+    def save_grads(self, grads: dict):
+        self.grads.append(grads)
+        with open(f'{self.save_dir}/grads.pkl', 'wb') as f:
+            pickle.dump(self.grads, f)
+
 
 # Needs to be imported after SaveHolder or there will be a circular import
 from main import *
@@ -42,6 +49,7 @@ from main import *
 
 class SaveLoader:
     def __init__(self, save_dir):
+        self.save_dir = save_dir
         print(f"Loading save at {save_dir}")
         # self.model = torch.load(f'{save_dir}/model.pt')
 
@@ -58,7 +66,7 @@ class SaveLoader:
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, 50)
+        train_accs = np.array_split(train_accs, 100)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
         plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
@@ -71,6 +79,41 @@ class SaveLoader:
         plt.xlabel("Epoch")
         plt.legend()
         plt.show()
+
+    def plot_grads(self):
+        with open(f'{self.save_dir}/grads.pkl', "rb") as f:
+            grad_list = pickle.load(f)
+
+        grad_mean, grad_std = {}, {}
+        for epoch_grads in grad_list:
+            for name, abs_grad in epoch_grads.items():
+                mean, std = torch.std_mean(abs_grad)
+                mean, std = mean.item(), std.item()
+                if name not in grad_mean:
+                    grad_mean[name] = [mean]
+                    grad_std[name] = [std]
+                else:
+
+                    grad_mean[name].append(mean), grad_std[name].append(std)
+
+        layer_names = list(grad_std.keys())
+        for i, name in enumerate(layer_names):
+            layer_names[i] = layer_names[i].replace(".weight", ".w")
+            layer_names[i] = layer_names[i].replace(".bias", ".b")
+            layer_names[i] = layer_names[i].replace("weight_model.w_", "")
+            layer_names[i] = layer_names[i].replace("d2v_model", "d2v")
+
+
+        grad_means, grad_stds = list(grad_mean.values()), list(grad_std.values())
+        grad_means, grad_stds = np.array(grad_means).T, np.array(grad_stds).T
+
+        for epoch, (mean, std) in enumerate(zip(grad_means, grad_stds)):
+            plt.plot(mean)
+            plt.xticks(range(len(layer_names)), layer_names, rotation="vertical")
+            plt.subplots_adjust(bottom=0.3)
+            plt.title(f'{epoch = }')
+            plt.ylabel("abs gradient magnitude")
+            plt.show()
 
 
 if __name__ == "__main__":
@@ -92,3 +135,4 @@ if __name__ == "__main__":
     # h = SaveHolder(base_dir=f'{BASEDIR}')
     h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
     h.plot_history()
+    h.plot_grads()

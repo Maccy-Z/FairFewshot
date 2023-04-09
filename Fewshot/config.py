@@ -19,9 +19,9 @@ def write_toml():
                              "gat_out_dim": 16,
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
-                             "gat_layers": 3,
-                             "reparam_weight": False,
-                             "reparam_pos_enc": False},
+                             "gat_layers": 2,
+                             "reparam_weight": True,
+                             "reparam_pos_enc": True},
 
                  "Optim": {"lr": 3e-4},
 

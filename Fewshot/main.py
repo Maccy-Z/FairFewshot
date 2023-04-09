@@ -111,7 +111,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers, reparam_weight, reparam_pos_enc):
+    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -141,11 +141,12 @@ class WeightGenerator(nn.Module):
         self.num_classes = 2
         self.gat_out_dim = self.out_sizes[-1][-2]
         lin_out_dim = self.gat_out_dim * self.num_classes
-        self.weight_gen_linear = nn.Sequential(
+        self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
             nn.ReLU(),
             nn.Linear(self.gen_hid_dim, lin_out_dim)
         )
+        # self.w_gen_out[2].bias.data.fill_(0)
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -196,7 +197,7 @@ class WeightGenerator(nn.Module):
         layer_weights = list(zip(*layer_weights))  # [BS, num_layers, tensor[4]]
 
         # Weights for linear layer
-        lin_weights = self.weight_gen_linear(d2v_embed)
+        lin_weights = self.w_gen_out(d2v_embed)
         lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
 
         return layer_weights, lin_weights
@@ -298,7 +299,7 @@ class ModelHolder(nn.Module):
                                      reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
         self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
                                             out_sizes=gat_shapes, gen_layers=gen_layers,
-                                            reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
+                                            )
         self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
@@ -390,13 +391,14 @@ def main(device="cpu"):
 
     accs, losses = [], []
     val_accs, val_losses = [], []
-
     st = time.time()
     for epoch in range(num_epochs):
         duration = time.time() - st
         st = time.time()
         print()
         print(f'{epoch = }, {duration = :.2g}s')
+
+        save_grads = None
 
         # Train loop
         model.train()
@@ -423,17 +425,24 @@ def main(device="cpu"):
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
+            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters()}
             optim.step()
-
-            # Save gradients
-            grads = {n: p.grad for n, p in model.named_parameters()}
             optim.zero_grad()
-            print(grads)
+
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
             accs.append(accuracy), losses.append(loss.item())
+
+            if save_grads is None:
+                save_grads = grads
+            else:
+                for name, abs_grad in grads.items():
+                    save_grads[name] += abs_grad
+
+        for name, abs_grad in save_grads.items():
+            save_grads[name] = torch.div(abs_grad, val_interval)
 
         # Validation loop
         model.eval()
@@ -471,10 +480,10 @@ def main(device="cpu"):
         print(f'Mean accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
         # Save stats
-        save_holder.save_model(model, optim)
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
+        save_holder.save_model(model, optim)
         save_holder.save_history(history)
-
+        save_holder.save_grads(save_grads)
 
 if __name__ == "__main__":
     import random

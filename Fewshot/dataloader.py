@@ -45,7 +45,7 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_target, num_xs=1, flip=True, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_target, num_xs=10, flip=True, device="cpu", split="train"):
         self.bs = bs
         self.num_rows = num_rows
         self.num_target = num_target
