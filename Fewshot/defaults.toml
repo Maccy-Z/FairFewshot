@@ -11,7 +11,7 @@ d2v_layers = [ 3, 2, 3, 2,]
 gen_layers = 2
 gat_layers = 3
 reparam_weight = false
-reparam_pos_enc = true
+reparam_pos_enc = false
 
 [Optim]
 lr = 0.0003
@@ -26,7 +26,6 @@ flip = false
 num_epochs = 10000
 print_interval = 100
 save_dir = ""
-save_batch = 500
 val_duration = 150
 val_interval = 1000
 dataset = "adult"

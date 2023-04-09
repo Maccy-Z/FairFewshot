@@ -369,7 +369,6 @@ def main(device="cpu"):
     ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
     print_interval = cfg["print_interval"]
-    save_batch = cfg["save_batch"]
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
@@ -392,11 +391,18 @@ def main(device="cpu"):
     accs, losses = [], []
     val_accs, val_losses = [], []
 
-    def train_loop():
+    st = time.time()
+    for epoch in range(num_epochs):
+        duration = time.time() - st
+        st = time.time()
+        print()
+        print(f'{epoch = }, {duration = :.2g}s')
+
+        # Train loop
+        model.train()
         for xs, ys in itertools.islice(dl, val_interval):
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
-            model.train()
 
             # xs.shape = [bs, num_rows, num_xs]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -426,7 +432,8 @@ def main(device="cpu"):
 
             accs.append(accuracy), losses.append(loss.item())
 
-    def val_loop():
+        # Validation loop
+        model.eval()
         epoch_accs, epoch_losses = [], []
         for xs, ys in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
@@ -455,23 +462,13 @@ def main(device="cpu"):
             epoch_accs.append(accuracy), epoch_losses.append(loss.item())
 
         val_losses.append(epoch_losses), val_accs.append(epoch_accs)
+        # Print some useful stats from validation
 
-        # Print some useful stats
         print("Targets:    ", ys_target.cpu().numpy())
         print("Predictions:", predicted_labels.cpu().numpy())
         print(f'Mean accuracy: {np.mean(accs[-print_interval:]) * 100:.2f}%')
 
-    st = time.time()
-    for epoch in itertools.count(1):
-        duration = time.time() - st
-        st = time.time()
-        print()
-        print(f'{epoch=}, {duration = :.2g}s')
-
-        train_loop()
-
-        val_loop()
-
+        # Save stats
         save_holder.save_model(model, optim)
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
         save_holder.save_history(history)
@@ -484,5 +481,5 @@ if __name__ == "__main__":
     np.random.seed(1)
     torch.manual_seed(1)
 
-    dev = torch.device("cuda")
+    dev = torch.device("cpu")
     main(device=dev)
