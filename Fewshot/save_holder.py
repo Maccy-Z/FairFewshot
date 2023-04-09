@@ -58,7 +58,7 @@ class SaveLoader:
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, 200)
+        train_accs = np.array_split(train_accs, 50)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
         plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),

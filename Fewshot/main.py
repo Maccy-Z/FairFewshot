@@ -424,8 +424,11 @@ def main(device="cpu"):
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
             optim.step()
-            optim.zero_grad()
 
+            # Save gradients
+            grads = {n: p.grad for n, p in model.named_parameters()}
+            optim.zero_grad()
+            print(grads)
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)

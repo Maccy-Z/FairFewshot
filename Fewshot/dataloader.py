@@ -45,10 +45,11 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_target, flip=True, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_target, num_xs=1, flip=True, device="cpu", split="train"):
         self.bs = bs
         self.num_rows = num_rows
         self.num_target = num_target
+        self.num_xs = num_xs
         self.flip = flip
 
         self.ds = Dataset("adult", device=device, split=split)
@@ -70,7 +71,7 @@ class AdultDataLoader:
             permutation = torch.randperm(self.data.shape[0])
             data = self.data[permutation]
 
-            allowed_targets = range(15)
+            allowed_targets = [0]#range(15)
             cols = np.arange(self.cols)
 
             for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
@@ -147,17 +148,21 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3)
+    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3, flip=False)
     #
     # for i in range(15):
     #     num_unique = np.unique(dl.data[:, i])
     #     print(i, len(num_unique))
 
     means = []
-    for x, y in dl:
+    dl = iter(dl)
+    for _ in range(1000):
+        x, y = next(dl)
         y_mean = torch.mean(y, dtype=float)
         means.append(y_mean)
 
+        print(y)
+
     means = torch.stack(means)
     means = torch.mean(means)
-    print(means)
+    print(means.item())

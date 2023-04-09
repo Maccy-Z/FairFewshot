@@ -17,7 +17,7 @@ def write_toml():
                              "gat_hid_dim": 128,
                              # "gat_in_dim": 4,
                              "gat_out_dim": 16,
-                             "d2v_layers": [5, 2, 5, 2],
+                             "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
                              "gat_layers": 3,
                              "reparam_weight": False,
