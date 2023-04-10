@@ -22,8 +22,8 @@ def write_toml():
                              "gat_layers": 2,
                              "reparam_weight": False,
                              "reparam_pos_enc": False,
-                             "weight_bias": "zero",
-                             "pos_enc_bias": "zero"},
+                             "weight_bias": "off",
+                             "pos_enc_bias": "off"},
 
                  "Optim": {"lr": 3e-4},
 

@@ -121,7 +121,6 @@ if __name__ == "__main__":
 
     BASEDIR = "/mnt/storage_ssd/FairFewshot"
 
-
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
         if match:

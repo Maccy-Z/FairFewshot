@@ -11,8 +11,8 @@ gen_layers = 2
 gat_layers = 2
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "zero"
-pos_enc_bias = "zero"
+weight_bias = "off"
+pos_enc_bias = "off"
 gat_in_dim = 4
 
 [Optim]
