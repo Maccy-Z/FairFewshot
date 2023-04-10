@@ -14,7 +14,7 @@ from config import get_config
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc):
+    def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc, pos_enc_bias):
         super().__init__()
         self.reparam_weight = reparam_weight
         self.reparam_pos_enc = reparam_pos_enc
@@ -49,9 +49,13 @@ class SetSetModel(nn.Module):
         self.ps = nn.ModuleList([])
         for _ in range(pos_depth - 2):
             self.ps.append(nn.Linear(h_size, h_size))
-        self.p_out = nn.Linear(h_size, pos_enc_dim)
+        self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias!="off"))
         if self.reparam_pos_enc:
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
+
+        if pos_enc_bias == "zero":
+            print(f'Positional encoding bias init to 0')
+            self.p_out.bias.data.fill_(0)
 
     def forward_layers(self, x):
         # x.shape = [num_rows, num_cols, 2]
@@ -111,7 +115,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers):
+    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers, weight_bias):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -144,9 +148,11 @@ class WeightGenerator(nn.Module):
         self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
             nn.ReLU(),
-            nn.Linear(self.gen_hid_dim, lin_out_dim)
+            nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias!="off"))
         )
-        # self.w_gen_out[2].bias.data.fill_(0)
+        if weight_bias == "zero":
+            print("Weight bias init to 0")
+            self.w_gen_out[2].bias.data.fill_(0)
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -291,15 +297,18 @@ class ModelHolder(nn.Module):
         gen_layers = cfg["gen_layers"]
         gat_layers = cfg["gat_layers"]
 
+        weight_bias = cfg["weight_bias"]
+        pos_enc_bias = cfg["pos_enc_bias"]
+
         gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [
             (gat_hid_dim, gat_out_dim, gat_heads)]
 
         self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
                                      pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
-                                     reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc)
+                                     reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc, pos_enc_bias=pos_enc_bias)
         self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
                                             out_sizes=gat_shapes, gen_layers=gen_layers,
-                                            )
+                                            weight_bias=weight_bias)
         self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
@@ -314,7 +323,6 @@ class ModelHolder(nn.Module):
                 embed_meta = embed_means + eps * std
                 self.embed_lvar = embed_lvar
                 self.embed_means = embed_means
-
             else:
                 embed_meta = embed_means
 

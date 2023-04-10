@@ -9,8 +9,10 @@ gat_out_dim = 16
 d2v_layers = [ 3, 2, 3, 2,]
 gen_layers = 2
 gat_layers = 2
-reparam_weight = true
-reparam_pos_enc = true
+reparam_weight = false
+reparam_pos_enc = false
+weight_bias = "zero"
+pos_enc_bias = "zero"
 gat_in_dim = 4
 
 [Optim]

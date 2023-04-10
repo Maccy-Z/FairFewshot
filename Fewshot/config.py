@@ -20,8 +20,10 @@ def write_toml():
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
                              "gat_layers": 2,
-                             "reparam_weight": True,
-                             "reparam_pos_enc": True},
+                             "reparam_weight": False,
+                             "reparam_pos_enc": False,
+                             "weight_bias": "zero",
+                             "pos_enc_bias": "zero"},
 
                  "Optim": {"lr": 3e-4},
 
