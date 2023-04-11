@@ -69,43 +69,44 @@ class AdultDataLoader:
         """
         num_rows = self.num_rows + self.num_target
 
-        # Randomise data order
-        permutation = torch.randperm(self.data.shape[0])
-        data = self.data[permutation]
+        while True:
+            # Randomise data order
+            permutation = torch.randperm(self.data.shape[0])
+            data = self.data[permutation]
 
-        allowed_targets = [0]  # [9, 14]
-        cols = np.arange(self.cols)
+            allowed_targets = [0]  # [9, 14]
+            cols = np.arange(self.cols)
 
-        for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
-            # TODO: Allow flexible number of columns within a batch. Currently, each batch is fixed num_xs.
-            self.num_xs = 10
+            for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):
+                # TODO: Allow flexible number of columns within a batch. Currently, each batch is fixed num_xs.
+                self.num_xs = 10
 
-            # Get target and predictor columns
-            target_cols = np.random.choice(allowed_targets, size=self.bs)
+                # Get target and predictor columns
+                target_cols = np.random.choice(allowed_targets, size=self.bs)
 
-            predict_cols = np.empty((self.bs, self.num_xs))
-            for batch, target in enumerate(target_cols):
-                row_cols = np.setdiff1d(cols, target)
-                predict_cols[batch] = np.random.choice(row_cols, size=self.num_xs, replace=False)
+                predict_cols = np.empty((self.bs, self.num_xs))
+                for batch, target in enumerate(target_cols):
+                    row_cols = np.setdiff1d(cols, target)
+                    predict_cols[batch] = np.random.choice(row_cols, size=self.num_xs, replace=False)
 
-            target_cols = torch.from_numpy(target_cols).int()
-            predict_cols = torch.from_numpy(predict_cols).int()
+                target_cols = torch.from_numpy(target_cols).int()
+                predict_cols = torch.from_numpy(predict_cols).int()
 
-            # Rows of data to select
-            select_data = data[st:st + num_rows * self.bs]
+                # Rows of data to select
+                select_data = data[st:st + num_rows * self.bs]
 
-            # Pick out wanted columns
-            predict_idxs = predict_cols.repeat_interleave(num_rows, dim=0)
-            target_idxs = target_cols.repeat_interleave(num_rows)
+                # Pick out wanted columns
+                predict_idxs = predict_cols.repeat_interleave(num_rows, dim=0)
+                target_idxs = target_cols.repeat_interleave(num_rows)
 
-            xs = select_data[torch.tensor(np.arange(self.bs * num_rows).reshape(-1, 1)).long(), predict_idxs.long()]
-            ys = select_data[torch.tensor(np.arange(self.bs * num_rows)).long(), target_idxs.long()]
+                xs = select_data[np.arange(self.bs * num_rows).reshape(-1, 1), predict_idxs]
+                ys = select_data[np.arange(self.bs * num_rows), target_idxs]
 
-            xs = xs.view(self.bs, num_rows, self.num_xs)  # [bs, num_rows, num_cols]
-            ys = ys.view(self.bs, num_rows)  # [bs, num_rows]
+                xs = xs.view(self.bs, num_rows, self.num_xs)  # [bs, num_rows, num_cols]
+                ys = ys.view(self.bs, num_rows)  # [bs, num_rows]
 
-            ys = self.binarise_data(ys)
-            yield xs, ys
+                ys = self.binarise_data(ys)
+                yield xs, ys
 
     # Convert target columns into a binary classification task.
     def binarise_data(self, ys):
@@ -132,7 +133,7 @@ def d2v_pairer(xs, ys):
     xs = xs.view(bs * num_rows, num_xs)
     ys = ys.view(bs * num_rows, 1)
 
-    pair_flat = torch.empty(bs * num_rows, num_xs, 2)
+    pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
     for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
         # Only allow 1D for ys
         ys_k = ys_k.repeat(num_xs)

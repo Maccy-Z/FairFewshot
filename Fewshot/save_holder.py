@@ -27,8 +27,9 @@ class SaveHolder:
 
         shutil.copy(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
 
-    def save_model(self, model: torch.nn.Module):
-        torch.save(model, f'{self.save_dir}/model.pt')
+    def save_model(self, model: torch.nn.Module, optim):
+        torch.save({"model_state_dict": model.state_dict(),
+                    "optim_state_dict": optim.state_dict()}, f'{self.save_dir}/model.pt')
 
     def save_history(self, hist_dict: dict):
         with open(f'{self.save_dir}/history.pkl', 'wb') as f:
@@ -41,7 +42,8 @@ from main import *
 
 class SaveLoader:
     def __init__(self, save_dir):
-        self.model = torch.load(f'{save_dir}/model.pt')
+        print(f"Loading save at {save_dir}")
+        # self.model = torch.load(f'{save_dir}/model.pt')
 
         with open(f'{save_dir}/history.pkl', "rb") as f:
             self.history = pickle.load(f)
@@ -50,26 +52,43 @@ class SaveLoader:
         val_accs = self.history["val_accs"]
         val_accs = np.array(val_accs)
         val_accs = np.mean(val_accs, axis=-1)
+        max_val_acc = np.max(val_accs)
+
+        print(max_val_acc)
 
         train_accs = self.history["accs"]
         train_accs = np.array(train_accs)
-        train_accs = np.array_split(train_accs, 100)
+        train_accs = np.array_split(train_accs, 200)
         train_accs = np.stack([np.mean(ary) for ary in train_accs])
 
         plt.plot(np.linspace(0, val_accs.shape[0], val_accs.shape[0]),
                  val_accs, label="Validation Acc")
         plt.plot(np.linspace(0, val_accs.shape[0], train_accs.shape[0]),
                  train_accs, label="Train Acc")
+
+        plt.title(f'Maximum valdation accuracy: {max_val_acc}')
+        plt.ylabel("Accuracy %")
+        plt.xlabel("Epoch")
         plt.legend()
         plt.show()
 
 
 if __name__ == "__main__":
-    BASEDIR = "/home/maccyz/Documents/FairFewshot"
+    import re
+
+    BASEDIR = "/mnt/storage_ssd/FairFewshot"
+
+
+    def sort_key(filename):
+        match = re.compile(r'(\d+)').search(filename)
+        if match:
+            return int(match.group(1))
+        else:
+            return filename
+
     saves = os.listdir(f'{BASEDIR}/saves')
-    saves = sorted(saves)
+    saves = sorted(saves, key=sort_key)
 
-    h = SaveHolder(base_dir=f'{BASEDIR}')
-
-    # h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-3]}')
-    # h.plot_history()
+    # h = SaveHolder(base_dir=f'{BASEDIR}')
+    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
+    h.plot_history()
