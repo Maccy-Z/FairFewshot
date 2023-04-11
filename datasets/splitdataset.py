@@ -19,8 +19,8 @@ def split_data(datadir, data_name):
     train_df = df.iloc[train_rows, train_cols]
     val_df = df.iloc[val_rows, val_cols]
 
-    train_df.to_csv(f'{datadir}/{data_name}/{data_name}_train_py.dat', header=False)
-    val_df.to_csv(f'{datadir}/{data_name}/{data_name}_val_py.dat', header=False)
+    train_df.to_csv(f'{datadir}/{data_name}/{data_name}_train_py.dat', header=False, index=False)
+    val_df.to_csv(f'{datadir}/{data_name}/{data_name}_val_py.dat', header=False, index=False)
 
 
 if __name__ == "__main__":
