@@ -320,7 +320,7 @@ class ModelHolder(nn.Module):
         freeze_model = cfg["freeze_d2v"]
         if load_d2v:
             print()
-            print("Loading model. Possibly overriding some config uptions")
+            print("Loading model. Possibly overriding some config options")
             load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
@@ -453,8 +453,7 @@ def main(device="cpu"):
         for xs, ys in itertools.islice(dl, val_interval):
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
-
-            # xs.shape = [bs, num_rows, num_xs]
+            # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
             # Splicing like this changes the tensor's stride. Fix here:
@@ -497,8 +496,7 @@ def main(device="cpu"):
         epoch_accs, epoch_losses = [], []
         for xs, ys in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
-
-            # xs.shape = [bs, num_rows, num_xs]
+            # xs.shape = [bs, num_rows+1, num_cols]
 
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
@@ -506,6 +504,7 @@ def main(device="cpu"):
             xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
             ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
             ys_target = ys_target.view(-1)
+
             # Reshape for dataset2vec
             pairs_meta = d2v_pairer(xs_meta, ys_meta)
 

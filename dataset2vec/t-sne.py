@@ -8,25 +8,25 @@ from dataset2vec import Dataset2Vec, ResBlock
 from d2v_dataset import Dataloader
 
 
-dl = Dataloader(min_ds_len=500)
+dl = Dataloader(min_ds_len=200)
 dataset = [x for x in dl.ds]
 print(f'{len(dataset) = }')
 labels = np.array([str(ds)[4:] for ds in dataset])
 
 data = []
 for ds in dataset:
-    xs = ds.get_data(nsamples=50)
+    xs = ds.get_data(nsamples=200)
     data.append(xs)
 
 model = Dataset2Vec(64, 64, [7, 5, 7])
-state = torch.load("./dataset2vec/model")["state_dict"]
+state = torch.load("./dataset2vec/model_9k")["state_dict"]
 model.load_state_dict(state)
 
 preds = model(data).detach().numpy()
 
 
 # Compute t-SNE embedding
-tsne = TSNE(n_components=2, random_state=42, perplexity=32)
+tsne = TSNE(n_components=2, random_state=42, perplexity=50)
 embedded_data = tsne.fit_transform(preds)
 
 # Perform K-means clustering

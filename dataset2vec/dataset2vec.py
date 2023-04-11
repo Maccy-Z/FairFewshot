@@ -92,7 +92,7 @@ class ModelTrainer:
         self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
 
     def train_loop(self):
-        self.dl.steps = 9000
+        self.dl.steps = 12000
         self.dl.train(True)
 
         st = time.time()
@@ -247,7 +247,7 @@ if __name__ == "__main__":
 # Train 9k steps
 # same_accs = 0.922, diff_accs = 0.9028
 # Train 12k steps
-# same_accs = 0.922, diff_accs = 0.9028
+# same_accs = 0.938, diff_accs = 0.8697
 # Train 15k steps
 # same_accs = 0.9368, diff_accs = 0.8871
 

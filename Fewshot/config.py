@@ -22,7 +22,7 @@ def write_toml():
                              "gat_layers": 2,
                              "reparam_weight": False,
                              "reparam_pos_enc": False,
-                             "weight_bias": "zero",
+                             "weight_bias": "off",
                              "pos_enc_bias": "zero",
                              "load_d2v": True,
                              "freeze_d2v": False},
