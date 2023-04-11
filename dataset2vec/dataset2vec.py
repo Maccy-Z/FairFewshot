@@ -1,85 +1,91 @@
 import torch
 import torch.nn as nn
-from toy_dataset import ToyDataloader
 from d2v_dataset import Dataloader
 import time
+import numpy as np
+import random
 
+random.seed(0)
 torch.manual_seed(0)
+np.random.seed(0)
+
+class ResBlock(nn.Module):
+    def __init__(self, in_size, hid_size, out_size, num_blocks, out_relu=True):
+        super().__init__()
+        self.out_relu = out_relu
+
+        self.res_modules = nn.ModuleList([])
+        self.lin_in = nn.Linear(in_size, hid_size)
+
+        for _ in range(num_blocks - 2):
+            self.res_modules.append(nn.Linear(hid_size, hid_size))
+
+        self.lin_out = nn.Linear(hid_size, out_size)
+
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        x = self.lin_in(x)
+        for layer in self.res_modules:
+            x_r = self.act(layer(x))
+            x = x + x_r
+
+        if self.out_relu:
+            out = self.act(self.lin_out(x))
+        else:
+            out = self.lin_out(x)
+        return out, x
 
 
-class SetSetModel(nn.Module):
+class Dataset2Vec(nn.Module):
     def __init__(self, h_size, out_size):
         super().__init__()
 
         # f network
-        self.f_1 = nn.Linear(2, h_size)
-        self.f_2_r = nn.Linear(h_size, h_size)
-        self.f_3_r = nn.Linear(h_size, h_size)
-        self.f_4_r = nn.Linear(h_size, h_size)
-        self.f_5 = nn.Linear(h_size, h_size)
+        self.fs = ResBlock(2, h_size, h_size, num_blocks=7)
 
         # g network
-        self.g_1 = nn.Linear(h_size, h_size)
-        self.g_2 = nn.Linear(h_size, h_size)
+        self.gs = ResBlock(h_size, h_size, h_size, num_blocks=5)
 
         # h network
-        self.h_1 = nn.Linear(h_size, h_size)
-        self.h_2_r = nn.Linear(h_size, h_size)
-        self.h_3_r = nn.Linear(h_size, h_size)
-        self.h_4_r = nn.Linear(h_size, h_size)
-        self.h_5 = nn.Linear(h_size, out_size)
+        self.hs = ResBlock(h_size, h_size, out_size, num_blocks=7, out_relu=False)
 
-        self.relu = nn.ReLU()
 
     def forward(self, xs):
         # x.shape = [BS][x_dim, y_dim, n_samples, 2]
         # Final dim of x is pair (x_i, y_i)
         ys = []
         for x in xs:
-            ys.append(self.forward_layers(x))
-
+            ys.append(self.forward_layers(x)[0])
         ys = torch.stack(ys)
 
         return ys
 
     def forward_layers(self, x):
+        # x.shape = # [x_dim, y_dim, n_samples, h_size]
         # f network
-        x = self.relu(self.f_1(x))  # [x_dim, y_dim, n_samples, h_size]
-        x_r = self.relu(self.f_2_r(x))
-        x = x + x_r
-        x_r = self.relu(self.f_3_r(x))
-        x = x + x_r
-        x_r = self.relu(self.f_4_r(x))
-        x = x + x_r
-        x = self.relu(self.f_5(x))
+        x, _ = self.fs(x)
 
         x = torch.mean(x, dim=-2)  # [x_dim, y_dim, h_size]
+        x_save = x
 
         # g network
-        x = self.relu(self.g_1(x))
-        x = self.relu(self.g_2(x))
+        x, _ = self.gs(x)
         x = torch.mean(x, dim=(-2, -3))  # [h_size]
 
         # h network
-        x = self.relu(self.h_1(x))
-        x_r = self.relu(self.h_2_r(x))
-        x = x + x_r
-        x_r = self.relu(self.h_3_r(x))
-        x = x + x_r
-        x_r = self.relu(self.h_4_r(x))
-        x = x + x_r
-        x = self.relu(self.h_5(x))
+        x, _ = self.hs(x)
 
-        return x
+        return x, x_save
 
 
 class ModelTrainer:
     def __init__(self, device="cpu"):
         self.gamma = 1
 
-        self.model = SetSetModel(h_size=64, out_size=32).to(device)
+        self.model = Dataset2Vec(h_size=64, out_size=64).to(device)
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
-        self.dl = Dataloader(bs=6, bs_num_ds=3, device=device)
+        self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
 
     def train_loop(self):
         self.dl.steps = 3000
@@ -98,7 +104,7 @@ class ModelTrainer:
                 st = time.time()
 
     def test_loop(self):
-        self.dl.steps = 250
+        self.dl.steps = 1000
         self.dl.train(False)
 
         with torch.no_grad():
@@ -122,7 +128,7 @@ class ModelTrainer:
         same_accs, diff_accs = same_accs.item(), diff_accs.item()
         print(f'{same_accs = :.4g}, {diff_accs = :.4g}')
 
-    def process_batch(self, data_batches: torch.Tensor, ds_labels: torch.Tensor, ):
+    def process_batch(self, data_batches: list[torch.Tensor], ds_labels: torch.Tensor):
         # data_batches.shape    = [BS, x_dim, y_dim, num_samples]
         # labels.shape          = [BS]
 
@@ -147,9 +153,6 @@ class ModelTrainer:
         same_diff = torch.cat(same_diff)
         diff_diff = torch.cat(diff_diff)
 
-        # same_diff = torch.stack(same_diff)
-        # diff_diff = torch.stack(diff_diff)
-
         # Similarity, measured between 0 and 1
         same_diff = torch.norm(same_diff, dim=1)
         diff_diff = torch.norm(diff_diff, dim=1)
@@ -165,6 +168,11 @@ class ModelTrainer:
 
         return loss, (same_diff, diff_diff)
 
+    def save_model(self):
+        torch.save(self.model.state_dict(), "./dataset2vec/model")
+
+    def load_model(self):
+        self.model = torch.load("./dataset2vec/model")
 
 if __name__ == "__main__":
     d = torch.device("cpu")
@@ -175,3 +183,55 @@ if __name__ == "__main__":
     print()
     print()
     trainer.test_loop()
+
+    trainer.save_model()
+
+
+# 64 32
+# same_accs = 0.968, diff_accs = 0.8468
+# 64 64
+# same_accs = 0.97, diff_accs = 0.863
+# 32 32 2xf
+# same_accs = 0.968, diff_accs = 0.8528
+
+# no res block
+# same_accs = 0.932, diff_accs = 0.8837
+# no res block size = 3
+# same_accs = 0.9232, diff_accs = 0.8562
+# no res block size = 7
+# same_accs = 0.9472, diff_accs = 0.839
+# 1 res block size = 5
+# same_accs = 0.9168, diff_accs = 0.875
+
+# > 500 samples train
+# no res block
+# same_accs = 0.9296, diff_accs = 0.8464
+# 2 f res blocks
+# same_accs = 0.9064, diff_accs = 0.8592
+# 1 f res block
+# same_accs = 0.9176, diff_accs = 0.8421
+# 3 g layers
+# same_accs = 0.9216, diff_accs = 0.8688
+# 3 g layers no res blocks BS=12 out_size=48
+# same_accs = 0.9183, diff_accs = 0.8818
+# same_accs = 0.9127, diff_accs = 0.8702
+# same_accs = 0.932, diff_accs = 0.8602
+# same_accs = 0.8872, diff_accs = 0.8643
+# 3 g layers no res blocks BS=12 out_size=32
+# same_accs = 0.9072, diff_accs = 0.8557
+# 3 g layers no res blocks BS=10 out_size=64
+# same_accs = 0.9064, diff_accs = 0.873
+# 3 g layers no res blocks BS=14 out_size=64
+# same_accs = 0.9274, diff_accs = 0.8541
+# 3 g layers no res blocks BS=14
+# same_accs = 0.9037, diff_accs = 0.8462
+# BS=12
+# same_accs = 0.9027, diff_accs = 0.8444
+
+
+# 7 blocks
+# same_accs = 0.9302, diff_accs = 0.855
+# 11
+# same_accs = 0.9018, diff_accs = 0.8501
+# 7-5-7
+# same_accs = 0.9268, diff_accs = 0.8566

@@ -11,15 +11,15 @@ gen_layers = 2
 gat_layers = 2
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "off"
-pos_enc_bias = "off"
+weight_bias = "gdf"
+pos_enc_bias = "gdf"
 gat_in_dim = 4
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
-bs = 3
+bs = 4
 num_rows = 10
 num_targets = 5
 flip = false

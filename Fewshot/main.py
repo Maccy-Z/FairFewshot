@@ -12,6 +12,34 @@ from save_holder import SaveHolder
 from config import get_config
 
 
+class ResBlock(nn.Module):
+    def __init__(self, in_size, hid_size, out_size, num_blocks, out_relu=True):
+        super().__init__()
+        self.out_relu = out_relu
+
+        self.res_modules = nn.ModuleList([])
+        self.lin_in = nn.Linear(in_size, hid_size)
+
+        for _ in range(num_blocks - 2):
+            self.res_modules.append(nn.Linear(hid_size, hid_size))
+
+        self.lin_out = nn.Linear(hid_size, out_size)
+
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        x = self.lin_in(x)
+        for layer in self.res_modules:
+            x_r = self.act(layer(x))
+            x = x + x_r
+
+        if self.out_relu:
+            out = self.act(self.lin_out(x))
+        else:
+            out = self.lin_out(x)
+        return out, x
+
+
 # Dataset2vec model
 class SetSetModel(nn.Module):
     def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc, pos_enc_bias):
@@ -24,23 +52,24 @@ class SetSetModel(nn.Module):
         self.relu = nn.ReLU()
 
         # f network
-        self.f_in = nn.Linear(2, h_size)
-        self.fs = nn.ModuleList([])
-        for _ in range(f_depth - 2):
-            self.fs.append(nn.Linear(h_size, h_size))
-        self.f_out = nn.Linear(h_size, h_size)
+        # self.f_in = nn.Linear(2, h_size)
+        # self.fs = nn.ModuleList([])
+        # for _ in range(f_depth - 2):
+        #     self.fs.append(nn.Linear(h_size, h_size))
+        # self.f_out = nn.Linear(h_size, h_size)
+        self.fs = ResBlock(2, h_size, h_size, num_blocks=7)
 
         # g network
-        self.gs = nn.ModuleList([])
-        for _ in range(g_depth):
-            self.gs.append(nn.Linear(h_size, h_size))
+        self.gs = ResBlock(h_size, h_size, h_size, num_blocks=5)
+
 
         # h network
-        self.h_in = nn.Linear(h_size, h_size)
-        self.hs = nn.ModuleList([])
-        for _ in range(h_depth - 2):
-            self.hs.append(nn.Linear(h_size, h_size))
-        self.h_out = nn.Linear(h_size, out_size)
+        self.hs = ResBlock(2, h_size, h_size, num_blocks=7, out_relu=False)
+        # self.h_in = nn.Linear(h_size, h_size)
+        # self.hs = nn.ModuleList([])
+        # for _ in range(h_depth - 2):
+        #     self.hs.append(nn.Linear(h_size, h_size))
+        # self.h_out = nn.Linear(h_size, out_size)
         if reparam_weight:
             self.h_out_lvar = nn.Linear(h_size, out_size)
 
