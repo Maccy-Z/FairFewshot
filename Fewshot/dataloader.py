@@ -4,6 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import random
+from sklearn.preprocessing import StandardScaler
 
 DATADIR = './datasets/data'
 
@@ -190,7 +191,7 @@ class MyDataSet():
             self.num_predictors = self.predictors.shape[1]
             self.num_total_rows = self.predictors.shape[0]
 
-    def sample(self, num_rows, num_cols):
+    def sample(self, num_rows, num_cols, norm):
         if num_cols > self.num_predictors:
             raise Exception("More columns requested than available predictors")
         
@@ -212,12 +213,19 @@ class MyDataSet():
             ys = self.targets[row_idx][:num_rows]
             if max(ys) > 1:
                 ys = one_vs_all(ys)
+        
+        if norm:
+            m = xs.mean(0, keepdim=True)
+            s = xs.std(0, unbiased=False, keepdim=True)
+            xs -= m
+            xs /= (s + 10e-4)
 
         return xs, ys.long()
 
 class AllDatasetDataLoader():
     def __init__(
-            self, bs, num_rows, num_target, num_cols=-1, device="cpu", split="train"):
+            self, bs, num_rows, num_target, num_cols=-1, 
+            device="cpu", split="train", norm=True):
 
         self.bs = bs
         self.num_rows = num_rows + num_target
@@ -225,6 +233,7 @@ class AllDatasetDataLoader():
         self.device = device
         self.num_cols = num_cols
         self.get_valid_datasets()
+        self.norm = norm
 
     def get_valid_datasets(self):
         all_data_names = os.listdir(DATADIR)
@@ -254,7 +263,8 @@ class AllDatasetDataLoader():
             else:
                 num_cols = self.num_cols
             xs, ys = list(zip(*[
-                datasets[i].sample(num_rows=self.num_rows, num_cols=num_cols) 
+                datasets[i].sample(
+                    num_rows=self.num_rows, num_cols=num_cols, norm=self.norm) 
                 for  i in range(self.bs)]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
