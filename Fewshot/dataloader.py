@@ -49,10 +49,11 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_target, flip=True, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_target, num_xs=10, flip=True, device="cpu", split="train"):
         self.bs = bs
         self.num_rows = num_rows
         self.num_target = num_target
+        self.num_xs = num_xs
         self.flip = flip
 
         self.ds = Dataset("adult", device=device, split=split)
@@ -74,7 +75,7 @@ class AdultDataLoader:
             permutation = torch.randperm(self.data.shape[0])
             data = self.data[permutation]
 
-            allowed_targets = [0]  # [9, 14]
+            allowed_targets = [0]#range(15)
             cols = np.arange(self.cols)
 
             for st in torch.arange(0, self.len - num_rows * self.bs, num_rows * self.bs):

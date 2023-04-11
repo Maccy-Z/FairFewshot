@@ -2,13 +2,13 @@ import torch
 import numpy as np
 import pandas as pd
 import random
+import json
 
 torch.manual_seed(0)
 
 
 class Dataset:
-    def __init__(self, data_name, nsamples=100):
-        self.nsamples = nsamples
+    def __init__(self, data_name):
         self.data_name = data_name
 
         self.all_data, self.all_labels = self.init_data()
@@ -22,7 +22,7 @@ class Dataset:
                         validation_folds_py.dat     validation fold
 
         """
-        datadir = f'./datasets/{self.data_name}'
+        datadir = f'./datasets/data/{self.data_name}'
 
         # get train fold
         folds = pd.read_csv(f"{datadir}/folds_py.dat", header=None)[0]
@@ -54,17 +54,19 @@ class Dataset:
 
         return data, labels
 
-    def get_data(self):
-        want_idx = torch.randperm(self.data_len)[:self.nsamples]
+    def get_data(self, nsamples):
+        nsamples = min(nsamples, self.data_len)
+
+        want_idx = torch.randperm(self.data_len)[:nsamples]
         xs = self.data[want_idx]
         ys = self.labels[want_idx]
 
-        xs = np.reshape(xs, [self.nsamples, -1])  # = [num_samples, xdim]
-        ys = np.reshape(ys, [self.nsamples, -1])  # = [num_samples, ydim]
+        xs = np.reshape(xs, [nsamples, -1])  # = [num_samples, xdim]
+        ys = np.reshape(ys, [nsamples, -1])  # = [num_samples, ydim]
         xdim, ydim = xs.shape[-1], ys.shape[-1]
 
         if self.training:
-            num_xdim = np.random.randint(xdim) + 1
+            num_xdim = max(np.random.randint(xdim) + 1, 2)
             num_ydim = np.random.randint(ydim) + 1
 
             x_idx = np.random.choice(np.arange(xdim), size=num_xdim, replace=False)
@@ -74,15 +76,8 @@ class Dataset:
             ys = ys[:, y_idx]
 
         # Turn data from table of x and table of y to all paris of (x, y)
-        # DO THIS BUT USING VECTORISED NUMPY
-        # pair_output = torch.zeros([num_xdim, num_ydim, self.nsamples, 2])
-        # for k in range(self.nsamples):
-        #     for i, x in enumerate(xs[k]):
-        #         for j, y in enumerate(ys[k]):
-        #             pair_output[i, j, k] = torch.tensor([x, y])
-
         pair_output = []
-        for k in range(self.nsamples):
+        for k in range(nsamples):
             xs_k, ys_k = xs[k], ys[k]
             pairs = np.transpose([np.repeat(xs_k, len(ys_k)), np.tile(ys_k, len(xs_k))])
             pairs = pairs.reshape(len(xs_k), len(ys_k), 2)
@@ -110,12 +105,10 @@ class Dataset:
             self.training = False
 
         self.data_len = self.data.shape[0]
-        if self.data_len < self.nsamples:
-            self.nsamples = self.data_len
 
 
 class Dataloader:
-    def __init__(self, bs=6, bs_num_ds=3, steps=5000, device="cpu", split="train"):
+    def __init__(self, bs=6, bs_num_ds=3, steps=5000, nsamples=10, min_ds_len = 500, device="cpu", split="train"):
         """
         :param bs: Number of datasets to sample from
         :param bs_num_ds: Number of uniqie datasets to sample from.
@@ -124,9 +117,24 @@ class Dataloader:
         self.steps = steps
         self.device = device
         self.bs_num_ds = bs_num_ds
+        self.nsamples = nsamples
 
-        ds = ["adult", "car", "blood", "chess-krvk", "bank", "ionosphere", "magic", "musk-1",
-              "optical", "titanic", "ecoli", "thyroid", "waveform"]
+        # # ds = ["adult", "car", "blood", "chess-krvk", "bank", "ionosphere", "magic", "musk-1",
+        # #       "optical", "titanic", "ecoli", "thyroid", "waveform", "nursery", "musk-2", "pendigits",
+        # #       "mushroom", "miniboone", "ringnorm", "twonorm", "statlog-shuttle"]
+        # ds = ['molec-biol-splice', 'twonorm', 'plant-texture', 'ringnorm', 'steel-plates', 'chess-krvk', 'statlog-shuttle', 'semeion', 'connect-4', 'wall-following', 'cardiotocography-3clases', 'plant-margin', 'nursery', 'titanic', 'tic-tac-toe', 'waveform', 'wine-quality-red', 'wine-quality-white', 'spambase', 'thyroid', 'mammographic', 'waveform-noise', 'letter', 'yeast', 'adult', 'annealing', 'contrac', 'statlog-landsat', 'musk-2', 'abalone', 'statlog-vehicle', 'page-blocks', 'plant-shape', 'bank', 'pendigits', 'mushroom', 'optical', 'oocytes_merluccius_states_2f', 'chess-krvkp', 'led-display', 'oocytes_trisopterus_nucleus_2f', 'statlog-german-credit', 'car', 'oocytes_trisopterus_states_5b', 'oocytes_merluccius_nucleus_4d', 'ozone', 'magic', 'statlog-image', 'cardiotocography-10clases', 'miniboone']
+
+        with open("./datasets/data/info.json") as f:
+            json_data = json.load(f)
+
+        dataset_lengths = {}
+        for k, v in json_data.items():
+            length = int(v['cardinality']['train'])
+            if length > min_ds_len:
+                dataset_lengths[k] = v['cardinality']['train']
+        ds = dataset_lengths.keys()
+
+
         self.num_ds = len(ds)
 
         self.ds = [Dataset(data_name=name) for name in ds]
@@ -138,15 +146,19 @@ class Dataloader:
     def __iter__(self):
         for _ in range(self.steps):
             chosen_ds = random.sample(self.ds, self.bs_num_ds) * self.num_repeat
-            # print(chosen_ds)
+
             labels = list(range(self.bs_num_ds)) * self.num_repeat
 
-            meta_dataset = [ds.get_data().to(self.device) for ds in chosen_ds]
+            meta_dataset = [ds.get_data(nsamples=self.nsamples).to(self.device) for ds in chosen_ds]
 
             yield meta_dataset, torch.tensor(labels)
 
-
     def train(self, train):
+        if train:
+            self.nsamples = 10
+        else:
+            self.nsampels = 10
+        # self.nsamples = 1000
         for d in self.ds:
             d.train(train)
 

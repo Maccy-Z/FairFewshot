@@ -95,20 +95,20 @@ if __name__ == "__main__":
 
     torch.manual_seed(0)
 
-    with open("./datasets/data/info.json") as f:
+    with open("./data/info.json") as f:
         json_data = json.load(f)
 
     dataset_lengths = {}
     for k, v in json_data.items():
         length = int(v['cardinality']['train'])
-        if length > 5000:
+        if length > 500:
             dataset_lengths[k] = v['cardinality']['train']
 
-    print(dataset_lengths)
+    print(dataset_lengths.keys())
     print("Long datasets:", len(dataset_lengths))
     print()
-    dl = DataLoader("statlog-shuttle", bs=1, train=True)
-
-    for xs, ys in dl:
-        print(xs.shape, ys.shape)
-        break
+    # dl = DataLoader("statlog-shuttle", bs=1, train=True)
+    #
+    # for xs, ys in dl:
+    #     print(xs.shape, ys.shape)
+    #     break
