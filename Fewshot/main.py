@@ -13,14 +13,14 @@ from config import get_config
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_size, hid_size, out_size, num_blocks, out_relu=True):
+    def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
         super().__init__()
         self.out_relu = out_relu
 
         self.res_modules = nn.ModuleList([])
         self.lin_in = nn.Linear(in_size, hid_size)
 
-        for _ in range(num_blocks - 2):
+        for _ in range(n_blocks - 2):
             self.res_modules.append(nn.Linear(hid_size, hid_size))
 
         self.lin_out = nn.Linear(hid_size, out_size)
@@ -47,37 +47,29 @@ class SetSetModel(nn.Module):
         self.reparam_weight = reparam_weight
         self.reparam_pos_enc = reparam_pos_enc
 
-        f_depth, g_depth, h_depth, pos_depth = model_depths
+        f_depth, g_depth, h_depth = model_depths
+        # TODO
+        pos_depth = 2
 
         self.relu = nn.ReLU()
 
         # f network
-        # self.f_in = nn.Linear(2, h_size)
-        # self.fs = nn.ModuleList([])
-        # for _ in range(f_depth - 2):
-        #     self.fs.append(nn.Linear(h_size, h_size))
-        # self.f_out = nn.Linear(h_size, h_size)
-        self.fs = ResBlock(2, h_size, h_size, num_blocks=7)
+        self.fs = ResBlock(2, h_size, h_size, n_blocks=f_depth)
 
         # g network
-        self.gs = ResBlock(h_size, h_size, h_size, num_blocks=5)
-
+        self.gs = ResBlock(h_size, h_size, h_size, n_blocks=g_depth)
 
         # h network
-        self.hs = ResBlock(2, h_size, h_size, num_blocks=7, out_relu=False)
-        # self.h_in = nn.Linear(h_size, h_size)
-        # self.hs = nn.ModuleList([])
-        # for _ in range(h_depth - 2):
-        #     self.hs.append(nn.Linear(h_size, h_size))
-        # self.h_out = nn.Linear(h_size, out_size)
+        self.hs = ResBlock(h_size, h_size, out_size, n_blocks=h_depth, out_relu=False)
+
         if reparam_weight:
             self.h_out_lvar = nn.Linear(h_size, out_size)
 
         # Embedding Network
-        self.p_in = nn.Linear(h_size, h_size)
         self.ps = nn.ModuleList([])
-        for _ in range(pos_depth - 2):
+        for _ in range(pos_depth - 1):
             self.ps.append(nn.Linear(h_size, h_size))
+
         self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias!="off"))
         if self.reparam_pos_enc:
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
@@ -90,40 +82,33 @@ class SetSetModel(nn.Module):
         # x.shape = [num_rows, num_cols, 2]
 
         # f network
-        x = self.relu(self.f_in(x))  # [num_rows, num_cols, h_size]
-        for layer in self.fs:
-            x_r = self.relu(layer(x))
-            x = x + x_r
-        x = self.relu(self.f_out(x))
+        x, _ = self.fs(x)               # [num_rows, num_cols, h_size]
 
-        x = torch.mean(x, dim=0)  # [num_rows, y_dim, h_size]
-        x_save = x
+        x = torch.mean(x, dim=0)        # [num_rows, y_dim, h_size]
+        x_pos_enc = x
 
         # g network
-        for layer in self.gs:
-            x = self.relu(layer(x))
-        x = torch.mean(x, dim=0)  # [h_size]
+        x, _ = self.gs(x)
+        x = torch.mean(x, dim=0)        # [h_size]
 
         # h network
-        x = self.relu(self.h_in(x))
-        for layer in self.hs:
-            x_r = self.relu(layer(x))
-            x = x + x_r
-        x_out = self.h_out(x)
+        x_out, prev_x = self.hs(x)
+
         if self.reparam_weight:
-            x_lvar = self.h_out_lvar(x)
+            x_lvar = self.h_out_lvar(prev_x)
             x_out = torch.stack([x_out, x_lvar])
 
         # Positional Encoding
-        pos_enc = self.relu(self.p_in(x_save))
         for layer in self.ps:
-            pos_enc = self.relu(layer(pos_enc))
-        pos_out = self.p_out(pos_enc)
-        if self.reparam_pos_enc:
-            pos_lvar = self.p_out_lvar(pos_enc)
-            pos_out = torch.stack([pos_out, pos_lvar])
+            x_pos_enc = self.relu(layer(x_pos_enc))
+        pos_enc_out = self.p_out(x_pos_enc)
 
-        return x_out, pos_out
+        if self.reparam_pos_enc:
+            pos_lvar = self.p_out_lvar(x_pos_enc)
+            pos_enc_out = torch.stack([pos_enc_out, pos_lvar])
+
+        return x_out, pos_enc_out
+
 
     def forward(self, xs):
         # xs.shape = [BS][x_dim, n_samples, 2]
@@ -329,12 +314,38 @@ class ModelHolder(nn.Module):
         weight_bias = cfg["weight_bias"]
         pos_enc_bias = cfg["pos_enc_bias"]
 
-        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [
-            (gat_hid_dim, gat_out_dim, gat_heads)]
+        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
 
-        self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
-                                     pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
-                                     reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc, pos_enc_bias=pos_enc_bias)
+        load_d2v = cfg["load_d2v"]
+        freeze_model = cfg["freeze_d2v"]
+        if load_d2v:
+            print()
+            print("Loading model. Possibly overriding some config uptions")
+            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
+            state, params = load["state_dict"], load["params"]
+            set_h_dim, set_out_dim, d2v_layers = params
+
+            model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
+                                         model_depths=d2v_layers, pos_enc_dim=pos_enc_dim,
+                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
+                                         pos_enc_bias=pos_enc_bias)
+
+            model.load_state_dict(state, strict=False)
+
+            if freeze_model:
+                for fs in model.fs.parameters():
+                    fs.requires_grad = False
+                for gs in model.gs.parameters():
+                    gs.requires_grad = False
+                for hs in model.hs.parameters():
+                    hs.requires_grad = False
+
+            self.d2v_model = model
+        else:
+            self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
+                                         pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
+                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
+                                         pos_enc_bias=pos_enc_bias)
         self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
                                             out_sizes=gat_shapes, gen_layers=gen_layers,
                                             weight_bias=weight_bias)
@@ -462,7 +473,7 @@ def main(device="cpu"):
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
-            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters()}
+            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad}
             optim.step()
             optim.zero_grad()
 

@@ -4,7 +4,7 @@ from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 import torch
 
-from dataset2vec import SetSetModel, ResBlock
+from dataset2vec import Dataset2Vec, ResBlock
 from d2v_dataset import Dataloader
 
 
@@ -18,7 +18,10 @@ for ds in dataset:
     xs = ds.get_data(nsamples=50)
     data.append(xs)
 
-model = torch.load("./dataset2vec/model")
+model = Dataset2Vec(64, 64, [7, 5, 7])
+state = torch.load("./dataset2vec/model")["state_dict"]
+model.load_state_dict(state)
+
 preds = model(data).detach().numpy()
 
 

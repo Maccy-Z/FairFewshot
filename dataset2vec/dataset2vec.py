@@ -10,17 +10,18 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 class ResBlock(nn.Module):
-    def __init__(self, in_size, hid_size, out_size, num_blocks, out_relu=True):
+    def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
         super().__init__()
         self.out_relu = out_relu
 
         self.res_modules = nn.ModuleList([])
         self.lin_in = nn.Linear(in_size, hid_size)
 
-        for _ in range(num_blocks - 2):
+        for _ in range(n_blocks - 2):
             self.res_modules.append(nn.Linear(hid_size, hid_size))
 
         self.lin_out = nn.Linear(hid_size, out_size)
+        self.lin_out.bias.data.fill_(0)
 
         self.act = nn.ReLU()
 
@@ -38,17 +39,17 @@ class ResBlock(nn.Module):
 
 
 class Dataset2Vec(nn.Module):
-    def __init__(self, h_size, out_size):
+    def __init__(self, h_size, out_size, n_blocks):
         super().__init__()
 
         # f network
-        self.fs = ResBlock(2, h_size, h_size, num_blocks=7)
+        self.fs = ResBlock(2, h_size, h_size, n_blocks=n_blocks[0])
 
         # g network
-        self.gs = ResBlock(h_size, h_size, h_size, num_blocks=5)
+        self.gs = ResBlock(h_size, h_size, h_size, n_blocks=n_blocks[0])
 
         # h network
-        self.hs = ResBlock(h_size, h_size, out_size, num_blocks=7, out_relu=False)
+        self.hs = ResBlock(h_size, h_size, out_size, n_blocks=n_blocks[0], out_relu=False)
 
 
     def forward(self, xs):
@@ -83,12 +84,15 @@ class ModelTrainer:
     def __init__(self, device="cpu"):
         self.gamma = 1
 
-        self.model = Dataset2Vec(h_size=64, out_size=64).to(device)
+        h_size, out_size, n_blocks = 64, 64, [7, 5, 7]
+        self.params = (h_size, out_size, n_blocks)
+
+        self.model = Dataset2Vec(h_size=64, out_size=64, n_blocks=n_blocks).to(device)
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
         self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
 
     def train_loop(self):
-        self.dl.steps = 3000
+        self.dl.steps = 9000
         self.dl.train(True)
 
         st = time.time()
@@ -169,7 +173,8 @@ class ModelTrainer:
         return loss, (same_diff, diff_diff)
 
     def save_model(self):
-        torch.save(self.model.state_dict(), "./dataset2vec/model")
+        torch.save({"state_dict": self.model.state_dict(),
+                    "params": self.params}, "./dataset2vec/model")
 
     def load_model(self):
         self.model = torch.load("./dataset2vec/model")
@@ -235,3 +240,15 @@ if __name__ == "__main__":
 # same_accs = 0.9018, diff_accs = 0.8501
 # 7-5-7
 # same_accs = 0.9268, diff_accs = 0.8566
+# Zero bias on output
+# same_accs = 0.9372, diff_accs = 0.8493
+# Above, train 6000 steps
+# same_accs = 0.9328, diff_accs = 0.8654
+# Train 9k steps
+# same_accs = 0.922, diff_accs = 0.9028
+# Train 12k steps
+# same_accs = 0.922, diff_accs = 0.9028
+# Train 15k steps
+# same_accs = 0.9368, diff_accs = 0.8871
+
+

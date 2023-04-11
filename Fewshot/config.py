@@ -22,8 +22,10 @@ def write_toml():
                              "gat_layers": 2,
                              "reparam_weight": False,
                              "reparam_pos_enc": False,
-                             "weight_bias": "gdf",
-                             "pos_enc_bias": "gdf"},
+                             "weight_bias": "zero",
+                             "pos_enc_bias": "zero",
+                             "load_d2v": True,
+                             "freeze_d2v": False},
 
                  "Optim": {"lr": 3e-4},
 
@@ -34,7 +36,7 @@ def write_toml():
 
                  "Settings": {"num_epochs": 10000,
                               "save_dir": "",
-                              "val_duration": 200,
+                              "val_duration": 400,
                               "val_interval": 2000,
                               "dataset": "adult",
                               },

@@ -11,15 +11,17 @@ gen_layers = 2
 gat_layers = 2
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "gdf"
-pos_enc_bias = "gdf"
+weight_bias = "zero"
+pos_enc_bias = "zero"
+load_d2v = true
+freeze_d2v = false
 gat_in_dim = 4
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
-bs = 4
+bs = 3
 num_rows = 10
 num_targets = 5
 flip = false
@@ -27,7 +29,7 @@ flip = false
 [Settings]
 num_epochs = 10000
 save_dir = ""
-val_duration = 200
+val_duration = 400
 val_interval = 2000
 dataset = "adult"
 
