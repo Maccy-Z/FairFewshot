@@ -75,11 +75,13 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 if __name__ == "__main__":
-    save_no = 10
+    save_no = 20
     BASEDIR = '/Users/kasiakobalczyk/FairFewshot/'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
-    model = torch.load(os.path.join(save_dir, 'model.pt'))
+    state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
+    model = ModelHolder()
+    model.load_state_dict(state_dict['model_state_dict'])
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
@@ -90,7 +92,7 @@ if __name__ == "__main__":
     baseline_models = [LogisticRegression(max_iter=1000), SVC()]
     baseline_model_names = ['LR', 'SVC']
 
-    for num_cols in range(3, 10):
+    for num_cols in range(3, 9):
         acc = []
         baseline_acc = dict(zip(baseline_model_names, [[] for i in range(2)]))
         val_dl = AllDatasetDataLoader(

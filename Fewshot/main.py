@@ -5,7 +5,7 @@ import numpy as np
 import itertools
 import time
 
-from dataloader import AdultDataLoader, d2v_pairer
+from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader
 from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
@@ -364,7 +364,7 @@ def main(device="cpu"):
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     flip = cfg["flip"]
-    num_models = cfg["num_models"]
+    num_cols = cfg["num_cols"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -381,6 +381,10 @@ def main(device="cpu"):
         dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
+    elif ds == "all":
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=num_cols, split="train")
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=num_cols, split="val")
+        val_dl = iter(val_dl)
     else:
         raise Exception("Invalid dataset")
 
@@ -401,7 +405,7 @@ def main(device="cpu"):
 
         # Train loop
         model.train()
-        for xs, ys in itertools.islice(dl, val_interval):
+        for xs, ys, model_id in itertools.islice(dl, val_interval):
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
 
@@ -436,7 +440,7 @@ def main(device="cpu"):
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
-        for xs, ys in itertools.islice(val_dl, val_duration):
+        for xs, ys, model_id in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
 
             # xs.shape = [bs, num_rows, num_xs]
@@ -460,8 +464,6 @@ def main(device="cpu"):
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
             epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-            if batch_no == 100:
-                break
 
         val_losses.append(epoch_losses), val_accs.append(epoch_accs)
         # Print some useful stats from validation

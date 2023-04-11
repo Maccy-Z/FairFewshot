@@ -28,14 +28,15 @@ def write_toml():
                  "DL_params": {"bs": 3,
                                "num_rows": 10,
                                "num_targets": 10,
-                               "flip": False
+                               "flip": False,
+                               "num_cols": -1
                  },
 
                  "Settings": {"num_epochs": 10000,
                               "save_dir": "",
                               "val_duration": 200,
-                              "val_interval": 2000,
-                              "dataset": "adult",
+                              "val_interval": 1000,
+                              "dataset": "all",
                               },
 
                  "MLP_DL_params": {"noise_std": 0.3,
