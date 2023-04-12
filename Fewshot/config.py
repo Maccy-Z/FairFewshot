@@ -22,7 +22,7 @@ def write_toml():
                              "gat_layers": 2,
                              "reparam_weight": False,
                              "reparam_pos_enc": False,
-                             "weight_bias": "off",
+                             "weight_bias": "zero",
                              "pos_enc_bias": "zero",
                              "load_d2v": True,
                              "freeze_d2v": False},
@@ -35,10 +35,9 @@ def write_toml():
                                "flip": False},
 
                  "Settings": {"num_epochs": 10000,
-                              "save_dir": "",
                               "val_duration": 400,
                               "val_interval": 2000,
-                              "dataset": "adult",
+                              "dataset": "total",
                               },
 
                  "MLP_DL_params": {"noise_std": 0.3,

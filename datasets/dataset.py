@@ -17,8 +17,8 @@ class Dataset:
                         labels_py.dat               labels for predictors
                         folds_py.dat                test fold
                         validation_folds_py.dat     validation fold
-
         """
+
         datadir = f'./datasets/data/{self.data_name}'
 
         # get train fold
@@ -38,13 +38,13 @@ class Dataset:
         # Combine validation and test folds together
         data, labels = {}, {}
         pred_train = predictors[(1 - folds) == 1 & (vldfold == 0)]
-        pred_valid = predictors[(vldfold == 1) | (folds == 1)]
+        pred_valid = predictors[(vldfold == 1) ]#| (folds == 1)]
         data["train"] = self._to_tensor(pred_train)
         data["valid"] = self._to_tensor(pred_valid)
 
         # get label folds
         labels_train = targets[(1 - folds) == 1 & (vldfold == 0)]
-        labels_valid = targets[(vldfold == 1) | (folds == 1)]
+        labels_valid = targets[(vldfold == 1) ]#| (folds == 1)]
         labels["train"] = self._to_tensor(labels_train)
         labels["valid"] = self._to_tensor(labels_valid)
 
@@ -59,7 +59,6 @@ class Dataset:
         if train:
             data = self.all_data["train"]
             labels = self.all_labels["train"]
-
         else:
             data = self.all_data["valid"]
             labels = self.all_labels["valid"]
@@ -78,6 +77,7 @@ class DataLoader:
         self.data, self.labels = self.ds.train(train)
         self.len = self.labels.shape[0]
 
+
     def __iter__(self):
         bs = self.bs
         permutation = torch.randperm(self.labels.shape[0])
@@ -91,24 +91,28 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    import json
-
-    torch.manual_seed(0)
-
-    with open("./data/info.json") as f:
-        json_data = json.load(f)
-
-    dataset_lengths = {}
-    for k, v in json_data.items():
-        length = int(v['cardinality']['train'])
-        if length > 500:
-            dataset_lengths[k] = v['cardinality']['train']
-
-    print(dataset_lengths.keys())
-    print("Long datasets:", len(dataset_lengths))
-    print()
-    # dl = DataLoader("statlog-shuttle", bs=1, train=True)
+    # import json
     #
-    # for xs, ys in dl:
-    #     print(xs.shape, ys.shape)
-    #     break
+    # torch.manual_seed(0)
+    #
+    # with open("./data/info.json") as f:
+    #     json_data = json.load(f)
+    #
+    # dataset_lengths = {}
+    # for k, v in json_data.items():
+    #     length = int(v['cardinality']['train'])
+    #     if length > 500:
+    #         dataset_lengths[k] = v['cardinality']['train']
+    #
+    # print(dataset_lengths.keys())
+    # print("Long datasets:", len(dataset_lengths))
+    # print()
+
+    dl = DataLoader("adult", bs=1, train=True)
+    print(dl.len)
+    gender = dl.data[:, 9]
+    print(torch.unique(gender))
+
+    for xs, ys in dl:
+        print(xs.shape, ys.shape)
+        break

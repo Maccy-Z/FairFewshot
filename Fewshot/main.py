@@ -10,7 +10,7 @@ from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-
+from AllDataloader import AllDatasetDataLoader
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -429,6 +429,9 @@ def main(device="cpu"):
         dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
+    elif ds == "total":
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
+        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
     else:
         raise Exception("Invalid dataset")
 
@@ -494,6 +497,7 @@ def main(device="cpu"):
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
+        save_ys_targ, save_pred_labs = [], []
         for xs, ys in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
@@ -518,12 +522,17 @@ def main(device="cpu"):
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
             epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+            save_ys_targ.append(ys_target)
+            save_pred_labs.append(predicted_labels)
 
         val_losses.append(epoch_losses), val_accs.append(epoch_accs)
-        # Print some useful stats from validation
 
-        print("Targets:    ", ys_target.cpu().numpy())
-        print("Predictions:", predicted_labels.cpu().numpy())
+        # Print some useful stats from validation
+        save_ys_targ = torch.cat(save_ys_targ)
+        save_pred_labs = torch.cat(save_pred_labs)[:20]
+        print("Mean targets", torch.mean(save_ys_targ, dtype=float).item())
+        print("Targets:    ", save_ys_targ[:20])
+        print("Predictions:", save_pred_labs[:20])
         print(f'Mean accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
         # Save stats
