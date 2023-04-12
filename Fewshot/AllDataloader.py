@@ -113,7 +113,11 @@ class MyDataSet:
 
 
         # If a batch is exclusively 1 or 0 as label, regenerate the batch
-        ys = binarise_data(ys)
+        if self.train:
+            ys = binarise_data(ys)
+        else:
+            ys = one_vs_all(ys)
+
         return xs, ys
         # if force_next or ys.min() != ys.max():
         #     return xs, ys
