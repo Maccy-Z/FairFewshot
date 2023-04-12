@@ -12,7 +12,8 @@ from sklearn.svm import SVC
 
 class ZeroModel:
     def fit(self, X, y):
-        self.y = (torch.sum(y) > 5).long()
+
+        self.y = torch.mode(y)[0]
         return
 
     def predict(self, X):
@@ -87,7 +88,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 18
+    save_no = 17
     BASEDIR = '/mnt/storage_ssd/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
@@ -108,14 +109,11 @@ def main():
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
         val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
-                                      num_cols=num_cols, split="train")
+                                      num_cols=num_cols, split="val")
 
         for j in range(600):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
-            # print()
-            # print(xs_target.shape, ys_target.shape)
-            # embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 

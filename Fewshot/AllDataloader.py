@@ -21,9 +21,10 @@ def binarise_data(ys):
 
 def one_vs_all(ys):
     # identify the most common class and set it to 1, set everything else as 0
-    mode = ys.mode()[0]
+    mode = ys.flatten().mode()[0]
     idx = ys == mode
-    ys = torch.zeros(ys.shape[0])
+
+    ys = torch.zeros_like(ys).long()
     ys[idx] = 1
     return ys
 
@@ -69,7 +70,7 @@ class MyDataSet:
             self.valid = True
             idx = (vldfold == 1)
         elif split=="test":
-            self.ttest = True
+            self.test = True
             idx = (folds == 1)
         else:
             raise Exception("Split must be train, val or test")
@@ -92,10 +93,22 @@ class MyDataSet:
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
 
+        probs = np.ones_like(labels[:, 0]).astype(float)
+        if split != "train":
+            # If one label makes up more than 50% of the dataset, downweight its sampling probability of category to 50%.
+            unique_lab, unique_idx, counts = np.unique(labels[:, 0], return_counts=True, return_inverse=True)
+            if np.max(counts) > labels.shape[0] / 2:
+                max_prob =  labels[:, 0].shape[0]/ np.max(counts) - 1
+
+                top_idx = (unique_idx == np.argmax(counts))
+                probs[top_idx] = max_prob
+
+        self.probs = probs / np.sum(probs)
+
 
     def sample(self, num_xs, force_next=False):
 
-        if num_xs > self.num_cols or not self.train:
+        if num_xs > self.num_cols - 1 :#or not self.train:
             num_xs = self.num_cols - 1
 
         target_col = np.random.choice(self.allow_targs, size=1)
@@ -103,14 +116,12 @@ class MyDataSet:
         row_cols = np.setdiff1d(self.cols, target_col)
         predict_cols = np.random.choice(row_cols, size=num_xs, replace=False)
 
-
-        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False)
+        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.probs)
         select_data = self.data[rows]
 
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
         ys = select_data[:, target_col]
-
 
         # If a batch is exclusively 1 or 0 as label, regenerate the batch
         if self.train:
@@ -149,8 +160,9 @@ class AllDatasetDataLoader:
             MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device)
             for d in all_data_names
         ]
+        min_ds = 100 if self.train else self.num_rows
         self.datasets = [
-            d for d in all_datasets if d.tot_rows >= 250
+            d for d in all_datasets if d.tot_rows >= min_ds
         ]
 
 
@@ -161,18 +173,19 @@ class AllDatasetDataLoader:
         while True:
             datasets = random.sample(self.datasets, self.bs)
             datanames = [d.data_name for d in datasets]
-            num_xs = min([d.num_cols for d in datasets]) - 1
-
+            if self.num_cols==-1:
+                num_xs = min([d.num_cols for d in datasets]) - 1
+            else:
+                num_xs = self.num_cols
             xs, ys = list(zip(*[
                 datasets[i].sample(num_xs = num_xs)
                 for i in range(self.bs)]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-
             yield xs, ys # , datanames
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, split="test")
+    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="val")
 
     means = []
     dl = iter(dl)
@@ -180,7 +193,6 @@ if __name__ == "__main__":
         x, y = next(dl)
         y_mean = torch.mean(y, dtype=float)
         means.append(y_mean)
-
 
     means = torch.stack(means)
     means = torch.mean(means)

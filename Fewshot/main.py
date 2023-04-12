@@ -43,14 +43,22 @@ class ResBlock(nn.Module):
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc, pos_enc_bias):
+    def __init__(self, cfg):
         super().__init__()
-        self.reparam_weight = reparam_weight
-        self.reparam_pos_enc = reparam_pos_enc
+
+        self.reparam_weight = cfg["reparam_weight"]
+        self.reparam_pos_enc = cfg["reparam_pos_enc"]
+        pos_enc_bias = cfg["pos_enc_bias"]
+
+        pos_depth = cfg["pos_depth"]
+
+        h_size = cfg["set_h_dim"]
+        out_size = cfg["set_out_dim"]
+        pos_enc_dim = cfg["pos_enc_dim"]
+        model_depths = cfg["d2v_layers"]
+
 
         f_depth, g_depth, h_depth = model_depths
-        # TODO
-        pos_depth = 2
 
         self.relu = nn.ReLU()
 
@@ -63,7 +71,7 @@ class SetSetModel(nn.Module):
         # h network
         self.hs = ResBlock(h_size, h_size, out_size, n_blocks=h_depth, out_relu=False)
 
-        if reparam_weight:
+        if self.reparam_weight:
             self.h_out_lvar = nn.Linear(h_size, out_size)
 
         # Embedding Network
@@ -130,7 +138,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers, weight_bias):
+    def __init__(self, cfg, out_sizes: list):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -142,10 +150,16 @@ class WeightGenerator(nn.Module):
                 bias = (out_dim * heads)
         """
         super().__init__()
-        self.gen_in_dim = in_dim
-        self.gen_hid_dim = hid_dim
+
+
+        self.gen_in_dim = cfg["set_out_dim"]
+        self.gen_hid_dim  = cfg["weight_hid_dim"]
+        self.gen_layers = cfg["gen_layers"]
+        self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
+
+        weight_bias = cfg["weight_bias"]
+
         self.out_sizes = out_sizes
-        self.gen_layers = gen_layers
 
         # Each GAT layer has a submodel to generate weights
         self.layer_model = []
@@ -205,7 +219,9 @@ class WeightGenerator(nn.Module):
             batch = []
             for batch_weights in all_weights:
                 lin, src, dst, bias = torch.split(batch_weights, split_idxs)
-                lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
+                if self.norm_weights:
+                    lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
+
                 # Reshape each weight matrix
                 lin = lin.view(gat_out * gat_heads, gat_in)
                 src = src.view(1, gat_heads, gat_out)
@@ -219,6 +235,8 @@ class WeightGenerator(nn.Module):
 
         # Weights for linear layer
         lin_weights = self.w_gen_out(d2v_embed)
+        if self.norm_lin:
+            lin_weights = F.normalize(lin_weights, dim=-1)
         lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
 
         return layer_weights, lin_weights
@@ -292,44 +310,32 @@ class ModelHolder(nn.Module):
         super().__init__()
         cfg = get_config()["NN_dims"]
 
-        reparam_weight = cfg["reparam_weight"]
-        reparam_pos_enc = cfg["reparam_pos_enc"]
-        self.reparam_weight = reparam_weight
-        self.reparam_pos_enc = reparam_pos_enc
-
-        set_h_dim = cfg["set_h_dim"]
-        set_out_dim = cfg["set_out_dim"]
-        pos_enc_dim = cfg["pos_enc_dim"]
-
-        weight_hid_dim = cfg["weight_hid_dim"]
+        self.reparam_weight = cfg["reparam_weight"]
+        self.reparam_pos_enc = cfg["reparam_pos_enc"]
 
         gat_heads = cfg["gat_heads"]
         gat_hid_dim = cfg["gat_hid_dim"]
         gat_in_dim = cfg["gat_in_dim"]
         gat_out_dim = cfg["gat_out_dim"]
-
-        d2v_layers = cfg["d2v_layers"]
-        gen_layers = cfg["gen_layers"]
         gat_layers = cfg["gat_layers"]
-
-        weight_bias = cfg["weight_bias"]
-        pos_enc_bias = cfg["pos_enc_bias"]
 
         gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
 
         load_d2v = cfg["load_d2v"]
         freeze_model = cfg["freeze_d2v"]
+
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
+
             load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
+            cfg["set_h_dim"] = set_h_dim
+            cfg["set_out_dim"] = set_out_dim
+            cfg["d2v_layers"] = d2v_layers
 
-            model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
-                                         model_depths=d2v_layers, pos_enc_dim=pos_enc_dim,
-                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
-                                         pos_enc_bias=pos_enc_bias)
+            model = SetSetModel(cfg=cfg)
 
             model.load_state_dict(state, strict=False)
 
@@ -343,13 +349,8 @@ class ModelHolder(nn.Module):
 
             self.d2v_model = model
         else:
-            self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
-                                         pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
-                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
-                                         pos_enc_bias=pos_enc_bias)
-        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
-                                            out_sizes=gat_shapes, gen_layers=gen_layers,
-                                            weight_bias=weight_bias)
+            self.d2v_model = SetSetModel(cfg=cfg)
+        self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
@@ -384,7 +385,6 @@ class ModelHolder(nn.Module):
         weights_target = self.weight_model(embed_meta)
 
         preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
-
         return preds_meta
 
     def loss_fn(self, preds, targs):
@@ -418,7 +418,7 @@ def main(device="cpu"):
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
-    # print_interval = cfg["print_interval"]
+
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
@@ -431,7 +431,7 @@ def main(device="cpu"):
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
     elif ds == "total":
-        dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="test")
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
         val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
     else:
         raise Exception("Invalid dataset")
@@ -439,7 +439,7 @@ def main(device="cpu"):
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -492,9 +492,6 @@ def main(device="cpu"):
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
 
-        for name, abs_grad in save_grads.items():
-            save_grads[name] = torch.div(abs_grad, val_interval)
-
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
@@ -528,6 +525,10 @@ def main(device="cpu"):
 
         val_losses.append(epoch_losses), val_accs.append(epoch_accs)
 
+        # Average gradients
+        for name, abs_grad in save_grads.items():
+            save_grads[name] = torch.div(abs_grad, val_interval)
+
         # Print some useful stats from validation
         save_ys_targ = torch.cat(save_ys_targ)
         save_pred_labs = torch.cat(save_pred_labs)[:20]
@@ -541,6 +542,7 @@ def main(device="cpu"):
         save_holder.save_model(model, optim)
         save_holder.save_history(history)
         save_holder.save_grads(save_grads)
+
 
 if __name__ == "__main__":
     import random

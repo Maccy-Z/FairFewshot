@@ -15,7 +15,6 @@ def write_toml():
                              "weight_hid_dim": 64,
                              "gat_heads": 2,
                              "gat_hid_dim": 128,
-                             # "gat_in_dim": 4,
                              "gat_out_dim": 16,
                              "d2v_layers": [3, 2, 3, 2],
                              "gen_layers": 2,
@@ -25,7 +24,10 @@ def write_toml():
                              "weight_bias": "zero",
                              "pos_enc_bias": "zero",
                              "load_d2v": True,
-                             "freeze_d2v": False},
+                             "freeze_d2v": False,
+                             "pos_depth": 2,
+                             "norm_lin": True,
+                             "norm_weights": True},
 
                  "Optim": {"lr": 3e-4},
 
@@ -50,8 +52,6 @@ def write_toml():
                                    "dropout_prob": 0.5,
                                    "init_std": 1,
                                    "pre_sample_causes": False,
-                                   # "causes_mean": None,
-                                   # "causes_std": None,
                                    "in_clique": True,
                                    "is_effect": True,
                                    "sort_features": True},

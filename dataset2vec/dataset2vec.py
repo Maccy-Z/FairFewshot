@@ -84,15 +84,15 @@ class ModelTrainer:
     def __init__(self, device="cpu"):
         self.gamma = 1
 
-        h_size, out_size, n_blocks = 64, 64, [7, 5, 7]
+        h_size, out_size, n_blocks = 64, 64, [5, 3, 3]
         self.params = (h_size, out_size, n_blocks)
 
-        self.model = Dataset2Vec(h_size=64, out_size=64, n_blocks=n_blocks).to(device)
+        self.model = Dataset2Vec(h_size=h_size, out_size=out_size, n_blocks=n_blocks).to(device)
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
         self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
 
     def train_loop(self):
-        self.dl.steps = 12000
+        self.dl.steps = 9000
         self.dl.train(True)
 
         st = time.time()
@@ -108,7 +108,7 @@ class ModelTrainer:
                 st = time.time()
 
     def test_loop(self):
-        self.dl.steps = 1000
+        self.dl.steps = 2000
         self.dl.train(False)
 
         with torch.no_grad():
@@ -168,7 +168,7 @@ class ModelTrainer:
         exp_diff_diff = torch.exp(- self.gamma * diff_diff)
         loss_diff = torch.mean(torch.log((1 - exp_diff_diff)))
 
-        loss = -(loss_same + loss_diff)
+        loss = -(loss_same + 1.5 * loss_diff)
 
         return loss, (same_diff, diff_diff)
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     trainer.save_model()
 
 
-# 64 32
+"""# 64 32
 # same_accs = 0.968, diff_accs = 0.8468
 # 64 64
 # same_accs = 0.97, diff_accs = 0.863
@@ -250,5 +250,30 @@ if __name__ == "__main__":
 # same_accs = 0.938, diff_accs = 0.8697
 # Train 15k steps
 # same_accs = 0.9368, diff_accs = 0.8871
+"""
+
+# Binarised data
+# h_size, out_size, n_blocks = 64, 64, [5, 5, 5]
+# same_accs = 0.9543, diff_accs = 0.8249
+# 64, 64, [7, 5, 7]
+# same_accs = 0.924, diff_accs = 0.8443
+# 64, 64, [3, 3, 3]
+# same_accs = 0.9313, diff_accs = 0.844
+# 64, 32, [3, 3, 3]
+# same_accs = 0.9307, diff_accs = 0.84
+# 64, 64, [5, 4, 5]
+# same_accs = 0.9543, diff_accs = 0.8249
+# 64, 64, [4, 3, 4]
+# same_accs = 0.9518, diff_accs = 0.8377
+
+# Increase loss on diff to 1.5x
+# 64, 64, [4, 3, 4]
+# same_accs = 0.9032, diff_accs = 0.8889
+# 64, 64, [3, 3, 3]
+#  same_accs = 0.8852, diff_accs = 0.8968
+# 64, 64, [7, 5, 7]
+# 0.9063, diff_accs = 0.8945
+# 64, 64, [5, 3, 3]
+# same_accs = 0.9207, diff_accs = 0.8811
 
 
