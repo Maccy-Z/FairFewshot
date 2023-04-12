@@ -1,6 +1,6 @@
 import torch
 from main import *
-from dataloader import d2v_pairer, AdultDataLoader
+from dataloader import d2v_pairer
 from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
@@ -10,12 +10,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
 
-class zero_model:
+class ZeroModel:
     def fit(self, X, y):
+        self.y = (torch.sum(y) > 5).long()
         return
 
     def predict(self, X):
-        return np.zeros(X.shape[0])
+
+        return np.ones(X.shape[0]) * self.y.numpy()
 
 
 def get_batch(dl, num_rows):
@@ -41,7 +43,13 @@ def get_embedding(xs_meta, ys_meta, model):
     return embed_meta, pos_enc
 
 
-def get_predictions(xs_target, embed_meta, pos_enc, model):
+def get_predictions(xs_meta, xs_target, ys_meta, model):
+    # if ys_meta.min() == ys_meta.max():
+    # predictions = torch.ones(xs_target.shape[1])# * ys_meta[0]
+    # print()
+    # print(predictions.shape)
+
+    embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
     ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
     return ys_pred_target
 
@@ -56,13 +64,13 @@ def get_baseline_predictions(model, xs_meta, ys_meta, xs_target, i):
     ys_meta = ys_meta.detach()[i].flatten()
     xs_meta = xs_meta.detach()[i]
     xs_target = xs_target.detach()[i]
-
+    # print(ys_meta)
     if ys_meta.min() == ys_meta.max():
-        predictions = np.zeros(xs_target.shape[0])
+        predictions = np.ones(xs_target.shape[0]) * ys_meta[0].numpy()
+
     else:
         model.fit(X=xs_meta, y=ys_meta)
         predictions = model.predict(X=xs_target)
-
     return predictions
 
 
@@ -78,8 +86,8 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
     return accuracy
 
 
-if __name__ == "__main__":
-    save_no = 11
+def main():
+    save_no = 18
     BASEDIR = '/mnt/storage_ssd/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
@@ -92,20 +100,23 @@ if __name__ == "__main__":
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
 
-    bs = 4
-    baseline_models = [LogisticRegression(max_iter=1000), SVC(), zero_model()]
+    bs = 1
+    baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
     baseline_model_names = ['LR', 'SVC', "zero"]
 
-    for num_cols in range(3, 9):
+    for num_cols in range(1, 9):
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, split="train")
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
+                                      num_cols=num_cols, split="train")
 
-        for j in range(200):
+        for j in range(600):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
-            embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
-            ys_pred_target = get_predictions(xs_target, embed_meta, pos_enc, model)
+            # print()
+            # print(xs_target.shape, ys_target.shape)
+            # embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
+            ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 
             # Predictions for baseline models
@@ -125,3 +136,6 @@ if __name__ == "__main__":
             print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
 
 
+if __name__ == "__main__":
+
+    main()

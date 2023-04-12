@@ -12,6 +12,7 @@ from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import AllDatasetDataLoader
 
+
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
         super().__init__()
@@ -430,7 +431,7 @@ def main(device="cpu"):
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
     elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
+        dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="test")
         val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
     else:
         raise Exception("Invalid dataset")

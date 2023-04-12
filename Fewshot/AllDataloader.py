@@ -12,7 +12,11 @@ def to_tensor(array: np.array, device, dtype=torch.float32):
 
 def binarise_data(ys):
     median = torch.median(ys)
-    ys = (ys > median)
+
+    if np.random.randint(2) == 1:
+        ys = (ys >= median)
+    else:
+        ys = (ys > median)
     return ys.long()
 
 def one_vs_all(ys):
@@ -59,7 +63,7 @@ class MyDataSet:
         targets = np.asarray(targets)
 
         if split=="train":
-            idx = (folds == 0)
+            idx = (1 - folds) == 1 & (vldfold == 0)
             self.train = True
         elif split=="val":
             self.valid = True
@@ -107,13 +111,14 @@ class MyDataSet:
         xs = select_data[:, predict_cols]
         ys = select_data[:, target_col]
 
+
         # If a batch is exclusively 1 or 0 as label, regenerate the batch
         ys = binarise_data(ys)
-
-        if force_next or ys.min() != ys.max():
-            return xs, ys
-        else:
-            return self.sample(num_xs, force_next=True)
+        return xs, ys
+        # if force_next or ys.min() != ys.max():
+        #     return xs, ys
+        # else:
+        #     return self.sample(num_xs, force_next=True)
 
 
 
@@ -163,7 +168,7 @@ class AllDatasetDataLoader:
             yield xs, ys # , datanames
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, split="train")
+    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, split="test")
 
     means = []
     dl = iter(dl)
