@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import random
 
-DATADIR = './datasets/data'
+DATADIR = './datasets'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -51,18 +51,19 @@ class MyDataSet:
         Here, combine test and valid folds. 
         """
 
+        ds_dir = f'{DATADIR}/data'
         # get train fold
-        folds = pd.read_csv(f"{DATADIR}/{data_name}/folds_py.dat", header=None)[0]
+        folds = pd.read_csv(f"{ds_dir}/{data_name}/folds_py.dat", header=None)[0]
         folds = np.asarray(folds)
         # get validation fold
-        vldfold = pd.read_csv(f"{DATADIR}/{data_name}/validation_folds_py.dat", header=None)[0]
+        vldfold = pd.read_csv(f"{ds_dir}/{data_name}/validation_folds_py.dat", header=None)[0]
         vldfold = np.asarray(vldfold)
 
         # read predictors
-        predictors = pd.read_csv(f"{DATADIR}/{data_name}/{self.data_name}_py.dat", header=None)
+        predictors = pd.read_csv(f"{ds_dir}/{data_name}/{self.data_name}_py.dat", header=None)
         predictors = np.asarray(predictors)
         # read internal target
-        targets = pd.read_csv(f"{DATADIR}/{data_name}/labels_py.dat", header=None)
+        targets = pd.read_csv(f"{ds_dir}/{data_name}/labels_py.dat", header=None)
         targets = np.asarray(targets)
 
         if split == "train":
@@ -123,6 +124,13 @@ class MyDataSet:
         xs = select_data[:, predict_cols]
         ys = select_data[:, target_col]
 
+        # Normalise xs
+        if True:
+            m = xs.mean(0, keepdim=True)
+            s = xs.std(0, unbiased=False, keepdim=True)
+            xs -= m
+            xs /= (s + 10e-4)
+
         if self.train:
             ys = binarise_data(ys)
         else:
@@ -137,14 +145,14 @@ class MyDataSet:
 
 
 class AllDatasetDataLoader:
-    def __init__(
-            self, bs, num_rows, num_targets, num_cols=-1, device="cpu", split="train"):
+    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, device="cpu", split="train"):
 
         self.bs = bs
         self.num_rows = num_rows + num_targets
         self.split = split
         self.device = device
         self.num_cols = num_cols
+        self.ds_group = ds_group
         self.train = (split == "train")
 
         if not self.train and self.bs != 1:
@@ -153,8 +161,14 @@ class AllDatasetDataLoader:
         self.get_valid_datasets()
 
     def get_valid_datasets(self):
-        all_data_names = os.listdir(DATADIR)
-        all_data_names.remove('info.json')
+        if self.ds_group == -1:
+            ds_dir = f'{DATADIR}/data'
+            all_data_names = os.listdir(ds_dir)
+            all_data_names.remove('info.json')
+        else:
+            ds_dir = f'{DATADIR}/grouped_datasets/{self.ds_group}'
+            all_data_names = os.listdir(ds_dir)
+
         all_datasets = [
             MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device)
             for d in all_data_names
@@ -190,7 +204,7 @@ if __name__ == "__main__":
     dl = iter(dl)
     for _ in range(1000):
         x, y = next(dl)
-        print(x.shape)
+        #print(x.shape)
         y_mean = torch.mean(y, dtype=float)
         means.append(y_mean)
 

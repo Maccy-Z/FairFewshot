@@ -1,24 +1,24 @@
 [NN_dims]
-pos_enc_dim = 15
 set_h_dim = 64
 set_out_dim = 32
+d2v_layers = [ 3, 2, 3,]
+pos_depth = 2
+pos_enc_dim = 15
+load_d2v = true
+freeze_d2v = false
+model_load = "model_main"
 weight_hid_dim = 64
+gen_layers = 2
 gat_heads = 2
+gat_layers = 2
 gat_hid_dim = 128
 gat_out_dim = 16
-d2v_layers = [ 3, 2, 3, 2,]
-gen_layers = 2
-gat_layers = 3
 reparam_weight = false
 reparam_pos_enc = false
 weight_bias = "zero"
 pos_enc_bias = "zero"
-load_d2v = true
-freeze_d2v = false
-pos_depth = 2
-norm_lin = true
-norm_weights = true
-model_load = "model_main"
+norm_lin = false
+norm_weights = false
 gat_in_dim = 16
 
 [Optim]
@@ -28,7 +28,7 @@ lr = 0.0003
 bs = 3
 num_rows = 10
 num_targets = 5
-flip = false
+ds_group = 1
 
 [Settings]
 num_epochs = 10000

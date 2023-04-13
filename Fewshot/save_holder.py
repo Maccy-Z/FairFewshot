@@ -105,7 +105,6 @@ class SaveLoader:
             layer_names[i] = layer_names[i].replace("res_modules.", "")
             layer_names[i] = layer_names[i].replace("lin_", "")
 
-
         grad_means, grad_stds = list(grad_mean.values()), list(grad_std.values())
         grad_means, grad_stds = np.array(grad_means).T, np.array(grad_stds).T
 
@@ -121,7 +120,7 @@ class SaveLoader:
 if __name__ == "__main__":
     import re
 
-    BASEDIR = "/mnt/storage_ssd/FairFewshot"
+    BASEDIR = "."
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
@@ -134,6 +133,6 @@ if __name__ == "__main__":
     saves = sorted(saves, key=sort_key)
 
     # h = SaveHolder(base_dir=f'{BASEDIR}')
-    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-3]}')
+    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
     h.plot_history()
     h.plot_grads()

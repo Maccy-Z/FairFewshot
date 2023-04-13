@@ -78,7 +78,7 @@ class SetSetModel(nn.Module):
         for _ in range(pos_depth - 1):
             self.ps.append(nn.Linear(h_size, h_size))
 
-        self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias!="off"))
+        self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias != "off"))
         if self.reparam_pos_enc:
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
@@ -90,14 +90,14 @@ class SetSetModel(nn.Module):
         # x.shape = [num_rows, num_cols, 2]
 
         # f network
-        x, _ = self.fs(x)               # [num_rows, num_cols, h_size]
+        x, _ = self.fs(x)  # [num_rows, num_cols, h_size]
 
-        x = torch.mean(x, dim=0)        # [num_rows, y_dim, h_size]
+        x = torch.mean(x, dim=0)  # [num_rows, y_dim, h_size]
         x_pos_enc = x
 
         # g network
         x, _ = self.gs(x)
-        x = torch.mean(x, dim=0)        # [h_size]
+        x = torch.mean(x, dim=0)  # [h_size]
 
         # h network
         x_out, prev_x = self.hs(x)
@@ -116,7 +116,6 @@ class SetSetModel(nn.Module):
             pos_enc_out = torch.stack([pos_enc_out, pos_lvar])
 
         return x_out, pos_enc_out
-
 
     def forward(self, xs):
         # xs.shape = [BS][x_dim, n_samples, 2]
@@ -150,9 +149,8 @@ class WeightGenerator(nn.Module):
         """
         super().__init__()
 
-
         self.gen_in_dim = cfg["set_out_dim"]
-        self.gen_hid_dim  = cfg["weight_hid_dim"]
+        self.gen_hid_dim = cfg["weight_hid_dim"]
         self.gen_layers = cfg["gen_layers"]
         self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
 
@@ -176,7 +174,7 @@ class WeightGenerator(nn.Module):
         self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
             nn.ReLU(),
-            nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias!="off"))
+            nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias != "off"))
         )
         if weight_bias == "zero":
             print("Weight bias init to 0")
@@ -351,7 +349,6 @@ class ModelHolder(nn.Module):
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
 
-
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
@@ -402,7 +399,7 @@ class ModelHolder(nn.Module):
 
 
 def main(device="cpu"):
-    save_holder = SaveHolder(".")
+    save_holder = None
 
     all_cfgs = get_config()
     cfg = all_cfgs["Optim"]
@@ -412,7 +409,7 @@ def main(device="cpu"):
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    flip = cfg["flip"]
+    ds_group = cfg["ds_group"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -422,16 +419,16 @@ def main(device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "adult":
-        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
-        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
+        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, split="val")
         val_dl = iter(val_dl)
     elif ds == "MLP":
         dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
     elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
-        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group, split="train")
+        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group, split="val")
     else:
         raise Exception("Invalid dataset")
 
@@ -537,6 +534,8 @@ def main(device="cpu"):
         print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
+        if save_holder is None:
+            save_holder = SaveHolder(".")
         # Save stats
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
         save_holder.save_model(model, optim)

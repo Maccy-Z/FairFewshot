@@ -5,7 +5,6 @@ from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
 
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
@@ -89,28 +88,29 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 27
+    save_no = 36
     BASEDIR = '/home/maccyz/Documents/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
-    model = ModelHolder()
+    model = ModelHolder(cfg_file=f'{save_dir}/defaults.toml')
     model.load_state_dict(state_dict['model_state_dict'])
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
+    ds_group = cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
     baseline_model_names = ['LR', 'SVC', "Baseline model"]
 
-    for num_cols in range(1, 10):
+    for num_cols in range(1, 20):
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
         val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
-                                      num_cols=num_cols, split="val")
+                                      num_cols=num_cols, ds_group=ds_group, split="val")
 
         for j in range(600):
             # Fewshot predictions
