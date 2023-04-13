@@ -296,4 +296,5 @@ if __name__ == "__main__":
 # Train 12 k
 # same_accs = 0.9289, diff_accs = 0.9027
 # same_accs = 0.9097, diff_accs = 0.9218
-
+# Train 15k
+# same_accs = 0.9123, diff_accs = 0.919

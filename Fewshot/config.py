@@ -9,7 +9,7 @@ def get_config():
 
 
 def write_toml():
-    save_dict = {"NN_dims": {"pos_enc_dim": 3,
+    save_dict = {"NN_dims": {"pos_enc_dim": 15,
                              "set_h_dim": 64,
                              "set_out_dim": 32,
                              "weight_hid_dim": 64,
@@ -27,7 +27,8 @@ def write_toml():
                              "freeze_d2v": False,
                              "pos_depth": 2,
                              "norm_lin": False,
-                             "norm_weights": False},
+                             "norm_weights": False,
+                             "model_load": "model_main"},
 
                  "Optim": {"lr": 3e-4},
 

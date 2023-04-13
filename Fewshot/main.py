@@ -322,12 +322,11 @@ class ModelHolder(nn.Module):
 
         load_d2v = cfg["load_d2v"]
         freeze_model = cfg["freeze_d2v"]
-
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
-
-            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_new")
+            model_load = cfg["model_load"]
+            load = torch.load(f"/mnt/storage_ssd/FairFewshot/dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -439,7 +438,7 @@ def main(device="cpu"):
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -536,7 +535,7 @@ def main(device="cpu"):
         print("Mean targets", torch.mean(save_ys_targ, dtype=float).item())
         print("Targets:    ", save_ys_targ[:20])
         print("Predictions:", save_pred_labs[:20])
-        print(f'Mean accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
         # Save stats
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
