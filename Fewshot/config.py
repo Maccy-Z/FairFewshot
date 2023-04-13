@@ -26,8 +26,8 @@ def write_toml():
                              "load_d2v": True,
                              "freeze_d2v": False,
                              "pos_depth": 2,
-                             "norm_lin": True,
-                             "norm_weights": True},
+                             "norm_lin": False,
+                             "norm_weights": False},
 
                  "Optim": {"lr": 3e-4},
 

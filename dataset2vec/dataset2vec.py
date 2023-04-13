@@ -46,10 +46,10 @@ class Dataset2Vec(nn.Module):
         self.fs = ResBlock(2, h_size, h_size, n_blocks=n_blocks[0])
 
         # g network
-        self.gs = ResBlock(h_size, h_size, h_size, n_blocks=n_blocks[0])
+        self.gs = ResBlock(h_size, h_size, h_size, n_blocks=n_blocks[1])
 
         # h network
-        self.hs = ResBlock(h_size, h_size, out_size, n_blocks=n_blocks[0], out_relu=False)
+        self.hs = ResBlock(h_size, h_size, out_size, n_blocks=n_blocks[2], out_relu=False)
 
 
     def forward(self, xs):
@@ -84,7 +84,7 @@ class ModelTrainer:
     def __init__(self, device="cpu"):
         self.gamma = 1
 
-        h_size, out_size, n_blocks = 64, 64, [5, 3, 3]
+        h_size, out_size, n_blocks = 64, 64, [4, 2, 4]
         self.params = (h_size, out_size, n_blocks)
 
         self.model = Dataset2Vec(h_size=h_size, out_size=out_size, n_blocks=n_blocks).to(device)
@@ -92,7 +92,7 @@ class ModelTrainer:
         self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
 
     def train_loop(self):
-        self.dl.steps = 9000
+        self.dl.steps = 15000
         self.dl.train(True)
 
         st = time.time()
@@ -168,7 +168,7 @@ class ModelTrainer:
         exp_diff_diff = torch.exp(- self.gamma * diff_diff)
         loss_diff = torch.mean(torch.log((1 - exp_diff_diff)))
 
-        loss = -(loss_same + 1.5 * loss_diff)
+        loss = -(loss_same + 1.75 * loss_diff)
 
         return loss, (same_diff, diff_diff)
 
@@ -255,25 +255,45 @@ if __name__ == "__main__":
 # Binarised data
 # h_size, out_size, n_blocks = 64, 64, [5, 5, 5]
 # same_accs = 0.9543, diff_accs = 0.8249
-# 64, 64, [7, 5, 7]
+# 64, 64, [7, 7, 7]
 # same_accs = 0.924, diff_accs = 0.8443
 # 64, 64, [3, 3, 3]
 # same_accs = 0.9313, diff_accs = 0.844
 # 64, 32, [3, 3, 3]
 # same_accs = 0.9307, diff_accs = 0.84
-# 64, 64, [5, 4, 5]
+# 64, 64, [5, 5, 5]
 # same_accs = 0.9543, diff_accs = 0.8249
-# 64, 64, [4, 3, 4]
+# 64, 64, [4, 4, 4]
 # same_accs = 0.9518, diff_accs = 0.8377
 
 # Increase loss on diff to 1.5x
-# 64, 64, [4, 3, 4]
+# 64, 64, [4, 4, 4]
 # same_accs = 0.9032, diff_accs = 0.8889
 # 64, 64, [3, 3, 3]
 #  same_accs = 0.8852, diff_accs = 0.8968
-# 64, 64, [7, 5, 7]
+# 64, 64, [7, 7, 7]
 # 0.9063, diff_accs = 0.8945
-# 64, 64, [5, 3, 3]
+# 64, 64, [5, 5, 5]
 # same_accs = 0.9207, diff_accs = 0.8811
 
+# 9k steps
+# 64, 64, [5, 5, 5]
+# same_accs = 0.9348, diff_accs = 0.8863
+# 64, 64, [3, 3, 3]
+# same_accs = 0.9294, diff_accs = 0.8857
+# 64, 64, [7, 7, 7]
+# same_accs = 0.9368, diff_accs = 0.8914
+# 64, 64, [5, 3, 3]
+# same_accs = 0.9233, diff_accs = 0.8905
+# 64, 64, [5, 3, 5]
+# same_accs = 0.9253, diff_accs = 0.8976
+# 64, 64, [4, 2, 4]
+# same_accs = 0.9393, diff_accs = 0.8864
+
+# Increase loos on diff to 2x
+# same_accs = 0.9143, diff_accs = 0.9129
+# same_accs = 0.8864, diff_accs = 0.9314
+# Train 12 k
+# same_accs = 0.9289, diff_accs = 0.9027
+# same_accs = 0.9097, diff_accs = 0.9218
 

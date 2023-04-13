@@ -16,8 +16,8 @@ pos_enc_bias = "zero"
 load_d2v = true
 freeze_d2v = false
 pos_depth = 2
-norm_lin = true
-norm_weights = true
+norm_lin = false
+norm_weights = false
 gat_in_dim = 4
 
 [Optim]

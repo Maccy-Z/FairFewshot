@@ -123,18 +123,18 @@ class MyDataSet:
         xs = select_data[:, predict_cols]
         ys = select_data[:, target_col]
 
-        # If a batch is exclusively 1 or 0 as label, regenerate the batch
+
         if self.train:
             ys = binarise_data(ys)
         else:
             ys = one_vs_all(ys)
 
-        return xs, ys
-        # if force_next or ys.min() != ys.max():
-        #     return xs, ys
-        # else:
-        #     return self.sample(num_xs, force_next=True)
-
+        # If a batch is exclusively 1 or 0 as label, regenerate the batch, once only
+        if force_next or ys.min() != ys.max():
+            return xs, ys
+        else:
+            return self.sample(num_xs, force_next=True)
+        #return xs, ys
 
 
 class AllDatasetDataLoader:
@@ -185,7 +185,7 @@ class AllDatasetDataLoader:
             yield xs, ys # , datanames
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="val")
+    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="train")
 
     means = []
     dl = iter(dl)

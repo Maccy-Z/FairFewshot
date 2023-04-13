@@ -48,16 +48,15 @@ class SetSetModel(nn.Module):
 
         self.reparam_weight = cfg["reparam_weight"]
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
-        pos_enc_bias = cfg["pos_enc_bias"]
-
-        pos_depth = cfg["pos_depth"]
 
         h_size = cfg["set_h_dim"]
         out_size = cfg["set_out_dim"]
+
+        pos_enc_bias = cfg["pos_enc_bias"]
         pos_enc_dim = cfg["pos_enc_dim"]
+        pos_depth = cfg["pos_depth"]
+
         model_depths = cfg["d2v_layers"]
-
-
         f_depth, g_depth, h_depth = model_depths
 
         self.relu = nn.ReLU()
@@ -328,7 +327,7 @@ class ModelHolder(nn.Module):
             print()
             print("Loading model. Possibly overriding some config options")
 
-            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
+            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_new")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -352,6 +351,7 @@ class ModelHolder(nn.Module):
             self.d2v_model = SetSetModel(cfg=cfg)
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
+
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
@@ -383,8 +383,8 @@ class ModelHolder(nn.Module):
 
     def forward_target(self, xs_target, embed_meta, pos_enc):
         weights_target = self.weight_model(embed_meta)
-
         preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
+
         return preds_meta
 
     def loss_fn(self, preds, targs):
@@ -439,7 +439,7 @@ def main(device="cpu"):
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -455,6 +455,7 @@ def main(device="cpu"):
         # Train loop
         model.train()
         for xs, ys in itertools.islice(dl, val_interval):
+
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
