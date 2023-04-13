@@ -1,5 +1,5 @@
 [NN_dims]
-pos_enc_dim = 3
+pos_enc_dim = 15
 set_h_dim = 64
 set_out_dim = 32
 weight_hid_dim = 64
@@ -8,7 +8,7 @@ gat_hid_dim = 128
 gat_out_dim = 16
 d2v_layers = [ 3, 2, 3, 2,]
 gen_layers = 2
-gat_layers = 2
+gat_layers = 3
 reparam_weight = false
 reparam_pos_enc = false
 weight_bias = "zero"
@@ -16,10 +16,10 @@ pos_enc_bias = "zero"
 load_d2v = true
 freeze_d2v = false
 pos_depth = 2
-norm_lin = false
-norm_weights = false
+norm_lin = true
+norm_weights = true
 model_load = "model_main"
-gat_in_dim = 4
+gat_in_dim = 16
 
 [Optim]
 lr = 0.0003

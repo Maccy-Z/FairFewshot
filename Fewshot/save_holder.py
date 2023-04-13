@@ -134,6 +134,6 @@ if __name__ == "__main__":
     saves = sorted(saves, key=sort_key)
 
     # h = SaveHolder(base_dir=f'{BASEDIR}')
-    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
+    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-3]}')
     h.plot_history()
     h.plot_grads()

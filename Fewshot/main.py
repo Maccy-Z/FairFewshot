@@ -305,9 +305,9 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, device="cpu"):
+    def __init__(self, device="cpu", cfg_file=None):
         super().__init__()
-        cfg = get_config()["NN_dims"]
+        cfg = get_config(cfg_file=cfg_file)["NN_dims"]
 
         self.reparam_weight = cfg["reparam_weight"]
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
@@ -326,7 +326,7 @@ class ModelHolder(nn.Module):
             print()
             print("Loading model. Possibly overriding some config options")
             model_load = cfg["model_load"]
-            load = torch.load(f"/mnt/storage_ssd/FairFewshot/dataset2vec/{model_load}")
+            load = torch.load(f"/home/maccyz/Documents/FairFewshot/dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -438,7 +438,7 @@ def main(device="cpu"):
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []

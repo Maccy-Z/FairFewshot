@@ -27,6 +27,7 @@ def get_batch(dl, num_rows):
     except:
         xs, ys = next(iter(dl))
         model_id = []
+
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
@@ -88,8 +89,8 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 20
-    BASEDIR = '/mnt/storage_ssd/FairFewshot'
+    save_no = 27
+    BASEDIR = '/home/maccyz/Documents/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
