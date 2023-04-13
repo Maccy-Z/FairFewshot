@@ -31,8 +31,8 @@ class Dataset:
         12, Hr-per-wk: 92
         13, Native_cont: 41
         14, Income >50k: 2
-        
         """
+
         datadir = f'./datasets/data_split/{self.data_name}'
 
         # Read data and labels
@@ -274,28 +274,25 @@ class AllDatasetDataLoader():
 
 if __name__ == "__main__":
     # Test if dataloader works.
-    # np.random.seed(0)
-    # torch.manual_seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
-    # dl = AdultDataLoader(bs=2, num_rows=10, num_target=3)
-    # #
-    # # for i in range(15):
-    # #     num_unique = np.unique(dl.data[:, i])
-    # #     print(i, len(num_unique))
+    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3, flip=False)
+    #
+    # for i in range(15):
+    #     num_unique = np.unique(dl.data[:, i])
+    #     print(i, len(num_unique))
 
-    # means = []
-    # for x, y in dl:
-    #     y_mean = torch.mean(y, dtype=float)
-    #     means.append(y_mean)
+    means = []
+    dl = iter(dl)
+    for _ in range(1000):
+        x, y = next(dl)
+        # y_mean = torch.mean(y, dtype=float)
+        # means.append(y_mean)
+        #
+        # print(y)
+        print(x.shape)
 
-    # means = torch.stack(means)
-    # means = torch.mean(means)
-    # print(means)
-
-    dl = AllDatasetDataLoader(bs=2, num_rows=5, num_target=5, split="train")
-
-    for i, (xs, ys, data_names) in enumerate(dl):
-        print(xs)
-        print(ys)
-        print(data_names)
-        break
+    means = torch.stack(means)
+    means = torch.mean(means)
+    print(means.item())

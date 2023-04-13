@@ -18,8 +18,8 @@ for ds in dataset:
     xs = ds.get_data(nsamples=200)
     data.append(xs)
 
-model = Dataset2Vec(64, 64, [7, 5, 7])
-state = torch.load("./dataset2vec/model_9k")["state_dict"]
+model = Dataset2Vec(64, 64, [5, 3, 3])
+state = torch.load("./dataset2vec/model")["state_dict"]
 model.load_state_dict(state)
 
 preds = model(data).detach().numpy()

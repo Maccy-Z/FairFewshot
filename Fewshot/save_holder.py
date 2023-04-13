@@ -102,6 +102,8 @@ class SaveLoader:
             layer_names[i] = layer_names[i].replace(".bias", ".b")
             layer_names[i] = layer_names[i].replace("weight_model.w_", "")
             layer_names[i] = layer_names[i].replace("d2v_model", "d2v")
+            layer_names[i] = layer_names[i].replace("res_modules.", "")
+            layer_names[i] = layer_names[i].replace("lin_", "")
 
 
         grad_means, grad_stds = list(grad_mean.values()), list(grad_std.values())

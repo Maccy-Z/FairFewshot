@@ -75,6 +75,9 @@ class Dataset:
             xs = xs[:, x_idx]
             ys = ys[:, y_idx]
 
+        #print(ys)
+        ys = self.binarise_data(ys)
+
         # Turn data from table of x and table of y to all paris of (x, y)
         pair_output = []
         for k in range(nsamples):
@@ -85,7 +88,8 @@ class Dataset:
             pair_output.append(pairs)
 
         pair_output = np.stack(pair_output)
-        pair_output = torch.tensor(pair_output).permute(1, 2, 0, 3).to(torch.float32)
+        pair_output = torch.from_numpy(pair_output).permute(1, 2, 0, 3).to(torch.float32)
+
 
         return pair_output
 
@@ -105,6 +109,27 @@ class Dataset:
             self.training = False
 
         self.data_len = self.data.shape[0]
+
+    @staticmethod
+    def binarise_data(ys):
+        median = np.median(ys)
+
+        if np.random.randint(2) == 1:
+            ys = (ys >= median)
+        else:
+            ys = (ys > median)
+
+        return ys.astype(int)
+
+    @staticmethod
+    def one_vs_all(ys):
+        # identify the most common class and set it to 1, set everything else as 0
+        mode = ys.flatten().mode()[0]
+        idx = ys == mode
+
+        ys = torch.zeros_like(ys).long()
+        ys[idx] = 1
+        return ys
 
 
 class Dataloader:

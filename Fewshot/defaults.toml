@@ -11,10 +11,14 @@ gen_layers = 2
 gat_layers = 2
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "off"
+weight_bias = "zero"
 pos_enc_bias = "zero"
 load_d2v = false
 freeze_d2v = false
+pos_depth = 2
+norm_lin = false
+norm_weights = false
+model_load = "model_main"
 gat_in_dim = 4
 
 [Optim]
@@ -29,10 +33,9 @@ num_cols = -1
 
 [Settings]
 num_epochs = 10000
-save_dir = ""
-val_duration = 200
-val_interval = 1000
-dataset = "all"
+val_duration = 400
+val_interval = 2000
+dataset = "total"
 
 [MLP_DL_params]
 noise_std = 0.3

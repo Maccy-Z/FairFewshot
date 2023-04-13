@@ -1,19 +1,25 @@
 import torch
 from main import *
-from dataloader import d2v_pairer, AdultDataLoader
-from data_generation import MLPDataLoader
-from config import get_config
+from dataloader import d2v_pairer
+from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
 
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+
+
+class ZeroModel:
+    def fit(self, X, y):
+
+        self.y = torch.mode(y)[0]
+        return
+
+    def predict(self, X):
+
+        return np.ones(X.shape[0]) * self.y.numpy()
+
 
 def get_batch(dl, num_rows):
     try:
@@ -36,9 +42,17 @@ def get_embedding(xs_meta, ys_meta, model):
     embed_meta, pos_enc = model.forward_meta(pairs_meta)
     return embed_meta, pos_enc
 
-def get_predictions(xs_target, embed_meta, pos_enc, model):
-    ys_pred_target =  model.forward_target(xs_target, embed_meta, pos_enc)
+
+def get_predictions(xs_meta, xs_target, ys_meta, model):
+    # if ys_meta.min() == ys_meta.max():
+    # predictions = torch.ones(xs_target.shape[1])# * ys_meta[0]
+    # print()
+    # print(predictions.shape)
+
+    embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
+    ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
     return ys_pred_target
+
 
 def get_accuracy(ys_pred_target, ys_target):
     ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
@@ -49,34 +63,31 @@ def get_baseline_predictions(model, xs_meta, ys_meta, xs_target, i):
     ys_meta = ys_meta.detach()[i].flatten()
     xs_meta = xs_meta.detach()[i]
     xs_target = xs_target.detach()[i]
-    try:
+    # print(ys_meta)
+    if ys_meta.min() == ys_meta.max():
+        predictions = np.ones(xs_target.shape[0]) * ys_meta[0].numpy()
+
+    else:
         model.fit(X=xs_meta, y=ys_meta)
         predictions = model.predict(X=xs_target)
-    except ValueError:
-        if len(np.unique(ys_meta)) == 1:
-            if ys_meta[0] == 0:
-                predictions = np.zeros(ys_meta.shape[0])
-            else:
-                predictions = np.ones(ys_meta.shape[0])
     return predictions
 
+
 def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
-    ys_lr_target_labels = np.array([
-        get_baseline_predictions(
-            model,
-            xs_meta,
-            ys_meta,
-            xs_target,
-            i
-        ) for i in range(bs)]).flatten()
-    accuracy = (
-        ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)
+    ys_lr_target_labels = [get_baseline_predictions(model,
+                                                    xs_meta,
+                                                    ys_meta,
+                                                    xs_target,
+                                                    i) for i in range(bs)]
+
+    ys_lr_target_labels = np.array(ys_lr_target_labels).flatten()
+    accuracy = (ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)
     return accuracy
 
 
-if __name__ == "__main__":
-    save_no = 29
-    BASEDIR = '/Users/kasiakobalczyk/FairFewshot/'
+def main():
+    save_no = 20
+    BASEDIR = '/mnt/storage_ssd/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
@@ -88,22 +99,22 @@ if __name__ == "__main__":
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
 
-    bs = 4
-    baseline_models = [LogisticRegression(max_iter=1000), SVC()]
-    baseline_model_names = ['LR', 'SVC']
+    bs = 1
+    baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
+    baseline_model_names = ['LR', 'SVC', "Baseline model"]
 
-    for num_cols in range(3, 9):
+    for num_cols in range(1, 10):
         acc = []
-        baseline_acc = dict(zip(baseline_model_names, [[] for i in range(2)]))
-        val_dl = AllDatasetDataLoader(
-            bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=num_cols)
-        for j in range(200):
+        baseline_acc = {name: [] for name in baseline_model_names}
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
+                                      num_cols=num_cols, split="val")
+
+        for j in range(600):
             # Fewshot predictions
-            model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
-            embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
-            ys_pred_target = get_predictions(xs_target, embed_meta, pos_enc, model)
+            xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
+            ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
-            
+
             # Predictions for baseline models
             for base_model, model_name in zip(baseline_models, baseline_model_names):
                 baseline_acc[model_name].append(get_baseline_accuracy(
@@ -113,9 +124,14 @@ if __name__ == "__main__":
                     xs_target=xs_target,
                     ys_meta=ys_meta,
                     ys_target=ys_target
-                ))    
+                ))
         print('---------------------')
-        print(f'num_cols: {num_cols}') 
+        print(f'num_cols: {num_cols}')
         print(f'Fewshot mean acc: {np.mean(acc):.3f}')
         for model_name in baseline_model_names:
             print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+
+
+if __name__ == "__main__":
+
+    main()
