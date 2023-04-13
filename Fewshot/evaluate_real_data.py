@@ -75,7 +75,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 if __name__ == "__main__":
-    save_no = 20
+    save_no = 29
     BASEDIR = '/Users/kasiakobalczyk/FairFewshot/'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 

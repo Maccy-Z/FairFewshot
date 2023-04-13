@@ -33,7 +33,7 @@ class Dataset:
         14, Income >50k: 2
         
         """
-        datadir = f'../datasets/data_split/{self.data_name}'
+        datadir = f'./datasets/data_split/{self.data_name}'
 
         # Read data and labels
         full_dataset = pd.read_csv(f"{datadir}/{split}", header=None)

@@ -321,7 +321,7 @@ class ModelHolder(nn.Module):
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
-            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
+            load = torch.load("./dataset2vec/model_9k")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
 
@@ -455,7 +455,11 @@ def main(device="cpu"):
 
         # Train loop
         model.train()
-        for xs, ys, model_id in itertools.islice(dl, val_interval):
+        for batch in itertools.islice(dl, val_interval):
+            if ds == "adult":
+                xs, ys = batch
+            else:
+                xs, ys, _ = batch
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
@@ -499,7 +503,11 @@ def main(device="cpu"):
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
-        for xs, ys, model_id in itertools.islice(val_dl, val_duration):
+        for batch in itertools.islice(val_dl, val_duration):
+            if ds == "adult":
+                xs, ys = batch
+            else:
+                xs, ys, _ = batch
             xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
 

@@ -119,7 +119,7 @@ class SaveLoader:
 if __name__ == "__main__":
     import re
 
-    BASEDIR = "/mnt/storage_ssd/FairFewshot"
+    BASEDIR = "."
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
