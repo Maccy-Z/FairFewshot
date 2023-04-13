@@ -153,6 +153,7 @@ class WeightGenerator(nn.Module):
         self.gen_hid_dim = cfg["weight_hid_dim"]
         self.gen_layers = cfg["gen_layers"]
         self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
+        self.learn_norm = cfg["learn_norm"]
 
         weight_bias = cfg["weight_bias"]
 
@@ -179,6 +180,13 @@ class WeightGenerator(nn.Module):
         if weight_bias == "zero":
             print("Weight bias init to 0")
             self.w_gen_out[2].bias.data.fill_(0)
+
+        # learned normalisation
+        if self.learn_norm:
+            if self.norm_weights:
+                self.w_norm = torch.nn.Parameter(torch.ones(4))
+            if self.norm_lin:
+                self.l_norm = torch.nn.Parameter(torch.tensor([1.]))
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -218,6 +226,8 @@ class WeightGenerator(nn.Module):
                 lin, src, dst, bias = torch.split(batch_weights, split_idxs)
                 if self.norm_weights:
                     lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
+                    if self.learn_norm:
+                        lin, src, dst, bias = lin * self.w_norm[0], src * self.w_norm[1], dst * self.w_norm[2], bias * self.w_norm[3]
 
                 # Reshape each weight matrix
                 lin = lin.view(gat_out * gat_heads, gat_in)
@@ -234,6 +244,9 @@ class WeightGenerator(nn.Module):
         lin_weights = self.w_gen_out(d2v_embed)
         if self.norm_lin:
             lin_weights = F.normalize(lin_weights, dim=-1)
+            if self.learn_norm:
+                lin_weights = lin_weights * self.l_norm
+
         lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
 
         return layer_weights, lin_weights
@@ -529,14 +542,14 @@ def main(device="cpu"):
         # Print some useful stats from validation
         save_ys_targ = torch.cat(save_ys_targ)
         save_pred_labs = torch.cat(save_pred_labs)[:20]
-        print("Mean targets", torch.mean(save_ys_targ, dtype=float).item())
         print("Targets:    ", save_ys_targ[:20])
         print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        print(model.weight_model.w_norm)
 
+        # Save stats
         if save_holder is None:
             save_holder = SaveHolder(".")
-        # Save stats
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
         save_holder.save_model(model, optim)
         save_holder.save_history(history)

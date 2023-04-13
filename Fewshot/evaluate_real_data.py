@@ -88,7 +88,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 36
+    save_no = 39
     BASEDIR = '/home/maccyz/Documents/FairFewshot'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
@@ -106,7 +106,7 @@ def main():
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
     baseline_model_names = ['LR', 'SVC', "Baseline model"]
 
-    for num_cols in range(1, 20):
+    for num_cols in range(1, 20, 2):
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
         val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,

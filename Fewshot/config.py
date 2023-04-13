@@ -34,8 +34,9 @@ def write_toml():
                              "weight_bias": "zero",     # Zero: zero init. # Off, disable bias completely # Anything else: default init
                              "pos_enc_bias": "zero",
 
-                             "norm_lin": False,          # Normalise weights by dividing by L2 norm. final classification weight
-                             "norm_weights": False,      # GAT weights
+                             "norm_lin": True,          # Normalise weights by dividing by L2 norm. final classification weight
+                             "norm_weights": True,      # GAT weights
+                             "learn_norm": True,
                              },
 
                  "Optim": {"lr": 3e-4},
@@ -43,7 +44,7 @@ def write_toml():
                  "DL_params": {"bs": 3,
                                "num_rows": 10,
                                "num_targets": 5,
-                               "ds_group": 1         # Group of datasets from which to select from. -1 for full dataset
+                               "ds_group": -1            # Group of datasets from which to select from. -1 for full dataset
                                },
 
                  "Settings": {"num_epochs": 10000,      # Number of trainin epochs
