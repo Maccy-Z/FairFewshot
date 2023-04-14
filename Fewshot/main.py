@@ -5,12 +5,12 @@ import numpy as np
 import itertools
 import time
 
-from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader
+from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader, DummyDataLoader
 from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import AllDatasetDataLoader
+# from AllDataloader import AllDatasetDataLoader
 
 
 class ResBlock(nn.Module):
@@ -326,7 +326,7 @@ class ModelHolder(nn.Module):
             print()
             print("Loading model. Possibly overriding some config options")
             model_load = cfg["model_load"]
-            load = torch.load(f"/mnt/storage_ssd/FairFewshot/dataset2vec/{model_load}")
+            load = torch.load(f"./dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -414,6 +414,7 @@ def main(device="cpu"):
     num_targets = cfg["num_targets"]
     flip = cfg["flip"]
     num_cols = cfg["num_cols"]
+    shuffle_cols = cfg["shuffle_cols"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -423,20 +424,23 @@ def main(device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "adult":
-        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
-        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, flip=flip, split="train")
+        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_targets=1, flip=flip, split="val")
         val_dl = iter(val_dl)
     elif ds == "MLP":
-        dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
+        dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=4,
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
     elif ds == "all":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=num_cols, split="train")
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=num_cols, split="val")
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, split="train")
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, split="val")
         val_dl = iter(val_dl)
     elif ds == "total":
         dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
         val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
+    elif ds == "dummy":
+        dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, split="train")
+        val_dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, split="val")
     else:
         raise Exception("Invalid dataset")
 
@@ -503,6 +507,7 @@ def main(device="cpu"):
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
+        save_ys_targ, save_pred_labs = [], []
         for batch in itertools.islice(val_dl, val_duration):
             if ds == "adult":
                 xs, ys = batch

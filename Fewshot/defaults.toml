@@ -1,5 +1,5 @@
 [NN_dims]
-pos_enc_dim = 3
+pos_enc_dim = 15
 set_h_dim = 64
 set_out_dim = 32
 weight_hid_dim = 64
@@ -19,23 +19,24 @@ pos_depth = 2
 norm_lin = false
 norm_weights = false
 model_load = "model_main"
-gat_in_dim = 4
+gat_in_dim = 16
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
-bs = 3
+bs = 5
 num_rows = 10
 num_targets = 10
 flip = false
-num_cols = -1
+num_cols = 9
+shuffle_cols = true
 
 [Settings]
-num_epochs = 10000
-val_duration = 400
-val_interval = 2000
-dataset = "total"
+num_epochs = 100
+val_duration = 100
+val_interval = 1000
+dataset = "dummy"
 
 [MLP_DL_params]
 noise_std = 0.3

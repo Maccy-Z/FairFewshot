@@ -1,7 +1,7 @@
 import torch
 from main import *
-from dataloader import d2v_pairer
-from Fewshot.AllDataloader import AllDatasetDataLoader
+from dataloader import d2v_pairer, DummyDataLoader
+# from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
 
@@ -86,8 +86,8 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 20
-    BASEDIR = '/mnt/storage_ssd/FairFewshot'
+    save_no = 31
+    BASEDIR = '.'
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
@@ -103,15 +103,15 @@ def main():
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
     baseline_model_names = ['LR', 'SVC', "Baseline model"]
 
-    for num_cols in range(1, 10):
+    for num_cols in [cfg["num_cols"]]:
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
-                                      num_cols=num_cols, split="val")
-
+        # val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
+        #                               num_cols=num_cols, split="val")
+        val_dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols)
         for j in range(600):
             # Fewshot predictions
-            xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
+            model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 

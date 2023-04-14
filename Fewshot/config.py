@@ -23,7 +23,7 @@ def write_toml():
                              "reparam_pos_enc": False,
                              "weight_bias": "zero",
                              "pos_enc_bias": "zero",
-                             "load_d2v": True,
+                             "load_d2v": False,
                              "freeze_d2v": False,
                              "pos_depth": 2,
                              "norm_lin": False,
@@ -32,17 +32,18 @@ def write_toml():
 
                  "Optim": {"lr": 3e-4},
 
-                 "DL_params": {"bs": 3,
+                 "DL_params": {"bs": 5,
                                "num_rows": 10,
                                "num_targets": 10,
                                "flip": False,
-                               "num_cols": -1
+                               "num_cols": 9,
+                               "shuffle_cols": True,
                  },
 
-                 "Settings": {"num_epochs": 10000,
-                              "val_duration": 400,
-                              "val_interval": 2000,
-                              "dataset": "total",
+                 "Settings": {"num_epochs": 100,
+                              "val_duration": 100,
+                              "val_interval": 1000,
+                              "dataset": "dummy",
                               },
 
                  "MLP_DL_params": {"noise_std": 0.3,

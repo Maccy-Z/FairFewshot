@@ -133,12 +133,12 @@ class MLP(nn.Module):
 
 
 class MLPDataLoader:
-    def __init__(self, bs, num_rows, num_target, num_cols, config, 
+    def __init__(self, bs, num_rows, num_targets, num_cols, config, 
                  device="cpu", split="train", num_models=None, 
                  restore_data=False, save_dir=None):
             self.bs = bs
             self.num_rows = num_rows
-            self.num_target = num_target
+            self.num_targets = num_targets
             self.num_cols = num_cols
             self.num_models = num_models
             
@@ -152,9 +152,9 @@ class MLPDataLoader:
                         "Model restoration not available with inifnite number of models")
             
             if num_models == -1:
-                self.model = lambda i: MLP(config, num_rows + num_target, self.num_cols)
+                self.model = lambda i: MLP(config, num_rows + num_targets, self.num_cols)
             else:
-                models = [MLP(config, num_rows + num_target, self.num_cols) 
+                models = [MLP(config, num_rows + num_targets, self.num_cols) 
                           for i in range(num_models)]
                 self.model = lambda i: models[i]
 
@@ -183,11 +183,11 @@ class MLPDataLoader:
             raise Exception("Model saving not available if new_models=True")
 
 class MLPRandomDimDataLoader:
-    def __init__(self, bs, num_rows, num_target, num_cols_range, config, 
+    def __init__(self, bs, num_rows, num_targets, num_cols_range, config, 
                  device="cpu", split="train"):
             self.bs = bs
             self.num_rows = num_rows
-            self.num_target = num_target
+            self.num_targets = num_targets
             self.num_cols_range = num_cols_range
             self.config = config
 
@@ -200,7 +200,7 @@ class MLPRandomDimDataLoader:
                 self.num_cols_range[0], self.num_cols_range[1])
             model = lambda i: MLP(
                 config=self.config, 
-                seq_len=self.num_rows + self.num_target, 
+                seq_len=self.num_rows + self.num_targets, 
                 num_features=num_features
             )
             xs, ys = list(zip(*[model(i).forward() for i in range(self.bs)]))

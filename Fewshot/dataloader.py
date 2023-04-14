@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import random
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 DATADIR = './datasets/data'
 
@@ -49,10 +49,10 @@ class Dataset:
 
 # Randomly samples from dataset. Returns a batch of tables for use in the GNN
 class AdultDataLoader:
-    def __init__(self, *, bs, num_rows, num_target, num_xs=10, flip=True, device="cpu", split="train"):
+    def __init__(self, *, bs, num_rows, num_targets, num_xs=10, flip=True, device="cpu", split="train"):
         self.bs = bs
         self.num_rows = num_rows
-        self.num_target = num_target
+        self.num_targets = num_targets
         self.num_xs = num_xs
         self.flip = flip
 
@@ -68,7 +68,7 @@ class AdultDataLoader:
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
-        num_rows = self.num_rows + self.num_target
+        num_rows = self.num_rows + self.num_targets
 
         while True:
             # Randomise data order
@@ -122,7 +122,7 @@ class AdultDataLoader:
         return ys.long()
 
     def __len__(self):
-        num_batches = self.len // ((self.num_rows + self.num_target) * self.bs)
+        num_batches = self.len // ((self.num_rows + self.num_targets) * self.bs)
         return num_batches
 
 
@@ -226,11 +226,11 @@ class MyDataSet():
 
 class AllDatasetDataLoader():
     def __init__(
-            self, bs, num_rows, num_target, num_cols=-1, 
+            self, bs, num_rows, num_targets, num_cols=-1, 
             device="cpu", split="train", norm=True):
 
         self.bs = bs
-        self.num_rows = num_rows + num_target
+        self.num_rows = num_rows + num_targets
         self.split = split
         self.device = device
         self.num_cols = num_cols
@@ -272,27 +272,92 @@ class AllDatasetDataLoader():
             ys = torch.stack(ys)
             yield xs, ys, datanames
 
+class SimpleDataset():
+    def __init__(self, data_name, split="train"):
+        self.split = split
+        self.data_name = data_name
+        self.X = pd.read_csv(
+                f'{DATADIR}/{data_name}/{data_name}_py.dat', 
+                header=None)
+        self.y = pd.read_csv(
+                f'{DATADIR}/{data_name}/labels_py.dat', 
+                header=None)
+        self.y = one_vs_all(pd.Series(self.y[0]))
+        self.num_cols = self.X.shape[1]
+
+        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
+            self.X, self.y, test_size=0.2, stratify=self.y, random_state=0)
+        
+        self.data_train  = pd.DataFrame(self.X_train)
+        self.data_train['label'] = self.y_train
+        self.data_val  = pd.DataFrame(self.X_val)
+        self.data_val['label'] = self.y_val
+
+    def stratified_sample(self, n_rows, norm=True, shuffle_cols=False):
+        # TO DO: handle imbalanced-classes better (do not sample with replacement)
+        if self.split == "train":
+            sample_data = self.data_train.groupby('label', group_keys=False).apply(
+                lambda x: x.sample(n_rows // 2, replace=True)).sample(n_rows)
+        else:
+            sample_data = self.data_val.groupby('label', group_keys=False).apply(
+                lambda x: x.sample(n_rows // 2, replace=True)).sample(n_rows)
+        xs, ys = sample_data.iloc[:, :-1], sample_data.iloc[:, -1]
+        if shuffle_cols:
+            col_idx = np.random.permutation(self.num_cols)
+            xs = xs.iloc[:, col_idx]
+        xs = torch.tensor(xs.values, device='cpu', dtype=torch.float32)
+        ys = torch.tensor(ys.values, device='cpu', dtype=torch.float32)
+        if norm:
+            m = xs.mean(0, keepdim=True)
+            s = xs.std(0, unbiased=False, keepdim=True)
+            xs -= m
+            xs /= (s + 10e-4)
+        return xs, ys
+
+
+class DummyDataLoader():
+    def __init__(self, bs, num_rows, num_targets, num_cols, 
+                 split="train", norm=True, shuffle_cols=False, data_names=None):
+        self.bs = bs
+        self.num_rows = num_rows + num_targets
+        self.num_cols = num_cols
+        self.norm = norm
+        self.shuffle_cols = shuffle_cols
+        if data_names:
+            self.data_names = data_names
+            self.datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+        else:
+            self.data_names = os.listdir(DATADIR)
+            self.data_names.remove('info.json')
+            self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+            self.datasets = [d for d in self.all_datasets if d.num_cols == num_cols]
+        
+
+    def __iter__(self):
+        """
+        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+        """
+        while True:
+            datasets = random.choices(self.datasets, k=self.bs)
+            datanames = [d.data_name for d in datasets]
+            xs, ys = list(zip(*[d.stratified_sample(
+                self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols) 
+                for d in datasets]))
+            xs = torch.stack(xs)
+            ys = torch.stack(ys)
+            yield xs, ys.long(), datanames
+
+
+
 if __name__ == "__main__":
     # Test if dataloader works.
     np.random.seed(0)
     torch.manual_seed(0)
 
-    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3, flip=False)
-    #
-    # for i in range(15):
-    #     num_unique = np.unique(dl.data[:, i])
-    #     print(i, len(num_unique))
+    dl = DummyDataLoader(bs=1, num_rows=10, num_targets=10, num_cols=5, split="val", shuffle_cols=True)
 
-    means = []
-    dl = iter(dl)
-    for _ in range(1000):
-        x, y = next(dl)
-        # y_mean = torch.mean(y, dtype=float)
-        # means.append(y_mean)
-        #
-        # print(y)
-        print(x.shape)
-
-    means = torch.stack(means)
-    means = torch.mean(means)
-    print(means.item())
+    for xs, ys, datanames in iter(dl):
+        print(xs)
+        print(ys)
+        print(datanames)
+        break
