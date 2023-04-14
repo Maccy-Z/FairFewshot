@@ -87,8 +87,10 @@ class SaveLoader:
         grad_mean, grad_std = {}, {}
         for epoch_grads in grad_list:
             for name, abs_grad in epoch_grads.items():
-                mean, std = torch.std_mean(abs_grad)
+                mean, std = torch.std_mean(abs_grad, correction=0)
                 mean, std = mean.item(), std.item()
+                if "norm" in name:
+                    continue
                 if name not in grad_mean:
                     grad_mean[name] = [mean]
                     grad_std[name] = [std]

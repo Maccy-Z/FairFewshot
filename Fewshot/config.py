@@ -12,12 +12,12 @@ def get_config(cfg_file=None):
 
 def write_toml():
     save_dict = {"NN_dims": {"set_h_dim": 64,           # D2v hidden dimension
-                             "set_out_dim": 32,         # D2v output dimension
-                             "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
+                             "set_out_dim": 64,         # D2v output dimension
+                             "d2v_layers": [4, 2, 4],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
-                             "pos_enc_dim": 15,  # Dimension of the positional encoder output
-                             "load_d2v": True,  # Load pretrained datset2vec
-                             "freeze_d2v": False,  # Continue training datset2vec
+                             "pos_enc_dim": 7,         # Dimension of the positional encoder output
+                             "load_d2v": True,          # Load pretrained datset2vec
+                             "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_main",  # Which D2V to load from
 
                              "weight_hid_dim": 64,      # Weight generator hidden dimension
@@ -34,7 +34,7 @@ def write_toml():
                              "weight_bias": "zero",     # Zero: zero init. # Off, disable bias completely # Anything else: default init
                              "pos_enc_bias": "zero",
 
-                             "norm_lin": True,          # Normalise weights by dividing by L2 norm. final classification weight
+                             "norm_lin": False,          # Normalise weights by dividing by L2 norm. final classification weight
                              "norm_weights": True,      # GAT weights
                              "learn_norm": True,
                              },

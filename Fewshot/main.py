@@ -182,6 +182,7 @@ class WeightGenerator(nn.Module):
             self.w_gen_out[2].bias.data.fill_(0)
 
         # learned normalisation
+        # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
         if self.learn_norm:
             if self.norm_weights:
                 self.w_norm = torch.nn.Parameter(torch.ones(4))
@@ -337,7 +338,7 @@ class ModelHolder(nn.Module):
             print()
             print("Loading model. Possibly overriding some config options")
             model_load = cfg["model_load"]
-            load = torch.load(f"/home/maccyz/Documents/FairFewshot/dataset2vec/{model_load}")
+            load = torch.load(f"./dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -448,7 +449,7 @@ def main(device="cpu"):
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -487,6 +488,7 @@ def main(device="cpu"):
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
             grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad}
+
             optim.step()
             optim.zero_grad()
 
@@ -545,7 +547,7 @@ def main(device="cpu"):
         print("Targets:    ", save_ys_targ[:20])
         print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        print(model.weight_model.w_norm)
+        # print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
         # Save stats
         if save_holder is None:

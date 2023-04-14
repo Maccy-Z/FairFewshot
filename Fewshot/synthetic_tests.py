@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def gen_synthetic(num_cols, num_rows, num_targets):
     def ys_fn(xs):
-        return (xs < -0.4).long()
+        return (xs > -0).long()
 
     xs_meta = (torch.arange(num_rows) - 5) / 5
     ys_meta = ys_fn(xs_meta)
@@ -25,7 +25,7 @@ def gen_synthetic(num_cols, num_rows, num_targets):
 
 
 def main():
-    save_no = 27
+    save_no = 30
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 

@@ -33,6 +33,7 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(self, data_name, num_rows, split="train", dtype=torch.float32, device="cpu"):
+        # data_name = "adult"
         self.data_name = data_name
         self.device = device
         self.dtype = dtype
@@ -50,7 +51,6 @@ class MyDataSet:
         
         Here, combine test and valid folds. 
         """
-
         ds_dir = f'{DATADIR}/data'
         # get train fold
         folds = pd.read_csv(f"{ds_dir}/{data_name}/folds_py.dat", header=None)[0]
@@ -107,6 +107,38 @@ class MyDataSet:
 
         self.probs = probs / np.sum(probs)
 
+
+        row_probs = []
+        for col_no in range(self.data.shape[1]):
+            probs = np.ones(self.tot_rows)
+
+            col_data = self.data[:, col_no]
+            unique_lab, unique_idx, counts = np.unique(col_data, return_counts=True, return_inverse=True)
+            if np.max(counts) / self.tot_rows > 0.5:
+                max_prob = self.tot_rows / np.max(counts) - 1
+
+                # Some cols have all entries identical.
+                if max_prob == 0:
+                    pass
+                    # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
+                    # print(np.max(counts) / self.tot_rows)
+                else:
+                    top_idx = (unique_idx == np.argmax(counts))
+                    if split != "train":
+                        probs[top_idx] = max_prob
+
+            probs = probs / np.sum(probs)
+            row_probs.append(probs)
+        row_probs = np.stack(row_probs).T
+
+        self.row_probs = row_probs.T
+
+        # print()
+        # print(self.row_probs[-1])
+        # print(self.probs)
+        # exit(5)
+
+
     def sample(self, num_xs, force_next=False):
 
         if num_xs > self.num_cols - 1:  # or not self.train:
@@ -116,8 +148,7 @@ class MyDataSet:
 
         row_cols = np.setdiff1d(self.cols, target_col)
         predict_cols = np.random.choice(row_cols, size=num_xs, replace=False)
-
-        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.probs)
+        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.row_probs[target_col].squeeze())
         select_data = self.data[rows]
 
         # Pick out wanted columns
@@ -198,16 +229,23 @@ class AllDatasetDataLoader:
 
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="val")
+    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="train")
 
     means = []
     dl = iter(dl)
+    y_count = {i:0 for i in range(14)}
     for _ in range(1000):
         x, y = next(dl)
-        #print(x.shape)
+        num = torch.sum(y).item()
+        y_count[num] += 1
+
         y_mean = torch.mean(y, dtype=float)
         means.append(y_mean)
 
     means = torch.stack(means)
     means = torch.mean(means)
-    print(means.item())
+    print("Mean y value", f'{means.item():.4g}')
+    print("Histogram of number of positive samples", y_count)
+
+# {0: 14, 1: 10, 2: 13, 3: 26, 4: 33, 5: 76, 6: 348, 7: 311, 8: 67, 9: 46, 10: 12, 11: 7, 12: 7, 13: 30}
+# {0: 28, 1: 21, 2: 22, 3: 23, 4: 36, 5: 52, 6: 313, 7: 343, 8: 49, 9: 37, 10: 17, 11: 10, 12: 9, 13: 40}

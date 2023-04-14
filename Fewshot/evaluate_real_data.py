@@ -88,9 +88,9 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 39
-    BASEDIR = '/home/maccyz/Documents/FairFewshot'
-    save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
+    save_no = 30
+    BASEDIR = '.'
+    save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
     model = ModelHolder(cfg_file=f'{save_dir}/defaults.toml')
@@ -100,7 +100,7 @@ def main():
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = cfg["ds_group"]
+    ds_group = -1 #cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
@@ -112,7 +112,7 @@ def main():
         val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
                                       num_cols=num_cols, ds_group=ds_group, split="val")
 
-        for j in range(600):
+        for j in range(1000):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
