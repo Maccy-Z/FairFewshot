@@ -78,6 +78,7 @@ class SaveLoader:
         plt.ylabel("Accuracy %")
         plt.xlabel("Epoch")
         plt.legend()
+        plt.savefig(f'{self.save_dir}/accs.png')
         plt.show()
 
     def plot_grads(self):
@@ -135,6 +136,6 @@ if __name__ == "__main__":
     saves = sorted(saves, key=sort_key)
 
     # h = SaveHolder(base_dir=f'{BASEDIR}')
-    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
+    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-2]}')
     h.plot_history()
     h.plot_grads()

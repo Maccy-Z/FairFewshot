@@ -4,6 +4,8 @@ from dataloader import d2v_pairer
 from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
+import numpy as np
+import random
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -88,7 +90,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 30
+    save_no = 5
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
@@ -112,29 +114,32 @@ def main():
         val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
                                       num_cols=num_cols, ds_group=ds_group, split="val")
 
-        for j in range(1000):
+        for j in range(2000):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 
-            # Predictions for baseline models
-            for base_model, model_name in zip(baseline_models, baseline_model_names):
-                baseline_acc[model_name].append(get_baseline_accuracy(
-                    model=base_model,
-                    bs=bs,
-                    xs_meta=xs_meta,
-                    xs_target=xs_target,
-                    ys_meta=ys_meta,
-                    ys_target=ys_target
-                ))
-        print('---------------------')
-        print(f'num_cols: {num_cols}')
-        print(f'Fewshot mean acc: {np.mean(acc):.3f}')
-        for model_name in baseline_model_names:
-            print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-
+            # # Predictions for baseline models
+            # for base_model, model_name in zip(baseline_models, baseline_model_names):
+            #     baseline_acc[model_name].append(get_baseline_accuracy(
+            #         model=base_model,
+            #         bs=bs,
+            #         xs_meta=xs_meta,
+            #         xs_target=xs_target,
+            #         ys_meta=ys_meta,
+            #         ys_target=ys_target
+            #     ))
+        # print('---------------------')
+        # print(f'num_cols: {num_cols}')
+        # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
+        # for model_name in baseline_model_names:
+        #     print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+        print(f'{np.mean(acc):.3f}')
 
 if __name__ == "__main__":
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
     main()

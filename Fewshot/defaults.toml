@@ -17,7 +17,7 @@ reparam_weight = false
 reparam_pos_enc = false
 weight_bias = "zero"
 pos_enc_bias = "zero"
-norm_lin = false
+norm_lin = true
 norm_weights = true
 learn_norm = true
 gat_in_dim = 8
@@ -30,23 +30,10 @@ bs = 3
 num_rows = 10
 num_targets = 5
 ds_group = -1
+balance_train = true
 
 [Settings]
-num_epochs = 10000
+num_epochs = 12000
 val_duration = 400
 val_interval = 2000
 dataset = "total"
-
-[MLP_DL_params]
-noise_std = 0.3
-pre_sample_weights = false
-hidden_dim = 3
-num_causes = 2
-num_layers = 3
-is_causal = true
-dropout_prob = 0.5
-init_std = 1
-pre_sample_causes = false
-in_clique = true
-is_effect = true
-sort_features = true

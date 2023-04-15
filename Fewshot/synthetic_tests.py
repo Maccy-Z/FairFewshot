@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def gen_synthetic(num_cols, num_rows, num_targets):
     def ys_fn(xs):
-        return (xs > -0).long()
+        return (xs > -0.).long()
 
     xs_meta = (torch.arange(num_rows) - 5) / 5
     ys_meta = ys_fn(xs_meta)
@@ -25,7 +25,7 @@ def gen_synthetic(num_cols, num_rows, num_targets):
 
 
 def main():
-    save_no = 30
+    save_no = 1
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
@@ -33,7 +33,7 @@ def main():
     model = ModelHolder(cfg_file=f"./saves/save_{save_no}/defaults.toml")
     model.load_state_dict(state_dict['model_state_dict'])
 
-    xs_meta, ys_meta, xs_target, ys_target = gen_synthetic(num_cols=1, num_rows=10, num_targets=32)
+    xs_meta, ys_meta, xs_target, ys_target = gen_synthetic(num_cols=1, num_rows=10, num_targets=60)
 
     print(xs_meta.flatten().numpy(), ys_meta.numpy())
     print(xs_target.flatten().numpy(), ys_target.numpy())

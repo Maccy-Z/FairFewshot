@@ -32,11 +32,12 @@ def one_vs_all(ys):
 
 
 class MyDataSet:
-    def __init__(self, data_name, num_rows, split="train", dtype=torch.float32, device="cpu"):
+    def __init__(self, data_name, num_rows, split="train", balance_train=False, dtype=torch.float32, device="cpu"):
         # data_name = "adult"
         self.data_name = data_name
         self.device = device
         self.dtype = dtype
+        self.balance_train = balance_train
         self.train, self.valid, self.test = False, False, False
         self.num_rows = num_rows
 
@@ -90,24 +91,13 @@ class MyDataSet:
         self.cols = np.arange(self.num_cols)
 
         # Select columns to return as ys
-        if split == "train":
+        if self.train:
             self.allow_targs = np.arange(self.num_cols)
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
 
-        probs = np.ones_like(labels[:, 0]).astype(float)
-        if split != "train":
-            # If one label makes up more than 50% of the dataset, downweight its sampling probability of category to 50%.
-            unique_lab, unique_idx, counts = np.unique(labels[:, 0], return_counts=True, return_inverse=True)
-            if np.max(counts) > labels.shape[0] / 2:
-                max_prob = labels[:, 0].shape[0] / np.max(counts) - 1
-
-                top_idx = (unique_idx == np.argmax(counts))
-                probs[top_idx] = max_prob
-
-        self.probs = probs / np.sum(probs)
-
-
+        # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
+        # Always done for val/test, optional for train
         row_probs = []
         for col_no in range(self.data.shape[1]):
             probs = np.ones(self.tot_rows)
@@ -124,8 +114,7 @@ class MyDataSet:
                     # print(np.max(counts) / self.tot_rows)
                 else:
                     top_idx = (unique_idx == np.argmax(counts))
-                    if split != "train":
-                        probs[top_idx] = max_prob
+                    probs[top_idx] = max_prob
 
             probs = probs / np.sum(probs)
             row_probs.append(probs)
@@ -133,27 +122,25 @@ class MyDataSet:
 
         self.row_probs = row_probs.T
 
-        # print()
-        # print(self.row_probs[-1])
-        # print(self.probs)
-        # exit(5)
-
 
     def sample(self, num_xs, force_next=False):
 
         if num_xs > self.num_cols - 1:  # or not self.train:
             num_xs = self.num_cols - 1
 
-        target_col = np.random.choice(self.allow_targs, size=1)
+        targ_col = np.random.choice(self.allow_targs, size=1)
 
-        row_cols = np.setdiff1d(self.cols, target_col)
+        row_cols = np.setdiff1d(self.cols, targ_col)
         predict_cols = np.random.choice(row_cols, size=num_xs, replace=False)
-        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.row_probs[target_col].squeeze())
+        if not self.train or self.balance_train:
+            rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.row_probs[targ_col].squeeze())
+        else:
+            rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False)
         select_data = self.data[rows]
 
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
-        ys = select_data[:, target_col]
+        ys = select_data[:, targ_col]
 
         # Normalise xs
         if True:
@@ -176,7 +163,7 @@ class MyDataSet:
 
 
 class AllDatasetDataLoader:
-    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, device="cpu", split="train"):
+    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, balance_train=True, device="cpu", split="train"):
 
         self.bs = bs
         self.num_rows = num_rows + num_targets
@@ -185,6 +172,7 @@ class AllDatasetDataLoader:
         self.num_cols = num_cols
         self.ds_group = ds_group
         self.train = (split == "train")
+        self.balance_train = balance_train
 
         if not self.train and self.bs != 1:
             raise Exception("During val/test, BS must be 1 since full datasets are used.")
@@ -201,7 +189,7 @@ class AllDatasetDataLoader:
             all_data_names = os.listdir(ds_dir)
 
         all_datasets = [
-            MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device)
+            MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device, balance_train=self.balance_train)
             for d in all_data_names
         ]
         min_ds = 100 if self.train else self.num_rows * 2
