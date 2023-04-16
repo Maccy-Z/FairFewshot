@@ -90,10 +90,10 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 5
+    save_no = 30
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
-
+    print(f'{save_dir = }')
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
     model = ModelHolder(cfg_file=f'{save_dir}/defaults.toml')
     model.load_state_dict(state_dict['model_state_dict'])
@@ -120,16 +120,16 @@ def main():
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 
-            # # Predictions for baseline models
-            # for base_model, model_name in zip(baseline_models, baseline_model_names):
-            #     baseline_acc[model_name].append(get_baseline_accuracy(
-            #         model=base_model,
-            #         bs=bs,
-            #         xs_meta=xs_meta,
-            #         xs_target=xs_target,
-            #         ys_meta=ys_meta,
-            #         ys_target=ys_target
-            #     ))
+        #     # Predictions for baseline models
+        #     for base_model, model_name in zip(baseline_models, baseline_model_names):
+        #         baseline_acc[model_name].append(get_baseline_accuracy(
+        #             model=base_model,
+        #             bs=bs,
+        #             xs_meta=xs_meta,
+        #             xs_target=xs_target,
+        #             ys_meta=ys_meta,
+        #             ys_target=ys_target
+        #         ))
         # print('---------------------')
         # print(f'num_cols: {num_cols}')
         # print(f'Fewshot mean acc: {np.mean(acc):.3f}')

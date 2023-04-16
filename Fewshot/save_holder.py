@@ -124,6 +124,7 @@ if __name__ == "__main__":
     import re
 
     BASEDIR = "."
+    SAVE_NO = -1
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
@@ -134,8 +135,9 @@ if __name__ == "__main__":
 
     saves = os.listdir(f'{BASEDIR}/saves')
     saves = sorted(saves, key=sort_key)
-
-    # h = SaveHolder(base_dir=f'{BASEDIR}')
-    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-2]}')
+    save_dir = f'{BASEDIR}/saves/{saves[SAVE_NO]}'
+    print(save_dir)
+    h = SaveLoader(save_dir=save_dir)
     h.plot_history()
     h.plot_grads()
+

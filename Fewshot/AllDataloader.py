@@ -32,7 +32,8 @@ def one_vs_all(ys):
 
 
 class MyDataSet:
-    def __init__(self, data_name, num_rows, split="train", balance_train=False, dtype=torch.float32, device="cpu"):
+    def __init__(self, data_name, num_rows, split="train", balance_train=False,
+                 one_v_all=False, dtype=torch.float32, device="cpu"):
         # data_name = "adult"
         self.data_name = data_name
         self.device = device
@@ -40,6 +41,7 @@ class MyDataSet:
         self.balance_train = balance_train
         self.train, self.valid, self.test = False, False, False
         self.num_rows = num_rows
+        self.one_v_all = one_v_all
 
         """
         Dataset format: {folder}_py.dat             predictors
@@ -148,8 +150,7 @@ class MyDataSet:
             s = xs.std(0, unbiased=False, keepdim=True)
             xs -= m
             xs /= (s + 10e-4)
-
-        if self.train:
+        if self.train and not self.one_v_all:
             ys = binarise_data(ys)
         else:
             ys = one_vs_all(ys)
@@ -159,11 +160,11 @@ class MyDataSet:
             return xs, ys
         else:
             return self.sample(num_xs, force_next=True)
-        # return xs, ys
+
 
 
 class AllDatasetDataLoader:
-    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, balance_train=True, device="cpu", split="train"):
+    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
 
         self.bs = bs
         self.num_rows = num_rows + num_targets
@@ -173,6 +174,7 @@ class AllDatasetDataLoader:
         self.ds_group = ds_group
         self.train = (split == "train")
         self.balance_train = balance_train
+        self.one_v_all = one_v_all
 
         if not self.train and self.bs != 1:
             raise Exception("During val/test, BS must be 1 since full datasets are used.")
@@ -189,7 +191,8 @@ class AllDatasetDataLoader:
             all_data_names = os.listdir(ds_dir)
 
         all_datasets = [
-            MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device, balance_train=self.balance_train)
+            MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device,
+                      balance_train=self.balance_train, one_v_all=self.one_v_all)
             for d in all_data_names
         ]
         min_ds = 100 if self.train else self.num_rows * 2
@@ -217,7 +220,7 @@ class AllDatasetDataLoader:
 
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, split="train")
+    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, one_v_all=True, split="train")
 
     means = []
     dl = iter(dl)

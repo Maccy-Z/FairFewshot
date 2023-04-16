@@ -73,7 +73,7 @@ class SetSetModel(nn.Module):
         if self.reparam_weight:
             self.h_out_lvar = nn.Linear(h_size, out_size)
 
-        # Embedding Network
+        # Positional embedding Network
         self.ps = nn.ModuleList([])
         for _ in range(pos_depth - 1):
             self.ps.append(nn.Linear(h_size, h_size))
@@ -179,15 +179,15 @@ class WeightGenerator(nn.Module):
         )
         if weight_bias == "zero":
             print("Weight bias init to 0")
-            self.w_gen_out[2].bias.data.fill_(0)
+            self.w_gen_out[-1].bias.data.fill_(0)
 
         # learned normalisation
         # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
         if self.learn_norm:
             if self.norm_weights:
-                self.w_norm = torch.nn.Parameter(torch.ones(4))
+                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.25]))
             if self.norm_lin:
-                self.l_norm = torch.nn.Parameter(torch.tensor([1.]))
+                self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -425,6 +425,7 @@ def main(device="cpu"):
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
     bal_train = cfg["balance_train"]
+    one_v_all = cfg["one_v_all"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -442,8 +443,10 @@ def main(device="cpu"):
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
     elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group, balance_train=bal_train, split="train")
-        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group, split="val")
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+                                  balance_train=bal_train, one_v_all=one_v_all, split="train")
+        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+                                      split="val")
     else:
         raise Exception("Invalid dataset")
 

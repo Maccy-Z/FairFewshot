@@ -3,7 +3,7 @@ set_h_dim = 64
 set_out_dim = 64
 d2v_layers = [ 4, 2, 4,]
 pos_depth = 2
-pos_enc_dim = 7
+pos_enc_dim = 23
 load_d2v = true
 freeze_d2v = false
 model_load = "model_main"
@@ -20,20 +20,21 @@ pos_enc_bias = "zero"
 norm_lin = true
 norm_weights = true
 learn_norm = true
-gat_in_dim = 8
+gat_in_dim = 24
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 10
+num_rows = 16
 num_targets = 5
 ds_group = -1
 balance_train = true
+one_v_all = true
 
 [Settings]
-num_epochs = 12000
+num_epochs = 21
 val_duration = 400
 val_interval = 2000
 dataset = "total"
