@@ -567,7 +567,7 @@ if __name__ == "__main__":
     from evaluate_real_data import main as eval_main
 
     dev = torch.device("cpu")
-    for test_no in range(1):
+    for test_no in range(3):
         random.seed(test_no)
         np.random.seed(test_no)
         torch.manual_seed(test_no)
