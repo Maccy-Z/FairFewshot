@@ -317,9 +317,9 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, device="cpu", cfg_file=None):
+    def __init__(self, cfg_all, device="cpu"):
         super().__init__()
-        cfg = get_config(cfg_file=cfg_file)["NN_dims"]
+        cfg = cfg_all["NN_dims"]
 
         self.reparam_weight = cfg["reparam_weight"]
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
@@ -412,10 +412,10 @@ class ModelHolder(nn.Module):
         return cross_entropy + kl_div
 
 
-def main(device="cpu"):
+def main(all_cfgs, device="cpu"):
     save_holder = None
 
-    all_cfgs = get_config()
+    # all_cfgs = get_config()
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
 
@@ -450,7 +450,7 @@ def main(device="cpu"):
     else:
         raise Exception("Invalid dataset")
 
-    model = ModelHolder(device=device).to(device)
+    model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
     optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
@@ -545,11 +545,11 @@ def main(device="cpu"):
         for name, abs_grad in save_grads.items():
             save_grads[name] = torch.div(abs_grad, val_interval)
 
-        # Print some useful stats from validation
-        save_ys_targ = torch.cat(save_ys_targ)
-        save_pred_labs = torch.cat(save_pred_labs)[:20]
-        print("Targets:    ", save_ys_targ[:20])
-        print("Predictions:", save_pred_labs[:20])
+            # Print some useful stats from validation
+            # save_ys_targ = torch.cat(save_ys_targ)
+            # save_pred_labs = torch.cat(save_pred_labs)[:20]
+            # print("Targets:    ", save_ys_targ[:20])
+            # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
         # print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
@@ -564,10 +564,19 @@ def main(device="cpu"):
 
 if __name__ == "__main__":
     import random
-
-    random.seed(1)
-    np.random.seed(1)
-    torch.manual_seed(1)
+    from evaluate_real_data import main as eval_main
 
     dev = torch.device("cpu")
-    main(device=dev)
+    for test_no in range(1):
+        random.seed(test_no)
+        np.random.seed(test_no)
+        torch.manual_seed(test_no)
+
+        print("---------------------------------")
+        print("Starting test number", test_no)
+        main(all_cfgs=get_config(), device=dev)
+
+    for eval_no in range(3):
+        print()
+        print("Eval number", eval_no)
+        eval_main(save_no=-(eval_no + 1))

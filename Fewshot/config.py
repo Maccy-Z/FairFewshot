@@ -26,7 +26,7 @@ def write_toml():
                              "gat_heads": 2,            # Number of heads in GAT
                              "gat_layers": 2,           # Depth of GAT
                              "gat_hid_dim": 128,        # Hidden dimension of GAT
-                             "gat_out_dim": 16,         # Output of GAT
+                             "gat_out_dim": 24,         # Output of GAT
 
                              "reparam_weight": False,   # Reparametrise outputs
                              "reparam_pos_enc": False,
@@ -64,4 +64,7 @@ def write_toml():
 if __name__ == "__main__":
     print("Resetting config to defaults")
     write_toml()
-    get_config()
+    cfg = get_config()
+    for k, v in cfg.items():
+        print(k)
+        print(v)

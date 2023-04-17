@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import random
 
-os.chdir("/mnt/storage_ssd/FairFewshot")
+# os.chdir("/mnt/storage_ssd/FairFewshot")
 DATADIR = './datasets'
 
 
@@ -178,6 +178,7 @@ class MyDataSet:
             s = xs.std(0, unbiased=False, keepdim=True)
             xs -= m
             xs /= (s + 10e-4)
+
         if self.train and not self.one_v_all:
             ys = binarise_data(ys)
         else:
@@ -188,7 +189,6 @@ class MyDataSet:
             return xs, ys
         else:
             return self.sample(num_xs, force_next=True)
-
 
 
 class AllDatasetDataLoader:
