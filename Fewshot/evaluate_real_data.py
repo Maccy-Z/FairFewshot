@@ -124,12 +124,12 @@ def main(save_no):
                     ys_meta=ys_meta,
                     ys_target=ys_target
                 ))
-        print('---------------------')
-        print(f'num_cols: {num_cols}')
-        print(f'Fewshot mean acc: {np.mean(acc):.3f}')
-        for model_name in baseline_model_names:
-            print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-        # print(f'{np.mean(acc):.3f}')
+        # print('---------------------')
+        # print(f'num_cols: {num_cols}')
+        # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
+        # for model_name in baseline_model_names:
+        #     print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+        print(f'{np.mean(acc) - np.mean(baseline_acc["LR"]):.3f}')
 
 
 if __name__ == "__main__":
