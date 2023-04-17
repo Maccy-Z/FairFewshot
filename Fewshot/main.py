@@ -453,7 +453,7 @@ def main(all_cfgs, device="cpu"):
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.SGD(model.parameters(), lr=0.0075, momentum=0.9) #torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -565,6 +565,7 @@ def main(all_cfgs, device="cpu"):
 if __name__ == "__main__":
     import random
     from evaluate_real_data import main as eval_main
+    tag = input("Desciption: ")
 
     dev = torch.device("cpu")
     for test_no in range(3):
@@ -580,3 +581,5 @@ if __name__ == "__main__":
         print()
         print("Eval number", eval_no)
         eval_main(save_no=-(eval_no + 1))
+
+    print(tag)
