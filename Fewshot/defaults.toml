@@ -18,7 +18,7 @@ reparam_pos_enc = false
 weight_bias = "off"
 pos_enc_bias = "zero"
 norm_lin = true
-norm_weights = false
+norm_weights = true
 learn_norm = true
 gat_in_dim = 16
 
@@ -27,7 +27,7 @@ lr = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 18
+num_rows = 16
 num_targets = 5
 ds_group = -1
 balance_train = true

@@ -35,14 +35,14 @@ def write_toml():
                              "pos_enc_bias": "zero",
 
                              "norm_lin": True,         # Normalise weights by dividing by L2 norm. final classification weight
-                             "norm_weights": False,      # GAT weights
+                             "norm_weights": True,      # GAT weights
                              "learn_norm": True,
                              },
 
                  "Optim": {"lr": 3e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 18,
+                               "num_rows": 16,
                                "num_targets": 5,
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "balance_train": True,   # Balance dataloader during training
