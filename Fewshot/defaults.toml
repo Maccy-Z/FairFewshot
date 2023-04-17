@@ -3,7 +3,7 @@ set_h_dim = 64
 set_out_dim = 64
 d2v_layers = [ 4, 2, 4,]
 pos_depth = 2
-pos_enc_dim = 15
+pos_enc_dim = 7
 load_d2v = true
 freeze_d2v = false
 model_load = "model_main"
@@ -20,7 +20,7 @@ pos_enc_bias = "zero"
 norm_lin = true
 norm_weights = true
 learn_norm = true
-gat_in_dim = 16
+gat_in_dim = 8
 
 [Optim]
 lr = 0.0003

@@ -1,0 +1,1 @@
+docker run -v /mnt/storage_ssd/:/mnt/storage_ssd/ -it b1a248fe6654 /bin/bash

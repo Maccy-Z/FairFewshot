@@ -2,8 +2,8 @@ FROM pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
 ARG DEBIAN_FRONTEND=noninteractive
 
 
-RUN apt update
-RUN apt install -y python-pip git
+#RUN apt update
+#RUN apt install -y python-pip git
 
 
 RUN pip install matplotlib scipy pandas scikit-learn

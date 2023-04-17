@@ -568,9 +568,9 @@ if __name__ == "__main__":
 
     dev = torch.device("cpu")
     for test_no in range(3):
-        random.seed(test_no)
-        np.random.seed(test_no)
-        torch.manual_seed(test_no)
+        # random.seed(test_no)
+        # np.random.seed(test_no)
+        # torch.manual_seed(test_no)
 
         print("---------------------------------")
         print("Starting test number", test_no)

@@ -137,5 +137,11 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    save_number = int(input("Enter save number:\n"))
-    main(save_no=save_number)
+    # save_number = int(input("Enter save number:\n"))
+    # main(save_no=save_number)
+
+    for eval_no in range(3):
+        print()
+        print("Eval number", eval_no)
+        main(save_no=-(eval_no + 1))
+
