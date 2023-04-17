@@ -90,7 +90,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
 
 
 def main():
-    save_no = 30
+    save_no = 49
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
     print(f'{save_dir = }')
@@ -100,7 +100,7 @@ def main():
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = cfg["num_rows"]
+    num_rows = 10 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
     ds_group = -1 #cfg["ds_group"]
 

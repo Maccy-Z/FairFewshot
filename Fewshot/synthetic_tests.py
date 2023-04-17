@@ -16,8 +16,8 @@ def ys_fn(point):
 
 def gen_synthetic():
     # Train/meta data
-    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 3),
-                            torch.linspace(-1, 1, 3))
+    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 4),
+                            torch.linspace(-1, 1, 4))
     xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
     xs_meta += 0.1 * torch.randn_like(xs_meta)
     ys_meta = torch.stack([ys_fn(point) for point in xs_meta]).long()
@@ -35,7 +35,7 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 13
+    save_no = 45
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 

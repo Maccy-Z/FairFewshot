@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import random
 
+os.chdir("/mnt/storage_ssd/FairFewshot")
 DATADIR = './datasets'
 
 
@@ -18,6 +19,30 @@ def binarise_data(ys):
         ys = (ys >= median)
     else:
         ys = (ys > median)
+    # if len(torch.unique(ys)) < 18:
+    #     mode = ys.flatten().mode()[0]
+    #     idx = ys == mode
+    #     ys = torch.zeros_like(ys).long()
+    #     ys[idx] = 1
+    # else:
+    #     # median = torch.median(ys)
+    #     # if np.random.randint(2) == 1:
+    #     #     ys = (ys >= median)
+    #     # else:
+    #     #     ys = (ys <=  median)
+    #
+    #     # unique_lab, unique_idx, counts = np.unique(ys, return_counts=True, return_inverse=True)
+    #     # print(unique_lab)
+    #     # # exit(3)
+    #     # mode = ys.flatten().mode()[0]
+    #     #
+    #     # lower_quant = torch.rand(1) * 0.8
+    #     # low_idx = torch.quantile(ys, lower_quant)
+    #     # high_idx = torch.quantile(ys, lower_quant + 0.2)
+    #     # ys = (ys <= high_idx) & (ys > low_idx)
+    #     #
+    #     # idx = ys == mode
+    #     # ys[idx] = 1
     return ys.long()
 
 
@@ -25,9 +50,12 @@ def one_vs_all(ys):
     # identify the most common class and set it to 1, set everything else as 0
     mode = ys.flatten().mode()[0]
     idx = ys == mode
-
     ys = torch.zeros_like(ys).long()
     ys[idx] = 1
+
+    #
+    # if np.random.randint(2) == 1:
+    #     ys = 1 - ys
     return ys
 
 
@@ -220,11 +248,11 @@ class AllDatasetDataLoader:
 
 
 if __name__ == "__main__":
-    dl = AllDatasetDataLoader(bs=1, num_rows=10, num_targets=3, num_cols=11, one_v_all=True, split="train")
+    dl = AllDatasetDataLoader(bs=1, num_rows=16, num_targets=3, num_cols=11, one_v_all=True, split="train")
 
     means = []
     dl = iter(dl)
-    y_count = {i:0 for i in range(14)}
+    y_count = {i:0 for i in range(20)}
     for _ in range(1000):
         x, y = next(dl)
         num = torch.sum(y).item()

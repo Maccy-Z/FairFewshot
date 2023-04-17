@@ -3,7 +3,7 @@ set_h_dim = 64
 set_out_dim = 64
 d2v_layers = [ 4, 2, 4,]
 pos_depth = 2
-pos_enc_dim = 23
+pos_enc_dim = 15
 load_d2v = true
 freeze_d2v = false
 model_load = "model_main"
@@ -15,19 +15,19 @@ gat_hid_dim = 128
 gat_out_dim = 16
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "zero"
+weight_bias = "off"
 pos_enc_bias = "zero"
 norm_lin = true
-norm_weights = true
+norm_weights = false
 learn_norm = true
-gat_in_dim = 24
+gat_in_dim = 16
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 16
+num_rows = 18
 num_targets = 5
 ds_group = -1
 balance_train = true
