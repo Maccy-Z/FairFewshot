@@ -1,6 +1,6 @@
 import torch
 
-x = torch.zeros([1024, 1024], device="cuda")
+x = torch.zeros([2048, 2048], device="cuda")
 
 while True:
     x + 1

@@ -1,30 +1,51 @@
 [NN_dims]
+<<<<<<< HEAD
 pos_enc_dim = 15
+=======
+>>>>>>> max
 set_h_dim = 64
-set_out_dim = 32
+set_out_dim = 64
+d2v_layers = [ 4, 2, 4,]
+pos_depth = 2
+pos_enc_dim = 15
+load_d2v = true
+freeze_d2v = false
+model_load = "model_main"
 weight_hid_dim = 64
+gen_layers = 2
 gat_heads = 2
+gat_layers = 2
 gat_hid_dim = 128
 gat_out_dim = 16
+<<<<<<< HEAD
 d2v_layers = [ 3, 2, 3,]
 gen_layers = 2
 gat_layers = 2
+=======
+>>>>>>> max
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "zero"
+weight_bias = "off"
 pos_enc_bias = "zero"
+<<<<<<< HEAD
 load_d2v = false
 freeze_d2v = false
 pos_depth = 2
 norm_lin = false
 norm_weights = false
 model_load = "model_main"
+=======
+norm_lin = true
+norm_weights = true
+learn_norm = true
+>>>>>>> max
 gat_in_dim = 16
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
+<<<<<<< HEAD
 bs = 5
 num_rows = 10
 num_targets = 10
@@ -52,3 +73,17 @@ pre_sample_causes = false
 in_clique = true
 is_effect = true
 sort_features = true
+=======
+bs = 3
+num_rows = 16
+num_targets = 5
+ds_group = -1
+balance_train = true
+one_v_all = true
+
+[Settings]
+num_epochs = 21
+val_duration = 400
+val_interval = 2000
+dataset = "total"
+>>>>>>> max

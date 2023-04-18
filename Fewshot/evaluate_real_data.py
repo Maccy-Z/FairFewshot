@@ -4,7 +4,8 @@ from dataloader import d2v_pairer, DummyDataLoader
 # from Fewshot.AllDataloader import AllDatasetDataLoader
 import os
 import toml
-
+import numpy as np
+import random
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -27,6 +28,7 @@ def get_batch(dl, num_rows):
     except:
         xs, ys = next(iter(dl))
         model_id = []
+
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
@@ -91,13 +93,14 @@ def main():
     save_dir = os.path.join(BASEDIR, f'saves/save_{save_no}')
 
     state_dict = torch.load(os.path.join(save_dir, 'model.pt'))
-    model = ModelHolder()
+    model = ModelHolder(cfg_file=f'{save_dir}/defaults.toml')
     model.load_state_dict(state_dict['model_state_dict'])
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
+    ds_group = -1 #cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
@@ -115,23 +118,26 @@ def main():
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
             acc.append(get_accuracy(ys_pred_target, ys_target))
 
-            # Predictions for baseline models
-            for base_model, model_name in zip(baseline_models, baseline_model_names):
-                baseline_acc[model_name].append(get_baseline_accuracy(
-                    model=base_model,
-                    bs=bs,
-                    xs_meta=xs_meta,
-                    xs_target=xs_target,
-                    ys_meta=ys_meta,
-                    ys_target=ys_target
-                ))
-        print('---------------------')
-        print(f'num_cols: {num_cols}')
-        print(f'Fewshot mean acc: {np.mean(acc):.3f}')
-        for model_name in baseline_model_names:
-            print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-
+        #     # Predictions for baseline models
+        #     for base_model, model_name in zip(baseline_models, baseline_model_names):
+        #         baseline_acc[model_name].append(get_baseline_accuracy(
+        #             model=base_model,
+        #             bs=bs,
+        #             xs_meta=xs_meta,
+        #             xs_target=xs_target,
+        #             ys_meta=ys_meta,
+        #             ys_target=ys_target
+        #         ))
+        # print('---------------------')
+        # print(f'num_cols: {num_cols}')
+        # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
+        # for model_name in baseline_model_names:
+        #     print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+        print(f'{np.mean(acc):.3f}')
 
 if __name__ == "__main__":
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
     main()

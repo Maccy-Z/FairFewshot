@@ -176,7 +176,7 @@ def main():
     in_dim, out_dim = 1, 5
     heads = 2
 
-    linear_weight = torch.rand((out_dim * heads, in_dim))
+    linear_weight = torch.rand((out_dim * heads, in_dim), requires_grad=True)
     src = torch.rand((1, heads, out_dim))
     dst = torch.rand((1, heads, out_dim))
     bias = torch.rand(out_dim * heads)
@@ -196,13 +196,15 @@ def main():
     model2.att_dst = torch.nn.Parameter(dst)
     model2.bias = torch.nn.Parameter(bias)
     model2.lin_src.weight = torch.nn.Parameter(linear_weight)
-
+    base_out = model2(data, edge_index)
     print("Functional GATConv output")
     print(func_out)
     print()
     print("Normal GATConv output")
-    print(model2(data, edge_index))
-
+    print(base_out)
+    loss = torch.mean(base_out)
+    loss.backward()
+    print(model2.lin_src.weight.grad)
 
 if __name__ == "__main__":
     torch.manual_seed(123)
