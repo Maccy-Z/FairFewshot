@@ -49,8 +49,8 @@ def write_toml():
                                "one_v_all": True,       # How to binarise during training
                                },
 
-                 "Settings": {"num_epochs": 21,      # Number of trainin epochs
-                              "val_duration": 400,      # Number of batches of validation
+                 "Settings": {"num_epochs": 31,      # Number of trainin epochs
+                              "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "total",
                               },

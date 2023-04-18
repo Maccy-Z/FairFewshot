@@ -15,7 +15,7 @@ gat_hid_dim = 128
 gat_out_dim = 16
 reparam_weight = false
 reparam_pos_enc = false
-weight_bias = "zero"
+weight_bias = "off"
 pos_enc_bias = "zero"
 norm_lin = true
 norm_weights = true
@@ -34,7 +34,7 @@ balance_train = true
 one_v_all = true
 
 [Settings]
-num_epochs = 21
-val_duration = 400
+num_epochs = 31
+val_duration = 100
 val_interval = 2000
 dataset = "total"

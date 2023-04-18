@@ -453,7 +453,7 @@ def main(all_cfgs, device="cpu"):
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.SGD(model.parameters(), lr=0.0075, momentum=0.9) #torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.SGD(model.parameters(), lr=0.0025, momentum=0.9) #torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -576,6 +576,9 @@ if __name__ == "__main__":
         print("---------------------------------")
         print("Starting test number", test_no)
         main(all_cfgs=get_config(), device=dev)
+
+    print("")
+    print("Training Completed")
 
     for eval_no in range(3):
         print()

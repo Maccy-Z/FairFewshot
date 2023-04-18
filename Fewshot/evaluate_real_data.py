@@ -105,7 +105,7 @@ def main(save_no):
     for num_cols in range(1, 20, 2):
         acc = []
         baseline_acc = {name: [] for name in baseline_model_names}
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets,
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=5,
                                       num_cols=num_cols, ds_group=ds_group, split="val")
 
         for j in range(2000):
