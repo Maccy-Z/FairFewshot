@@ -10,6 +10,7 @@ from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
+from AllDataloader import AllDatasetDataLoader
 
 
 class ResBlock(nn.Module):
@@ -42,14 +43,21 @@ class ResBlock(nn.Module):
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, h_size, out_size, pos_enc_dim, model_depths, reparam_weight, reparam_pos_enc, pos_enc_bias):
+    def __init__(self, cfg):
         super().__init__()
-        self.reparam_weight = reparam_weight
-        self.reparam_pos_enc = reparam_pos_enc
 
+        self.reparam_weight = cfg["reparam_weight"]
+        self.reparam_pos_enc = cfg["reparam_pos_enc"]
+
+        h_size = cfg["set_h_dim"]
+        out_size = cfg["set_out_dim"]
+
+        pos_enc_bias = cfg["pos_enc_bias"]
+        pos_enc_dim = cfg["pos_enc_dim"]
+        pos_depth = cfg["pos_depth"]
+
+        model_depths = cfg["d2v_layers"]
         f_depth, g_depth, h_depth = model_depths
-        # TODO
-        pos_depth = 2
 
         self.relu = nn.ReLU()
 
@@ -62,15 +70,15 @@ class SetSetModel(nn.Module):
         # h network
         self.hs = ResBlock(h_size, h_size, out_size, n_blocks=h_depth, out_relu=False)
 
-        if reparam_weight:
+        if self.reparam_weight:
             self.h_out_lvar = nn.Linear(h_size, out_size)
 
-        # Embedding Network
+        # Positional embedding Network
         self.ps = nn.ModuleList([])
         for _ in range(pos_depth - 1):
             self.ps.append(nn.Linear(h_size, h_size))
 
-        self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias!="off"))
+        self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias != "off"))
         if self.reparam_pos_enc:
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
@@ -82,14 +90,14 @@ class SetSetModel(nn.Module):
         # x.shape = [num_rows, num_cols, 2]
 
         # f network
-        x, _ = self.fs(x)               # [num_rows, num_cols, h_size]
+        x, _ = self.fs(x)  # [num_rows, num_cols, h_size]
 
-        x = torch.mean(x, dim=0)        # [num_rows, y_dim, h_size]
+        x = torch.mean(x, dim=0)  # [num_rows, y_dim, h_size]
         x_pos_enc = x
 
         # g network
         x, _ = self.gs(x)
-        x = torch.mean(x, dim=0)        # [h_size]
+        x = torch.mean(x, dim=0)  # [h_size]
 
         # h network
         x_out, prev_x = self.hs(x)
@@ -108,7 +116,6 @@ class SetSetModel(nn.Module):
             pos_enc_out = torch.stack([pos_enc_out, pos_lvar])
 
         return x_out, pos_enc_out
-
 
     def forward(self, xs):
         # xs.shape = [BS][x_dim, n_samples, 2]
@@ -129,7 +136,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_sizes: list, gen_layers, weight_bias):
+    def __init__(self, cfg, out_sizes: list):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -141,10 +148,16 @@ class WeightGenerator(nn.Module):
                 bias = (out_dim * heads)
         """
         super().__init__()
-        self.gen_in_dim = in_dim
-        self.gen_hid_dim = hid_dim
+
+        self.gen_in_dim = cfg["set_out_dim"]
+        self.gen_hid_dim = cfg["weight_hid_dim"]
+        self.gen_layers = cfg["gen_layers"]
+        self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
+        self.learn_norm = cfg["learn_norm"]
+
+        weight_bias = cfg["weight_bias"]
+
         self.out_sizes = out_sizes
-        self.gen_layers = gen_layers
 
         # Each GAT layer has a submodel to generate weights
         self.layer_model = []
@@ -162,11 +175,19 @@ class WeightGenerator(nn.Module):
         self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
             nn.ReLU(),
-            nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias!="off"))
+            nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias != "off"))
         )
         if weight_bias == "zero":
             print("Weight bias init to 0")
-            self.w_gen_out[2].bias.data.fill_(0)
+            self.w_gen_out[-1].bias.data.fill_(0)
+
+        # learned normalisation
+        # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
+        if self.learn_norm:
+            if self.norm_weights:
+                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.25]))
+            if self.norm_lin:
+                self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
 
     def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
         # WARN: GAT output size is heads * out_dim, so correct here.
@@ -204,7 +225,11 @@ class WeightGenerator(nn.Module):
             batch = []
             for batch_weights in all_weights:
                 lin, src, dst, bias = torch.split(batch_weights, split_idxs)
-                lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
+                if self.norm_weights:
+                    lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
+                    if self.learn_norm:
+                        lin, src, dst, bias = lin * self.w_norm[0], src * self.w_norm[1], dst * self.w_norm[2], bias * self.w_norm[3]
+
                 # Reshape each weight matrix
                 lin = lin.view(gat_out * gat_heads, gat_in)
                 src = src.view(1, gat_heads, gat_out)
@@ -218,6 +243,11 @@ class WeightGenerator(nn.Module):
 
         # Weights for linear layer
         lin_weights = self.w_gen_out(d2v_embed)
+        if self.norm_lin:
+            lin_weights = F.normalize(lin_weights, dim=-1)
+            if self.learn_norm:
+                lin_weights = lin_weights * self.l_norm
+
         lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
 
         return layer_weights, lin_weights
@@ -287,32 +317,18 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, device="cpu"):
+    def __init__(self, device="cpu", cfg_file=None):
         super().__init__()
-        cfg = get_config()["NN_dims"]
+        cfg = get_config(cfg_file=cfg_file)["NN_dims"]
 
-        reparam_weight = cfg["reparam_weight"]
-        reparam_pos_enc = cfg["reparam_pos_enc"]
-        self.reparam_weight = reparam_weight
-        self.reparam_pos_enc = reparam_pos_enc
-
-        set_h_dim = cfg["set_h_dim"]
-        set_out_dim = cfg["set_out_dim"]
-        pos_enc_dim = cfg["pos_enc_dim"]
-
-        weight_hid_dim = cfg["weight_hid_dim"]
+        self.reparam_weight = cfg["reparam_weight"]
+        self.reparam_pos_enc = cfg["reparam_pos_enc"]
 
         gat_heads = cfg["gat_heads"]
         gat_hid_dim = cfg["gat_hid_dim"]
         gat_in_dim = cfg["gat_in_dim"]
         gat_out_dim = cfg["gat_out_dim"]
-
-        d2v_layers = cfg["d2v_layers"]
-        gen_layers = cfg["gen_layers"]
         gat_layers = cfg["gat_layers"]
-
-        weight_bias = cfg["weight_bias"]
-        pos_enc_bias = cfg["pos_enc_bias"]
 
         gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
 
@@ -321,14 +337,15 @@ class ModelHolder(nn.Module):
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
-            load = torch.load("/mnt/storage_ssd/FairFewshot/dataset2vec/model_9k")
+            model_load = cfg["model_load"]
+            load = torch.load(f"./dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
+            cfg["set_h_dim"] = set_h_dim
+            cfg["set_out_dim"] = set_out_dim
+            cfg["d2v_layers"] = d2v_layers
 
-            model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
-                                         model_depths=d2v_layers, pos_enc_dim=pos_enc_dim,
-                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
-                                         pos_enc_bias=pos_enc_bias)
+            model = SetSetModel(cfg=cfg)
 
             model.load_state_dict(state, strict=False)
 
@@ -342,13 +359,8 @@ class ModelHolder(nn.Module):
 
             self.d2v_model = model
         else:
-            self.d2v_model = SetSetModel(h_size=set_h_dim, out_size=set_out_dim,
-                                         pos_enc_dim=pos_enc_dim, model_depths=d2v_layers,
-                                         reparam_weight=reparam_weight, reparam_pos_enc=reparam_pos_enc,
-                                         pos_enc_bias=pos_enc_bias)
-        self.weight_model = WeightGenerator(in_dim=set_out_dim, hid_dim=weight_hid_dim,
-                                            out_sizes=gat_shapes, gen_layers=gen_layers,
-                                            weight_bias=weight_bias)
+            self.d2v_model = SetSetModel(cfg=cfg)
+        self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
@@ -381,7 +393,6 @@ class ModelHolder(nn.Module):
 
     def forward_target(self, xs_target, embed_meta, pos_enc):
         weights_target = self.weight_model(embed_meta)
-
         preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
 
         return preds_meta
@@ -402,7 +413,7 @@ class ModelHolder(nn.Module):
 
 
 def main(device="cpu"):
-    save_holder = SaveHolder(".")
+    save_holder = None
 
     all_cfgs = get_config()
     cfg = all_cfgs["Optim"]
@@ -412,30 +423,37 @@ def main(device="cpu"):
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    flip = cfg["flip"]
+    ds_group = cfg["ds_group"]
+    bal_train = cfg["balance_train"]
+    one_v_all = cfg["one_v_all"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
-    # print_interval = cfg["print_interval"]
+
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
     if ds == "adult":
-        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, flip=flip, split="train")
-        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, flip=flip, split="val")
+        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
+        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, split="val")
         val_dl = iter(val_dl)
     elif ds == "MLP":
         dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
                            config=all_cfgs["MLP_DL_params"])
         val_dl = iter(dl)
+    elif ds == "total":
+        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+                                  balance_train=bal_train, one_v_all=one_v_all, split="train")
+        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+                                      split="val")
     else:
         raise Exception("Invalid dataset")
 
     model = ModelHolder(device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=1e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -451,6 +469,7 @@ def main(device="cpu"):
         # Train loop
         model.train()
         for xs, ys in itertools.islice(dl, val_interval):
+
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
@@ -473,6 +492,7 @@ def main(device="cpu"):
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
             grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad}
+
             optim.step()
             optim.zero_grad()
 
@@ -488,12 +508,10 @@ def main(device="cpu"):
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
 
-        for name, abs_grad in save_grads.items():
-            save_grads[name] = torch.div(abs_grad, val_interval)
-
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
+        save_ys_targ, save_pred_labs = [], []
         for xs, ys in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
@@ -518,19 +536,31 @@ def main(device="cpu"):
             accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
             epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+            save_ys_targ.append(ys_target)
+            save_pred_labs.append(predicted_labels)
 
         val_losses.append(epoch_losses), val_accs.append(epoch_accs)
-        # Print some useful stats from validation
 
-        print("Targets:    ", ys_target.cpu().numpy())
-        print("Predictions:", predicted_labels.cpu().numpy())
-        print(f'Mean accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        # Average gradients
+        for name, abs_grad in save_grads.items():
+            save_grads[name] = torch.div(abs_grad, val_interval)
+
+        # Print some useful stats from validation
+        save_ys_targ = torch.cat(save_ys_targ)
+        save_pred_labs = torch.cat(save_pred_labs)[:20]
+        print("Targets:    ", save_ys_targ[:20])
+        print("Predictions:", save_pred_labs[:20])
+        print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        # print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
         # Save stats
+        if save_holder is None:
+            save_holder = SaveHolder(".")
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
         save_holder.save_model(model, optim)
         save_holder.save_history(history)
         save_holder.save_grads(save_grads)
+
 
 if __name__ == "__main__":
     import random

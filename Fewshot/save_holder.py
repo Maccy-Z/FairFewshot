@@ -78,6 +78,7 @@ class SaveLoader:
         plt.ylabel("Accuracy %")
         plt.xlabel("Epoch")
         plt.legend()
+        plt.savefig(f'{self.save_dir}/accs.png')
         plt.show()
 
     def plot_grads(self):
@@ -87,8 +88,10 @@ class SaveLoader:
         grad_mean, grad_std = {}, {}
         for epoch_grads in grad_list:
             for name, abs_grad in epoch_grads.items():
-                mean, std = torch.std_mean(abs_grad)
+                mean, std = torch.std_mean(abs_grad, correction=0)
                 mean, std = mean.item(), std.item()
+                if "norm" in name:
+                    continue
                 if name not in grad_mean:
                     grad_mean[name] = [mean]
                     grad_std[name] = [std]
@@ -102,7 +105,8 @@ class SaveLoader:
             layer_names[i] = layer_names[i].replace(".bias", ".b")
             layer_names[i] = layer_names[i].replace("weight_model.w_", "")
             layer_names[i] = layer_names[i].replace("d2v_model", "d2v")
-
+            layer_names[i] = layer_names[i].replace("res_modules.", "")
+            layer_names[i] = layer_names[i].replace("lin_", "")
 
         grad_means, grad_stds = list(grad_mean.values()), list(grad_std.values())
         grad_means, grad_stds = np.array(grad_means).T, np.array(grad_stds).T
@@ -119,7 +123,8 @@ class SaveLoader:
 if __name__ == "__main__":
     import re
 
-    BASEDIR = "/mnt/storage_ssd/FairFewshot"
+    BASEDIR = "."
+    SAVE_NO = -1
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
@@ -130,8 +135,9 @@ if __name__ == "__main__":
 
     saves = os.listdir(f'{BASEDIR}/saves')
     saves = sorted(saves, key=sort_key)
-
-    # h = SaveHolder(base_dir=f'{BASEDIR}')
-    h = SaveLoader(save_dir=f'{BASEDIR}/saves/{saves[-1]}')
+    save_dir = f'{BASEDIR}/saves/{saves[SAVE_NO]}'
+    print(save_dir)
+    h = SaveLoader(save_dir=save_dir)
     h.plot_history()
     h.plot_grads()
+

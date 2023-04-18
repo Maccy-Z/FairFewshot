@@ -27,8 +27,8 @@ class Dataset:
         12, Hr-per-wk: 92
         13, Native_cont: 41
         14, Income >50k: 2
-        
         """
+
         datadir = f'./datasets/data_split/{self.data_name}'
 
         # Read data and labels
@@ -158,10 +158,11 @@ if __name__ == "__main__":
     dl = iter(dl)
     for _ in range(1000):
         x, y = next(dl)
-        y_mean = torch.mean(y, dtype=float)
-        means.append(y_mean)
-
-        print(y)
+        # y_mean = torch.mean(y, dtype=float)
+        # means.append(y_mean)
+        #
+        # print(y)
+        print(x.shape)
 
     means = torch.stack(means)
     means = torch.mean(means)

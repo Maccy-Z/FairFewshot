@@ -1,48 +1,40 @@
 [NN_dims]
-pos_enc_dim = 3
 set_h_dim = 64
-set_out_dim = 32
+set_out_dim = 64
+d2v_layers = [ 4, 2, 4,]
+pos_depth = 2
+pos_enc_dim = 15
+load_d2v = true
+freeze_d2v = false
+model_load = "model_main"
 weight_hid_dim = 64
+gen_layers = 2
 gat_heads = 2
+gat_layers = 2
 gat_hid_dim = 128
 gat_out_dim = 16
-d2v_layers = [ 3, 2, 3, 2,]
-gen_layers = 2
-gat_layers = 2
 reparam_weight = false
 reparam_pos_enc = false
 weight_bias = "off"
 pos_enc_bias = "zero"
-load_d2v = true
-freeze_d2v = false
-gat_in_dim = 4
+norm_lin = true
+norm_weights = true
+learn_norm = true
+gat_in_dim = 16
 
 [Optim]
 lr = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 10
+num_rows = 16
 num_targets = 5
-flip = false
+ds_group = -1
+balance_train = true
+one_v_all = true
 
 [Settings]
-num_epochs = 10000
-save_dir = ""
+num_epochs = 21
 val_duration = 400
 val_interval = 2000
-dataset = "adult"
-
-[MLP_DL_params]
-noise_std = 0.3
-pre_sample_weights = false
-hidden_dim = 3
-num_causes = 2
-num_layers = 3
-is_causal = true
-dropout_prob = 0.5
-init_std = 1
-pre_sample_causes = false
-in_clique = true
-is_effect = true
-sort_features = true
+dataset = "total"
