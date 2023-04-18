@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import random
 from sklearn.model_selection import train_test_split
+from itertools import islice
 
 DATADIR = './datasets/data'
 
@@ -323,14 +324,14 @@ class DummyDataLoader():
         self.num_cols = num_cols
         self.norm = norm
         self.shuffle_cols = shuffle_cols
+        self.num_cols = num_cols
         if data_names:
             self.data_names = data_names
-            self.datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+            self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]
         else:
             self.data_names = os.listdir(DATADIR)
             self.data_names.remove('info.json')
             self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]
-            self.datasets = [d for d in self.all_datasets if d.num_cols == num_cols]
         
 
     def __iter__(self):
@@ -338,6 +339,11 @@ class DummyDataLoader():
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
+            if isinstance(self.num_cols, list):
+                num_cols = np.random.choice(self.num_cols)
+            else:
+                num_cols = self.num_cols
+            self.datasets = [d for d in self.all_datasets if d.num_cols == num_cols]
             datasets = random.choices(self.datasets, k=self.bs)
             datanames = [d.data_name for d in datasets]
             xs, ys = list(zip(*[d.stratified_sample(
@@ -354,10 +360,9 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    dl = DummyDataLoader(bs=1, num_rows=10, num_targets=10, num_cols=5, split="val", shuffle_cols=True)
+    dl = DummyDataLoader(bs=1, num_rows=10, num_targets=10, num_cols=5, data_names=['mammographic'], split="val", shuffle_cols=True)
 
-    for xs, ys, datanames in iter(dl):
+    for xs, ys, datanames in islice(dl, 5):
         print(xs)
         print(ys)
         print(datanames)
-        break

@@ -415,6 +415,7 @@ def main(device="cpu"):
     flip = cfg["flip"]
     num_cols = cfg["num_cols"]
     shuffle_cols = cfg["shuffle_cols"]
+    data_names = cfg.get("data_names")
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -439,8 +440,8 @@ def main(device="cpu"):
         dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, split="train")
         val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, split="val")
     elif ds == "dummy":
-        dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, split="train")
-        val_dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, split="val")
+        dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, data_names=data_names, split="train")
+        val_dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, data_names=data_names, split="val")
     else:
         raise Exception("Invalid dataset")
 

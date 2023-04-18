@@ -36,7 +36,8 @@ def write_toml():
                                "num_rows": 10,
                                "num_targets": 10,
                                "flip": False,
-                               "num_cols": 9,
+                               "num_cols": 5,
+                               "data_names": ['mammographic', 'teaching'],
                                "shuffle_cols": True,
                  },
 
