@@ -23,18 +23,18 @@ learn_norm = true
 gat_in_dim = 16
 
 [Optim]
-lr = 0.0001
+lr = 0.0005
 
 [DL_params]
 bs = 3
-num_rows = 16
+num_rows = 20
 num_targets = 5
 ds_group = -1
 balance_train = true
 one_v_all = true
 
 [Settings]
-num_epochs = 101
+num_epochs = 21
 val_duration = 100
 val_interval = 2000
 dataset = "total"

@@ -5,6 +5,7 @@ from dataloader import d2v_pairer
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+from config import get_config
 
 def ys_fn(point):
     x, y, = point
@@ -35,12 +36,12 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 45
+    save_no = 90
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
     state_dict = torch.load(f'{save_dir}/model.pt')
-    model = ModelHolder(cfg_file=f"./saves/save_{save_no}/defaults.toml")
+    model = ModelHolder(cfg_all=get_config(f"./saves/save_{save_no}/defaults.toml"))
     model.load_state_dict(state_dict['model_state_dict'])
 
     pairs_meta = d2v_pairer(xs_meta, ys_meta)
@@ -97,4 +98,5 @@ if __name__ == "__main__":
     # torch.manual_seed(0)
     # import numpy as np
     # np.random.seed(0)
-    main()
+    for _ in range(5):
+        main()
