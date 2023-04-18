@@ -39,7 +39,7 @@ def write_toml():
                              "learn_norm": True,
                              },
 
-                 "Optim": {"lr": 3e-4},
+                 "Optim": {"lr": 6e-4},
 
                  "DL_params": {"bs": 3,
                                "num_rows": 16,
@@ -49,7 +49,7 @@ def write_toml():
                                "one_v_all": True,       # How to binarise during training
                                },
 
-                 "Settings": {"num_epochs": 31,      # Number of trainin epochs
+                 "Settings": {"num_epochs": 21,      # Number of trainin epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "total",

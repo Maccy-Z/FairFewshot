@@ -453,7 +453,7 @@ def main(all_cfgs, device="cpu"):
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.SGD(model.parameters(), lr=0.0025, momentum=0.9) #torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
