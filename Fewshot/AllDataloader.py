@@ -185,7 +185,7 @@ class MyDataSet:
             ys = one_vs_all(ys)
 
         # If a batch is exclusively 1 or 0 as label, try to regenerate the batch, once only
-        if force_next or ys[:16].min() != ys[:16].max():
+        if force_next or ys.min() != ys.max():
             return xs, ys
         else:
             return self.sample(num_xs, force_next=True)

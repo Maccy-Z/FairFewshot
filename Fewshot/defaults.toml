@@ -24,7 +24,7 @@ gat_in_dim = 16
 
 [Optim]
 lr = 0.0005
-eps = 0.001
+eps = 0.0003
 
 [DL_params]
 bs = 3

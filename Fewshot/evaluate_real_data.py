@@ -41,9 +41,9 @@ def get_batch(dl, num_rows):
 
 def get_predictions(xs_meta, xs_target, ys_meta, model):
     pairs_meta = d2v_pairer(xs_meta, ys_meta)
-    embed_meta, pos_enc = model.forward_meta(pairs_meta)
-
-    ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
+    with torch.no_grad():
+        embed_meta, pos_enc = model.forward_meta(pairs_meta)
+        ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
     return ys_pred_target
 
 
