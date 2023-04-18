@@ -39,17 +39,18 @@ def write_toml():
                              "learn_norm": True,
                              },
 
-                 "Optim": {"lr": 5e-4},
+                 "Optim": {"lr": 5e-4,
+                           "eps": 10e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 15,
+                               "num_rows": 16,
                                "num_targets": 5,
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "balance_train": True,   # Balance dataloader during training
                                "one_v_all": True,       # How to binarise during training
                                },
 
-                 "Settings": {"num_epochs": 21,      # Number of trainin epochs
+                 "Settings": {"num_epochs": 21,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "total",
