@@ -551,7 +551,7 @@ def main(all_cfgs, device="cpu"):
             # print("Targets:    ", save_ys_targ[:20])
             # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        # print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
+        print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
         # Save stats
         if save_holder is None:
