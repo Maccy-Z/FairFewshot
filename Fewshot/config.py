@@ -42,7 +42,7 @@ def write_toml():
                  "Optim": {"lr": 5e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 20,
+                               "num_rows": 15,
                                "num_targets": 5,
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "balance_train": True,   # Balance dataloader during training
