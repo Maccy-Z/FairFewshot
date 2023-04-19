@@ -96,11 +96,11 @@ def main(save_no):
 
     num_rows = 10 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = -1  # cfg["ds_group"]
+    ds_group = 3 # cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
-    baseline_model_names = ['LR']  # , 'SVC', "Baseline model"]
+    baseline_model_names = ['LR', 'SVC']
 
     for num_cols in range(1, 20, 2):
         acc = []
@@ -128,9 +128,12 @@ def main(save_no):
         # print(f'num_cols: {num_cols}')
         # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
         # for model_name in baseline_model_names:
-        #     print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-        print(f'{np.mean(acc) - np.mean(baseline_acc["LR"]):.3f}')
-
+            # print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+        # print(f'{np.mean(acc) - np.mean(baseline_acc["LR"]):.3f}')
+        print()
+        print(f'{np.mean(acc):.3f}')
+        for model_name in baseline_model_names:
+            print(f'{np.mean(baseline_acc[model_name]):.3f}')
 
 if __name__ == "__main__":
     random.seed(0)
@@ -140,7 +143,7 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    for eval_no in range(3):
+    for eval_no in range(1):
         print()
         print("Eval number", eval_no)
         main(save_no=-(eval_no + 1))

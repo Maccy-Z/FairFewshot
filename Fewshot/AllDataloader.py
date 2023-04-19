@@ -121,7 +121,7 @@ class MyDataSet:
         self.cols = np.arange(self.num_cols)
 
         # Select columns to return as ys
-        if False: # self.train:
+        if False:  # self.train:
             self.allow_targs = np.arange(self.num_cols)
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
@@ -151,7 +151,6 @@ class MyDataSet:
         row_probs = np.stack(row_probs).T
 
         self.row_probs = row_probs.T
-
 
     def sample(self, num_xs, force_next=False):
 
@@ -250,9 +249,11 @@ class AllDatasetDataLoader:
 if __name__ == "__main__":
     dl = AllDatasetDataLoader(bs=1, num_rows=16, num_targets=3, num_cols=11, one_v_all=True, split="train")
 
+    print(len(dl.datasets))
+
     means = []
     dl = iter(dl)
-    y_count = {i:0 for i in range(20)}
+    y_count = {i: 0 for i in range(20)}
     for _ in range(1000):
         x, y = next(dl)
         num = torch.sum(y).item()

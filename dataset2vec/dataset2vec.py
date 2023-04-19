@@ -89,7 +89,7 @@ class ModelTrainer:
 
         self.model = Dataset2Vec(h_size=h_size, out_size=out_size, n_blocks=n_blocks).to(device)
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
-        self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
+        self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=16, min_ds_len=250)
 
     def train_loop(self):
         self.dl.steps = 15000

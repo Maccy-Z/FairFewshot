@@ -124,7 +124,7 @@ if __name__ == "__main__":
     import re
 
     BASEDIR = "."
-    SAVE_NO = -2
+    SAVE_NO = -4
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)

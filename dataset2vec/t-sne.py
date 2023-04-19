@@ -26,7 +26,7 @@ for ds in dataset:
     xs = ds.get_data(nsamples=50)
     data.append(xs)
 
-load = torch.load("./dataset2vec/model")
+load = torch.load("./dataset2vec/model_3")
 state, params = load["state_dict"], load["params"]
 model = Dataset2Vec(*params)
 model.load_state_dict(state)
