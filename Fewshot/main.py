@@ -202,12 +202,15 @@ class WeightGenerator(nn.Module):
         tot_params = lin_weight_params + src_params + dst_params + bias_params
         # Save indices of weights
         weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
-
-        module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
-        for _ in range(self.gen_layers - 2):
-            module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
-            module.append(nn.ReLU())
-        module.append(nn.Linear(self.gen_hid_dim, tot_params))
+        if self.gen_layers == 1:
+            print("Only 1 gen layer, Not using gen_hid_dim")
+            module = nn.Sequential(nn.Linear(self.gen_in_dim, tot_params))
+        else:
+            module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
+            for _ in range(self.gen_layers - 2):
+                module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
+                module.append(nn.ReLU())
+            module.append(nn.Linear(self.gen_hid_dim, tot_params))
 
         module = nn.Sequential(*module)
 

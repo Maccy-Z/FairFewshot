@@ -18,10 +18,10 @@ def write_toml():
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
                              "load_d2v": True,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
-                             "model_load": "model_main",  # Which D2V to load from
+                             "model_load": "model_3",  # Which D2V to load from
 
                              "weight_hid_dim": 64,      # Weight generator hidden dimension
-                             "gen_layers": 2,           # Weight deocder layers
+                             "gen_layers": 1,           # Weight deocder layers
 
                              "gat_heads": 2,            # Number of heads in GAT
                              "gat_layers": 2,           # Depth of GAT

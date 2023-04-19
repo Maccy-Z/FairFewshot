@@ -94,7 +94,7 @@ def main(save_no):
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = 10 #cfg["num_rows"]
+    num_rows = 10 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
     ds_group = -1  # cfg["ds_group"]
 

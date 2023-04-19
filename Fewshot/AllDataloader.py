@@ -121,7 +121,7 @@ class MyDataSet:
         self.cols = np.arange(self.num_cols)
 
         # Select columns to return as ys
-        if self.train:
+        if False: # self.train:
             self.allow_targs = np.arange(self.num_cols)
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
@@ -185,7 +185,7 @@ class MyDataSet:
             ys = one_vs_all(ys)
 
         # If a batch is exclusively 1 or 0 as label, try to regenerate the batch, once only
-        if force_next or ys.min() != ys.max():
+        if force_next or ys[:10].min() != ys[:10].max():
             return xs, ys
         else:
             return self.sample(num_xs, force_next=True)
@@ -223,7 +223,7 @@ class AllDatasetDataLoader:
                       balance_train=self.balance_train, one_v_all=self.one_v_all)
             for d in all_data_names
         ]
-        min_ds = 100 if self.train else self.num_rows * 2
+        min_ds = 500 if self.train else self.num_rows * 2
         self.datasets = [
             d for d in all_datasets if d.tot_rows >= min_ds
         ]

@@ -44,24 +44,23 @@ def get_predictions(xs_meta, xs_target, ys_meta, model):
     with torch.no_grad():
         embed_meta, pos_enc = model.forward_meta(pairs_meta)
 
-    embed_meta.requires_grad = True
-    pos_enc.requires_grad = True
-    #print(pos_enc)
-    optim_pos = torch.optim.SGD([pos_enc], lr=0.1, momentum=0.75)
-    optim_embed = torch.optim.Adam([embed_meta], lr=1)#torch.optim.SGD([embed_meta], lr=400, momentum=0.75)
-    for _ in range(5):
-        # Make predictions on meta set and calc loss
-        preds = model.forward_target(xs_meta, embed_meta, pos_enc)
-        loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
-        loss.backward()
-        optim_pos.step()
-        optim_embed.step()
-        optim_embed.zero_grad()
-        optim_pos.zero_grad()
-
-        ys_meta = ys_meta.squeeze()
-        preds_meta = torch.argmax(preds.view(-1, 2), dim=1).squeeze()
-        accuracy = (preds_meta == ys_meta).sum().item() / len(ys_meta)
+    # embed_meta.requires_grad = True
+    # pos_enc.requires_grad = True
+    # optim_pos = torch.optim.Adam([pos_enc], lr=0.002)
+    # optim_embed = torch.optim.Adam([embed_meta], lr=1)  # torch.optim.SGD([embed_meta], lr=400, momentum=0.75)
+    # for _ in range(5):
+    #     # Make predictions on meta set and calc loss
+    #     preds = model.forward_target(xs_meta, embed_meta, pos_enc)
+    #     loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
+    #     loss.backward()
+    #     optim_pos.step()
+    #     optim_embed.step()
+    #     optim_embed.zero_grad()
+    #     optim_pos.zero_grad()
+    #
+    #     ys_meta = ys_meta.squeeze()
+    #     preds_meta = torch.argmax(preds.view(-1, 2), dim=1).squeeze()
+    #     accuracy = (preds_meta == ys_meta).sum().item() / len(ys_meta)
 
     #print(pos_enc)
     #     print(accuracy)
@@ -172,7 +171,7 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    for eval_no in [12]: #range(1):
+    for eval_no in [0]: # range(1):
         print()
         print("Eval number", eval_no)
         main(save_no=-(eval_no + 1))
