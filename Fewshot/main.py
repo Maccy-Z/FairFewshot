@@ -6,11 +6,10 @@ import itertools
 import time
 
 from dataloader import AdultDataLoader, d2v_pairer
-from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import AllDatasetDataLoader
+from AllDataloader import AllDatasetDataLoader, SplitDataloader
 
 
 class ResBlock(nn.Module):
@@ -436,18 +435,10 @@ def main(all_cfgs, device="cpu"):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "adult":
-        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
-        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, split="val")
-        val_dl = iter(val_dl)
-    elif ds == "MLP":
-        dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, num_cols=4,
-                           config=all_cfgs["MLP_DL_params"])
-        val_dl = iter(dl)
-    elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+    if ds == "total":
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                   balance_train=bal_train, one_v_all=one_v_all, split="train")
-        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                       split="val")
     else:
         raise Exception("Invalid dataset")
@@ -569,7 +560,6 @@ def main(all_cfgs, device="cpu"):
 
 
 if __name__ == "__main__":
-    import random
     from evaluate_real_data import main as eval_main
     tag = input("Desciption: ")
 
@@ -583,7 +573,7 @@ if __name__ == "__main__":
     print("")
     print("Training Completed")
 
-    for eval_no in range(3):
+    for eval_no in range(1):
         print()
         print("Eval number", eval_no)
         eval_main(save_no=-(eval_no + 1))
