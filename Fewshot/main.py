@@ -574,10 +574,7 @@ if __name__ == "__main__":
     tag = input("Desciption: ")
 
     dev = torch.device("cpu")
-    for test_no in range(3):
-        # random.seed(test_no)
-        # np.random.seed(test_no)
-        # torch.manual_seed(test_no)
+    for test_no in range(1):
 
         print("---------------------------------")
         print("Starting test number", test_no)

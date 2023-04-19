@@ -43,7 +43,7 @@ cluster_labels = kmeans.fit_predict(embedded_data)
 # Print out the labels of the items in each cluster
 for i in range(kmeans.n_clusters):
     cluster_items = labels[(cluster_labels == i)]
-    print(f"Cluster {i+1}: {cluster_items}")
+    print(f"Cluster {i}: {cluster_items}")
     print()
 
 # Plot the embedded data
