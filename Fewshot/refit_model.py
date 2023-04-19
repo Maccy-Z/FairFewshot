@@ -47,14 +47,17 @@ def get_predictions(xs_meta, xs_target, ys_meta, model):
     embed_meta.requires_grad = True
     pos_enc.requires_grad = True
     #print(pos_enc)
-    optim = torch.optim.SGD([pos_enc], lr=0.1, momentum=0.75)#torch.optim.Adam([embed_meta, pos_enc], lr=0.25)
+    optim_pos = torch.optim.SGD([pos_enc], lr=0.1, momentum=0.75)
+    optim_embed = torch.optim.Adam([embed_meta], lr=1)#torch.optim.SGD([embed_meta], lr=400, momentum=0.75)
     for _ in range(5):
         # Make predictions on meta set and calc loss
         preds = model.forward_target(xs_meta, embed_meta, pos_enc)
         loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
         loss.backward()
-        optim.step()
-        optim.zero_grad()
+        optim_pos.step()
+        optim_embed.step()
+        optim_embed.zero_grad()
+        optim_pos.zero_grad()
 
         ys_meta = ys_meta.squeeze()
         preds_meta = torch.argmax(preds.view(-1, 2), dim=1).squeeze()
