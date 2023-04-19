@@ -96,7 +96,7 @@ def main(save_no):
 
     num_rows = 10 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = 3 # cfg["ds_group"]
+    ds_group = 5 # cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
