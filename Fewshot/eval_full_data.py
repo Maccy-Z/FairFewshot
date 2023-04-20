@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
 
         data[ds_group] = col_data
-        print(data)
+        print(col_data)
 
     row_headers = []
     for _ in range(10):
