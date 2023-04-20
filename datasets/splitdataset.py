@@ -44,5 +44,6 @@ if __name__ == "__main__":
     data_names.remove('info.json')
     data_names.remove('.DS_Store')
     for data_name in data_names:
+        print(data_name)
         split_data(DATADIR, data_name)
 

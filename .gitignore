@@ -3,3 +3,5 @@ __pycache__/
 saves/
 Fewshot/__pycache__/
 datasets/data/
+datasets/grouped_datasets/
+*.pdf

@@ -48,12 +48,13 @@ for i in range(kmeans.n_clusters):
 
 # Plot the embedded data
 color_map = plt.colormaps["tab10"]
-plt.figure(figsize=(16, 16))
+plt.figure(figsize=(32, 32))
 plt.scatter(embedded_data[:, 0], embedded_data[:, 1], c=color_map(cluster_labels))
 for i, label in enumerate(labels):
     plt.annotate(label, (embedded_data[i, 0], embedded_data[i, 1]), fontsize=18)
 
-plt.show()
+#plt.show()
+plt.savefig('/Users/kasiakobalczyk/Fairfewshot/embeddings.pdf')
 
 command = input("If you are happy with the clustering, type 'YES' clusters will be saved, deleting old clusters: \n")
 if command != "YES":
