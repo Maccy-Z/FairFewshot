@@ -39,7 +39,7 @@ train = ['']
 
 sns.set_style('ticks')
 sns.set_palette('Set2')
-save_no = 62
+save_no = 63
 base_dir = '.'
 save_dir = os.path.join(base_dir, f'saves/save_{save_no}')
 model_save = torch.load(os.path.join(save_dir, 'model.pt'))
@@ -58,11 +58,11 @@ model.load_state_dict(model_save['model_state_dict'])
 
 #%%
 def get_batch(dl):
-#    try:
-    xs, ys, model_id = next(iter(dl))
-    # except:
-    #     xs, ys = next(iter(dl))
-    #     model_id = []
+    try:
+        xs, ys, model_id = next(iter(dl))
+    except:
+        xs, ys = next(iter(dl))
+        model_id = []
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
@@ -115,8 +115,6 @@ def get_baseline_accuracy(model, xs_meta, ys_meta, xs_target, ys_target):
         ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)
     return accuracy
 
-
-#%%
 def get_fewshot_acc(batch):
     try: 
         model_id, xs_meta, xs_target, ys_meta, ys_target = batch
@@ -125,12 +123,13 @@ def get_fewshot_acc(batch):
     embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
     ys_pred_target = get_preddictions(xs_target, embed_meta, pos_enc)
     return get_accuracy(ys_pred_target, ys_target)
+#%%
+
 
 baseline_models = [LogisticRegression(max_iter=1000)]#, SVC(), RandomForestClassifier(), GradientBoostingClassifier()]
 baseline_model_names = ['LR'] #, 'SVC', 'RF', 'GB']
 
 seen_data_names = cfg["train_data_names"]
-#unseen_data_names = cfg["val_data_names"]
 unseen_data_names = ['heart-cleveland']
 
 num_cols_ls = list(range(2, 10))

@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import random
 
-os.chdir("/mnt/storage_ssd/FairFewshot")
+os.chdir("/Users/kasiakobalczyk/FairFewshot")
 DATADIR = './datasets'
 
 

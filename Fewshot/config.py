@@ -49,16 +49,13 @@ def write_toml():
                                "one_v_all": True,       # How to binarise during training
                                "num_cols": None,
                                "train_data_names": ['statlog-heart', 'horse-colic', 'fertility', 'post-operative'],
-                               "val_data_names": ['breast-cancer'],
-                               "shuffle_cols": False,
-                               "miss_rate": 0.8,
-                               "fixed_num_cols" : False
+                               "shuffle_cols": True,
                                },
 
                  "Settings": {"num_epochs": 100,      # Number of trainin epochs
                               "val_duration": 200,      # Number of batches of validation
                               "val_interval": 1000,     # Number of batches to train for each epoch
-                              "dataset": "dummy",
+                              "dataset": "mydata",
                               },
                  }
 

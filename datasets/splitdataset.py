@@ -1,31 +1,48 @@
 import pandas as pd
 import numpy as np
 import os
+from sklearn.model_selection import train_test_split
+
+def one_vs_all(ys):
+    # identify the most common class and set it to 1, set everything else as 0
+    mode = ys.mode().iloc[0, 0]
+    idx = ys == mode
+    ys = np.zeros(shape=ys.shape)
+    ys[idx] = 1
+    return ys
 
 DATADIR = './datasets/data'
 def split_data(datadir, data_name):
-    df = pd.read_csv(f"{datadir}/{data_name}/{data_name}_py.dat", header=None)
+    X = pd.read_csv(f"{datadir}/{data_name}/{data_name}_py.dat", header=None)
+    y = pd.read_csv(f"{datadir}/{data_name}/labels_py.dat", header=None)
 
-    # pick ~20% of rows and ~20% (or min 2) of columns for testing
-    frac = 0.2
-    n_val_rows = int(df.shape[0] * frac)
-    n_val_cols = max(int(df.shape[1] * frac), 2)
+    y = one_vs_all(y)
 
-    cols_rand_idx = np.random.permutation(list(range(df.shape[1])))
-    rows_rand_idx = np.random.permutation(list(range(df.shape[0])))
-    train_cols, val_cols = cols_rand_idx[:-n_val_cols], cols_rand_idx[-n_val_cols:]
-    train_rows, val_rows = rows_rand_idx[:-n_val_cols], rows_rand_idx[-n_val_rows:]
+    # pick ~30% for val / test
+    train_X, test_X, train_y, test_y = train_test_split(
+        X, y, test_size=0.3, random_state=0, stratify=y)
 
-    train_df = df.iloc[train_rows, train_cols]
-    val_df = df.iloc[val_rows, val_cols]
+    # split test 50/50 into val and test
+    val_X, test_X, val_y, test_y = train_test_split(
+        test_X, test_y, test_size=0.5, random_state=0, stratify=test_y)
+    
+    train = pd.DataFrame(train_X)
+    train['label'] = train_y
 
-    train_df.to_csv(f'{datadir}/{data_name}/{data_name}_train_py.dat', header=False, index=False)
-    val_df.to_csv(f'{datadir}/{data_name}/{data_name}_val_py.dat', header=False, index=False)
+    val = pd.DataFrame(val_X)
+    val['label'] = val_y
 
+    test = pd.DataFrame(test_X)
+    test['label'] = test_y
+    
+    pd.DataFrame(train).to_csv(f'{DATADIR}/{data_name}/{data_name}_train_py.dat', index=False)
+    pd.DataFrame(val).to_csv(f'{DATADIR}/{data_name}/{data_name}_val_py.dat', index=False)
+    pd.DataFrame(test).to_csv(f'{DATADIR}/{data_name}/{data_name}_test_py.dat', index=False)
 
 if __name__ == "__main__":
     data_names = os.listdir(DATADIR)
     data_names.remove('info.json')
+    data_names.remove('.DS_Store')
     for data_name in data_names:
         split_data(DATADIR, data_name)
 
