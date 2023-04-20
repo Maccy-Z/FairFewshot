@@ -7,11 +7,10 @@ import time
 import random
 
 from dataloader import AdultDataLoader, d2v_pairer
-from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import AllDatasetDataLoader
+from AllDataloader import AllDatasetDataLoader, SplitDataloader
 from mydataloader import MyDataLoader
 
 np.random.seed(0)
@@ -206,12 +205,15 @@ class WeightGenerator(nn.Module):
         tot_params = lin_weight_params + src_params + dst_params + bias_params
         # Save indices of weights
         weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
-
-        module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
-        for _ in range(self.gen_layers - 2):
-            module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
-            module.append(nn.ReLU())
-        module.append(nn.Linear(self.gen_hid_dim, tot_params))
+        if self.gen_layers == 1:
+            print("Only 1 gen layer, Not using gen_hid_dim")
+            module = nn.Sequential(nn.Linear(self.gen_in_dim, tot_params))
+        else:
+            module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
+            for _ in range(self.gen_layers - 2):
+                module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
+                module.append(nn.ReLU())
+            module.append(nn.Linear(self.gen_hid_dim, tot_params))
 
         module = nn.Sequential(*module)
 
@@ -321,9 +323,9 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, device="cpu", cfg_file=None):
+    def __init__(self, cfg_all, device="cpu"):
         super().__init__()
-        cfg = get_config(cfg_file=cfg_file)["NN_dims"]
+        cfg = cfg_all["NN_dims"]
 
         self.reparam_weight = cfg["reparam_weight"]
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
@@ -416,12 +418,11 @@ class ModelHolder(nn.Module):
         return cross_entropy + kl_div
 
 
-def main(device="cpu"):
+def main(all_cfgs, device="cpu"):
     save_holder = None
 
-    all_cfgs = get_config()
-    cfg = all_cfgs["Optim"]
-    lr = cfg["lr"]
+    # all_cfgs = get_config()
+
 
     cfg = all_cfgs["DL_params"]
     bs = cfg["bs"]
@@ -441,22 +442,10 @@ def main(device="cpu"):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "adult":
-        dl = AdultDataLoader(
-            bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
-        val_dl = AdultDataLoader(
-            bs=16, num_rows=num_rows, num_target=1, split="val")
-        val_dl = iter(val_dl)
-    elif ds == "MLP":
-        dl = MLPDataLoader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets, 
-            num_cols=4, config=all_cfgs["MLP_DL_params"]
-        )
-        val_dl = iter(dl)
-    elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+    if ds == "total":
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                   balance_train=bal_train, one_v_all=one_v_all, split="train")
-        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                       split="val")
     elif ds == "mydata":
         dl = MyDataLoader(
@@ -473,10 +462,14 @@ def main(device="cpu"):
     else:
         raise Exception("Invalid dataset")
 
-    model = ModelHolder(device=device).to(device)
+    cfg = all_cfgs["Optim"]
+    lr = cfg["lr"]
+    eps = cfg["eps"]
+
+    model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=3e-4)
+    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -575,13 +568,13 @@ def main(device="cpu"):
         for name, abs_grad in save_grads.items():
             save_grads[name] = torch.div(abs_grad, val_interval)
 
-        # Print some useful stats from validation
-        save_ys_targ = torch.cat(save_ys_targ)
-        save_pred_labs = torch.cat(save_pred_labs)[:20]
-        print("Targets:    ", save_ys_targ[:20])
-        print("Predictions:", save_pred_labs[:20])
+            # Print some useful stats from validation
+            # save_ys_targ = torch.cat(save_ys_targ)
+            # save_pred_labs = torch.cat(save_pred_labs)[:20]
+            # print("Targets:    ", save_ys_targ[:20])
+            # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        # print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
+        print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
         # Save stats
         if save_holder is None:
@@ -593,11 +586,25 @@ def main(device="cpu"):
 
 
 if __name__ == "__main__":
-    import random
-
-    random.seed(1)
-    np.random.seed(1)
-    torch.manual_seed(1)
+    from evaluate_real_data import main as eval_main
+    tag = input("Desciption: ")
 
     dev = torch.device("cpu")
-    main(device=dev)
+    for test_no in range(1):
+
+        print("---------------------------------")
+        print("Starting test number", test_no)
+        main(all_cfgs=get_config(), device=dev)
+
+    print("")
+    print("Training Completed")
+
+    for eval_no in range(1):
+        print()
+        print("Eval number", eval_no)
+        eval_main(save_no=-(eval_no + 1))
+
+    print()
+    print()
+
+    print(tag)

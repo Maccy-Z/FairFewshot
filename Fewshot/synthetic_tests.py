@@ -5,19 +5,21 @@ from dataloader import d2v_pairer
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+from config import get_config
+
 
 def ys_fn(point):
     x, y, = point
 
-    label = (x**2 + y ** 2) > 0.8
-    label = x + y < 0.5
+    label = (x ** 2 + y ** 2) > 0.8
+    #label = x + y < 0.5
     return label
 
 
 def gen_synthetic():
     # Train/meta data
-    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 4),
-                            torch.linspace(-1, 1, 4))
+    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 6),
+                            torch.linspace(-1, 1, 6))
     xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
     xs_meta += 0.1 * torch.randn_like(xs_meta)
     ys_meta = torch.stack([ys_fn(point) for point in xs_meta]).long()
@@ -35,12 +37,12 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 45
+    save_no = 68
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
     state_dict = torch.load(f'{save_dir}/model.pt')
-    model = ModelHolder(cfg_file=f"./saves/save_{save_no}/defaults.toml")
+    model = ModelHolder(cfg_all=get_config(f"./saves/save_{save_no}/defaults.toml"))
     model.load_state_dict(state_dict['model_state_dict'])
 
     pairs_meta = d2v_pairer(xs_meta, ys_meta)
@@ -57,6 +59,7 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
     predictions = model.predict(X=xs_target)
     return predictions
 
+
 def main():
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic()
 
@@ -68,7 +71,6 @@ def main():
     plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     plt.legend()
     plt.title("Model predictions")
-
 
     # Logistic regression
     lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=LogisticRegression(max_iter=1000))
@@ -97,4 +99,5 @@ if __name__ == "__main__":
     # torch.manual_seed(0)
     # import numpy as np
     # np.random.seed(0)
-    main()
+    for _ in range(5):
+        main()

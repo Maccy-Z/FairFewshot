@@ -6,6 +6,7 @@ import random
 
 torch.manual_seed(0)
 
+
 # Loads a single dataset. Split into train and valid.
 class Dataset:
     def __init__(self, data_name, dtype=torch.float32, device="cpu"):
@@ -38,13 +39,13 @@ class Dataset:
         # Combine validation and test folds together
         data, labels = {}, {}
         pred_train = predictors[(1 - folds) == 1 & (vldfold == 0)]
-        pred_valid = predictors[(vldfold == 1) ]#| (folds == 1)]
+        pred_valid = predictors[(vldfold == 1)]  # | (folds == 1)]
         data["train"] = self._to_tensor(pred_train)
         data["valid"] = self._to_tensor(pred_valid)
 
         # get label folds
         labels_train = targets[(1 - folds) == 1 & (vldfold == 0)]
-        labels_valid = targets[(vldfold == 1) ]#| (folds == 1)]
+        labels_valid = targets[(vldfold == 1)]  # | (folds == 1)]
         labels["train"] = self._to_tensor(labels_train)
         labels["valid"] = self._to_tensor(labels_valid)
 
@@ -76,7 +77,6 @@ class DataLoader:
         self.ds = Dataset(ds_name, device=device)
         self.data, self.labels = self.ds.train(train)
         self.len = self.labels.shape[0]
-
 
     def __iter__(self):
         bs = self.bs

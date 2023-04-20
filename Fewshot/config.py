@@ -18,10 +18,10 @@ def write_toml():
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
                              "load_d2v": False,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
-                             "model_load": "model_main",  # Which D2V to load from
+                             "model_load": "model_3",  # Which D2V to load from
 
                              "weight_hid_dim": 64,      # Weight generator hidden dimension
-                             "gen_layers": 2,           # Weight deocder layers
+                             "gen_layers": 1,           # Weight deocder layers
 
                              "gat_heads": 2,            # Number of heads in GAT
                              "gat_layers": 2,           # Depth of GAT
@@ -39,7 +39,8 @@ def write_toml():
                              "learn_norm": True,
                              },
 
-                 "Optim": {"lr": 3e-4},
+                 "Optim": {"lr": 5e-4,
+                           "eps": 3e-4},
 
                  "DL_params": {"bs": 3,
                                "num_rows": 5,
@@ -53,7 +54,7 @@ def write_toml():
                                },
 
                  "Settings": {"num_epochs": 100,      # Number of trainin epochs
-                              "val_duration": 200,      # Number of batches of validation
+                              "val_duration": 100,      # Number of batches of validation
                               "val_interval": 1000,     # Number of batches to train for each epoch
                               "dataset": "mydata",
                               },
@@ -67,4 +68,7 @@ def write_toml():
 if __name__ == "__main__":
     print("Resetting config to defaults")
     write_toml()
-    get_config()
+    cfg = get_config()
+    for k, v in cfg.items():
+        print(k)
+        print(v)

@@ -89,7 +89,7 @@ class ModelTrainer:
 
         self.model = Dataset2Vec(h_size=h_size, out_size=out_size, n_blocks=n_blocks).to(device)
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
-        self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=10, min_ds_len=250)
+        self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=16, min_ds_len=250)
 
     def train_loop(self):
         self.dl.steps = 15000
@@ -168,7 +168,7 @@ class ModelTrainer:
         exp_diff_diff = torch.exp(- self.gamma * diff_diff)
         loss_diff = torch.mean(torch.log((1 - exp_diff_diff)))
 
-        loss = -(loss_same + 1.75 * loss_diff)
+        loss = -(loss_same + 1.25 * loss_diff)
 
         return loss, (same_diff, diff_diff)
 
@@ -298,3 +298,7 @@ if __name__ == "__main__":
 # same_accs = 0.9097, diff_accs = 0.9218
 # Train 15k
 # same_accs = 0.9123, diff_accs = 0.919
+
+# Standardise train procedure
+# same_accs = 0.8217, diff_accs = 0.849
+# same_accs = 0.8215, diff_accs = 0.8626

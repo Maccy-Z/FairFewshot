@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader
+from AllDataloader import AllDatasetDataLoader
 from config import get_config
 import os
 import toml
@@ -43,7 +43,24 @@ def get_predictions(xs_meta, xs_target, ys_meta, model):
     pairs_meta = d2v_pairer(xs_meta, ys_meta)
     with torch.no_grad():
         embed_meta, pos_enc = model.forward_meta(pairs_meta)
+
+    embed_meta.requires_grad = True
+    pos_enc.requires_grad = True
+    optim_pos = torch.optim.Adam([pos_enc], lr=0.01)
+    optim_embed = torch.optim.SGD([embed_meta, ], lr=100, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
+    for _ in range(5):
+        # Make predictions on meta set and calc loss
+        preds = model.forward_target(xs_meta, embed_meta, pos_enc)
+        loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
+        loss.backward()
+        optim_pos.step()
+        optim_embed.step()
+        optim_embed.zero_grad()
+        optim_pos.zero_grad()
+
+    with torch.no_grad():
         ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
+
     return ys_pred_target
 
 
@@ -51,6 +68,7 @@ def get_accuracy(ys_pred_target, ys_target):
     ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
     accuracy = (ys_pred_target_labels == ys_target).sum().item() / len(ys_target)
     return accuracy
+
 
 def get_baseline_predictions(model, xs_meta, ys_meta, xs_target, i):
     ys_meta = ys_meta.detach()[i].flatten()
@@ -78,7 +96,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
     return accuracy
 
 
-def main(save_no, ds_group, print_result=True):
+def main(save_no):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
@@ -93,29 +111,29 @@ def main(save_no, ds_group, print_result=True):
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = 16 # cfg["num_rows"]
+    num_rows = 10 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    # ds_group = 2 # cfg["ds_group"]
+    ds_group = -1  # cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
-    baseline_model_names = ['LR', 'SVC']
+    baseline_model_names = ['LR']  # , 'SVC', "Baseline model"]
 
-    col_accs = {}
     for num_cols in range(1, 20, 2):
-        accs = {name: [] for name in ["fewshot"] + baseline_model_names }
-        val_dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=5,
+        acc = []
+        baseline_acc = {name: [] for name in baseline_model_names}
+        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=5,
                                       num_cols=num_cols, ds_group=ds_group, split="val")
 
-        for j in range(2000):
+        for j in range(1000):
             # Fewshot predictions
-            model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
+            xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
-            accs["fewshot"].append(get_accuracy(ys_pred_target, ys_target))
+            acc.append(get_accuracy(ys_pred_target, ys_target))
 
             # Predictions for baseline models
             for base_model, model_name in zip(baseline_models, baseline_model_names):
-                accs[model_name].append(get_baseline_accuracy(
+                baseline_acc[model_name].append(get_baseline_accuracy(
                     model=base_model,
                     bs=bs,
                     xs_meta=xs_meta,
@@ -123,30 +141,27 @@ def main(save_no, ds_group, print_result=True):
                     ys_meta=ys_meta,
                     ys_target=ys_target
                 ))
+        # print('---------------------')
+        # print(f'num_cols: {num_cols}')
+        # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
+        # for model_name in baseline_model_names:
+        #     print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+        print(f'{np.mean(acc) - np.mean(baseline_acc["LR"]):.3f}')
 
-        for model_name, all_accs in accs.items():
-            mean_acc = np.mean(all_accs)
-            accs[model_name] = mean_acc
-
-        if print_result:
-            print()
-            for model_name, all_accs in accs.items():
-                print(f'{mean_acc:.3f}')
-
-        col_accs[num_cols] = accs
-
-    return col_accs
 
 if __name__ == "__main__":
     random.seed(0)
     np.random.seed(0)
     torch.manual_seed(0)
+    import torch
 
+    # x = torch.load("/mnt/storage_ssd/FairFewshot/saves/save_97/model.pt")
+    # print(x["model_state_dict"])
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    for eval_no in range(1):
+    for eval_no in [0]:  # range(1):
         print()
         print("Eval number", eval_no)
-        main(save_no=-(eval_no + 1), ds_group=2)
+        main(save_no=-(eval_no + 1))
 

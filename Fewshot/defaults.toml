@@ -6,9 +6,9 @@ pos_depth = 2
 pos_enc_dim = 15
 load_d2v = false
 freeze_d2v = false
-model_load = "model_main"
+model_load = "model_3"
 weight_hid_dim = 64
-gen_layers = 2
+gen_layers = 1
 gat_heads = 2
 gat_layers = 2
 gat_hid_dim = 128
@@ -23,7 +23,8 @@ learn_norm = true
 gat_in_dim = 16
 
 [Optim]
-lr = 0.0003
+lr = 0.0005
+eps = 0.0003
 
 [DL_params]
 bs = 3
@@ -37,7 +38,7 @@ val_data_names = [ "breast-cancer",]
 shuffle_cols = true
 
 [Settings]
-num_epochs = 100
-val_duration = 200
-val_interval = 1000
-dataset = "mydata"
+num_epochs = 31
+val_duration = 100
+val_interval = 2000
+dataset = "total"

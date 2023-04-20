@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import random
 import json
+from scipy import stats
 
 torch.manual_seed(0)
 
@@ -75,8 +76,13 @@ class Dataset:
             xs = xs[:, x_idx]
             ys = ys[:, y_idx]
 
-        #print(ys)
-        ys = self.binarise_data(ys)
+        # Normalise batch
+        m = xs.mean(0)
+        s = xs.std(0)
+        xs -= m
+        xs /= (s + 10e-4)
+
+        ys = self.one_vs_all(ys)
 
         # Turn data from table of x and table of y to all paris of (x, y)
         pair_output = []
@@ -124,10 +130,12 @@ class Dataset:
     @staticmethod
     def one_vs_all(ys):
         # identify the most common class and set it to 1, set everything else as 0
-        mode = ys.flatten().mode()[0]
+        #ys = ys.flatten()
+        mode = stats.mode(ys)[0]
+
         idx = ys == mode
 
-        ys = torch.zeros_like(ys).long()
+        ys = np.zeros_like(ys).astype(int)
         ys[idx] = 1
         return ys
 

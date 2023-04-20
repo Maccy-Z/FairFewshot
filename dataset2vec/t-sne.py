@@ -26,7 +26,7 @@ for ds in dataset:
     xs = ds.get_data(nsamples=50)
     data.append(xs)
 
-load = torch.load("./dataset2vec/model")
+load = torch.load("./dataset2vec/model_3")
 state, params = load["state_dict"], load["params"]
 model = Dataset2Vec(*params)
 model.load_state_dict(state)
@@ -43,7 +43,7 @@ cluster_labels = kmeans.fit_predict(embedded_data)
 # Print out the labels of the items in each cluster
 for i in range(kmeans.n_clusters):
     cluster_items = labels[(cluster_labels == i)]
-    print(f"Cluster {i+1}: {cluster_items}")
+    print(f"Cluster {i}: {cluster_items}")
     print()
 
 # Plot the embedded data
