@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import AllDatasetDataLoader
+from AllDataloader import SplitDataloader
 from config import get_config
 import os
 import toml
@@ -79,7 +79,7 @@ def get_baseline_accuracy(model, bs, xs_meta, ys_meta, xs_target, ys_target):
     return accuracy
 
 
-def main(save_no):
+def main(save_no, ds_group, print_result=True):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
@@ -94,29 +94,29 @@ def main(save_no):
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = 10 # cfg["num_rows"]
+    num_rows = 16 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = 5 # cfg["ds_group"]
+    # ds_group = 2 # cfg["ds_group"]
 
     bs = 1
     baseline_models = [LogisticRegression(max_iter=1000), SVC(), ZeroModel()]
     baseline_model_names = ['LR', 'SVC']
 
+    col_accs = {}
     for num_cols in range(1, 20, 2):
-        acc = []
-        baseline_acc = {name: [] for name in baseline_model_names}
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=5,
+        accs = {name: [] for name in ["fewshot"] + baseline_model_names }
+        val_dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=5,
                                       num_cols=num_cols, ds_group=ds_group, split="val")
 
         for j in range(2000):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
             ys_pred_target = get_predictions(xs_meta=xs_meta, xs_target=xs_target, ys_meta=ys_meta, model=model)
-            acc.append(get_accuracy(ys_pred_target, ys_target))
+            accs["fewshot"].append(get_accuracy(ys_pred_target, ys_target))
 
             # Predictions for baseline models
             for base_model, model_name in zip(baseline_models, baseline_model_names):
-                baseline_acc[model_name].append(get_baseline_accuracy(
+                accs[model_name].append(get_baseline_accuracy(
                     model=base_model,
                     bs=bs,
                     xs_meta=xs_meta,
@@ -124,16 +124,19 @@ def main(save_no):
                     ys_meta=ys_meta,
                     ys_target=ys_target
                 ))
-        # print('---------------------')
-        # print(f'num_cols: {num_cols}')
-        # print(f'Fewshot mean acc: {np.mean(acc):.3f}')
-        # for model_name in baseline_model_names:
-            # print(f'{model_name} mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-        # print(f'{np.mean(acc) - np.mean(baseline_acc["LR"]):.3f}')
-        print()
-        print(f'{np.mean(acc):.3f}')
-        for model_name in baseline_model_names:
-            print(f'{np.mean(baseline_acc[model_name]):.3f}')
+
+        for model_name, all_accs in accs.items():
+            mean_acc = np.mean(all_accs)
+            accs[model_name] = mean_acc
+
+        if print_result:
+            print()
+            for model_name, all_accs in accs.items():
+                print(f'{mean_acc:.3f}')
+
+        col_accs[num_cols] = accs
+
+    return col_accs
 
 if __name__ == "__main__":
     random.seed(0)
@@ -146,5 +149,5 @@ if __name__ == "__main__":
     for eval_no in range(1):
         print()
         print("Eval number", eval_no)
-        main(save_no=-(eval_no + 1))
+        main(save_no=-(eval_no + 1), ds_group=2)
 

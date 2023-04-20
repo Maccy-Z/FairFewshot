@@ -174,7 +174,7 @@ class MyDataSet:
 
 class AllDatasetDataLoader:
     def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
-
+        assert False
         self.bs = bs
         self.num_rows = num_rows + num_targets
         self.split = split
@@ -249,7 +249,7 @@ class SplitDataloader:
 
         self.get_valid_datasets()
 
-        print(f'Split: {split}, datasets: {self.datasets}')
+        # print(f'Split: {split}, datasets: {self.datasets}')
 
     def get_valid_datasets(self):
         ds_dir = f'{DATADIR}/grouped_datasets/'
