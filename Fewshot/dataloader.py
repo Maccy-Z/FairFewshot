@@ -288,36 +288,92 @@ class SimpleDataset():
 
         self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
             self.X, self.y, test_size=0.2, stratify=self.y, random_state=0)
-        
         self.data_train  = pd.DataFrame(self.X_train)
         self.data_train['label'] = self.y_train
         self.data_val  = pd.DataFrame(self.X_val)
-        self.data_val['label'] = self.y_val
+        self.data_val['label'] = self.y_val        
+        self.X_train.drop('label', axis=1, inplace=True)
+        self.X_val.drop('label', axis=1, inplace=True)
 
-    def stratified_sample(self, n_rows, norm=True, shuffle_cols=False):
+    def _shuffle_cols(self, xs):
+        col_idx = np.random.permutation(xs.shape[1])
+        return xs.iloc[:, col_idx]
+    
+    def _normalize(self, xs):
+        m = xs.mean(0, keepdim=True)
+        s = xs.std(0, unbiased=False, keepdim=True)
+        xs -= m
+        xs /= (s + 10e-4)
+        return xs
+
+    def stratified_sample(self, num_rows, norm=True, shuffle_cols=False, num_cols=None):
         # TO DO: handle imbalanced-classes better (do not sample with replacement)
         if self.split == "train":
             sample_data = self.data_train.groupby('label', group_keys=False).apply(
-                lambda x: x.sample(n_rows // 2, replace=True)).sample(n_rows)
+                lambda x: x.sample(num_rows // 2, replace=True)).sample(num_rows)
         else:
             sample_data = self.data_val.groupby('label', group_keys=False).apply(
-                lambda x: x.sample(n_rows // 2, replace=True)).sample(n_rows)
+                lambda x: x.sample(num_rows // 2, replace=True)).sample(num_rows)
         xs, ys = sample_data.iloc[:, :-1], sample_data.iloc[:, -1]
         if shuffle_cols:
-            col_idx = np.random.permutation(self.num_cols)
+            xs = self._shuffle_cols(xs)
+        if num_cols:
+            col_idx = np.random.permutation(num_cols)
             xs = xs.iloc[:, col_idx]
         xs = torch.tensor(xs.values, device='cpu', dtype=torch.float32)
         ys = torch.tensor(ys.values, device='cpu', dtype=torch.float32)
         if norm:
-            m = xs.mean(0, keepdim=True)
-            s = xs.std(0, unbiased=False, keepdim=True)
-            xs -= m
-            xs /= (s + 10e-4)
+            xs = self._normalize(xs)
         return xs, ys
+    
+    def _binary_vector(self, size, miss_rate):
+        while True:
+            vector = np.random.binomial(n=1, p=1-miss_rate, size=size)
+            if vector.sum() > 0:
+                return vector
+    
+    def get_missing(self, num_rows, miss_rate=0.5):
+        # generate x number of missing patterns and sample from them
+        num_total_rows = self.X_train.shape[0]
+        num_patterns = (num_total_rows // num_rows) // 5
+        patterns = [
+            self._binary_vector(self.X_train.shape[1], miss_rate=miss_rate)
+            for i in range(num_patterns)]
+        print("Number of generated missing patterns:", num_patterns)
+        self.train_mask = np.stack([
+            patterns[np.random.randint(num_patterns)] 
+            for i in range(self.X_train.shape[0])])
+        self.val_mask = np.stack([
+            patterns[np.random.randint(num_patterns)] 
+            for i in range(self.X_val.shape[0])])
+
+    def missing_sample(self, num_cols, num_rows, norm=True, shuffle_cols=False):
+        if self.split == "train":
+            data = self.data_train.copy()
+            mask = self.train_mask
+        elif self.split == "val":
+            data = self.data_val.copy()
+            mask = self.val_mask
+
+        pattern = mask[mask.sum(axis=1) == num_cols, :]
+        pattern = pattern[np.random.randint(pattern.shape[0]), :] # sample a pattern of missing columns
+        row_idx = np.where((mask == pattern).sum(axis=1) == mask.shape[1])[0] # select all rows with this pattern
+        col_idx = np.where(pattern == 1)[0]
+        sample_data = data.iloc[row_idx, list(col_idx) + [-1]]
+        sample_data = sample_data.groupby('label', group_keys=False).apply(
+                lambda x: x.sample(num_rows // 2, replace=True)).sample(num_rows)
+        xs, ys = sample_data.iloc[:, :-1], sample_data.iloc[:, -1]
+        if shuffle_cols:
+            xs = self._shuffle_cols(xs)
+        xs = torch.tensor(xs.values, device='cpu', dtype=torch.float32)
+        ys = torch.tensor(ys.values, device='cpu', dtype=torch.float32)
+        if norm:
+            xs = self._normalize(xs)
+        return xs, ys, pattern
 
 
 class DummyDataLoader():
-    def __init__(self, bs, num_rows, num_targets, num_cols, 
+    def __init__(self, bs, num_rows, num_targets, num_cols, fixed_num_cols=False,
                  split="train", norm=True, shuffle_cols=False, data_names=None):
         self.bs = bs
         self.num_rows = num_rows + num_targets
@@ -325,44 +381,102 @@ class DummyDataLoader():
         self.norm = norm
         self.shuffle_cols = shuffle_cols
         self.num_cols = num_cols
+        self.fixed_num_cols = fixed_num_cols
         if data_names:
             self.data_names = data_names
             self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]
         else:
             self.data_names = os.listdir(DATADIR)
             self.data_names.remove('info.json')
-            self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]
-        
+            self.all_datasets = [SimpleDataset(d, split=split) for d in self.data_names]    
+
+
+    def _fix_col_sample(self):
+        if isinstance(self.num_cols, list):
+            num_cols = np.random.choice(self.num_cols)
+        else:
+            num_cols = self.num_cols
+        self.datasets = [d for d in self.all_datasets if d.num_cols == num_cols]
+        datasets = random.choices(self.datasets, k=self.bs)
+        datanames = [d.data_name for d in datasets]
+        xs, ys = list(zip(*[d.stratified_sample(
+            self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols) 
+            for d in datasets]))
+        xs = torch.stack(xs)
+        ys = torch.stack(ys)
+        return xs, ys.long(), datanames
+    
+    def _random_col_sample(self):
+        num_data_cols = [d.num_cols for d in self.all_datasets]
+        if self.num_cols:
+            num_cols = np.random.choice(self.num_cols)
+        else:
+            min_col, max_col = 5, min(num_data_cols)
+            num_cols = np.random.randint(min_col, max_col)
+
+        datasets = random.choices(self.all_datasets, k=self.bs)
+        datanames = [d.data_name for d in datasets]
+        xs, ys = list(zip(*[d.stratified_sample(
+            self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols, num_cols=num_cols) 
+            for d in datasets]))
+        xs = torch.stack(xs)
+        ys = torch.stack(ys)
+        return xs, ys.long(), datanames
 
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            if isinstance(self.num_cols, list):
-                num_cols = np.random.choice(self.num_cols)
+            if self.fixed_num_cols:
+                yield self._fix_col_sample()
             else:
-                num_cols = self.num_cols
-            self.datasets = [d for d in self.all_datasets if d.num_cols == num_cols]
-            datasets = random.choices(self.datasets, k=self.bs)
-            datanames = [d.data_name for d in datasets]
-            xs, ys = list(zip(*[d.stratified_sample(
-                self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols) 
-                for d in datasets]))
+                yield self._random_col_sample()
+
+    
+
+
+class MissingDataLoader():
+    def __init__(self, bs, num_rows, num_targets, data_name, miss_rate=0.5,
+                 split="train", norm=True, shuffle_cols=True):
+        self.bs = bs
+        self.num_rows = num_rows + num_targets
+        self.norm = norm
+        self.dataset = SimpleDataset(data_name, split=split)
+        self.dataset.get_missing(num_rows=self.num_rows, miss_rate=miss_rate)
+        self.shuffle_cols = shuffle_cols
+        self.split = split
+
+    def __iter__(self):
+        """
+        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+        """
+        while True:
+            if self.split == "train":
+                num_cols = np.random.choice(np.unique(self.dataset.train_mask.sum(axis=1)))
+            else:
+                num_cols = np.random.choice(np.unique(self.dataset.val_mask.sum(axis=1)))
+            xs, ys, miss_patterns = list(zip(*[self.dataset.missing_sample(
+                num_rows=self.num_rows, num_cols=num_cols, 
+                norm=self.norm, shuffle_cols=self.shuffle_cols
+            ) for i in range(self.bs)]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-            yield xs, ys.long(), datanames
-
-
+            yield xs, ys.long(), miss_patterns
 
 if __name__ == "__main__":
     # Test if dataloader works.
     np.random.seed(0)
     torch.manual_seed(0)
 
-    dl = DummyDataLoader(bs=1, num_rows=10, num_targets=10, num_cols=5, data_names=['mammographic'], split="val", shuffle_cols=True)
+    dl = DummyDataLoader(
+        bs=1, num_rows=5, num_targets=5, num_cols=None, 
+        data_names=['oocytes_merluccius_nucleus_4d', 'oocytes_merluccius_states_2f'], 
+        split="val", shuffle_cols=True, fixed_num_cols=False)
+    # dl = MissingDataLoader(
+    #     data_name='breast-cancer-wisc', bs=1, num_rows=5, num_targets=5, 
+    #     miss_rate=0.5, split="val", norm=False, shuffle_cols=True
+    # )
 
-    for xs, ys, datanames in islice(dl, 5):
+    for xs, ys, datanames in islice(dl, 10):
         print(xs)
-        print(ys)
-        print(datanames)

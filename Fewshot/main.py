@@ -4,14 +4,17 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 import time
+import random
 
-from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader, DummyDataLoader
+from dataloader import AdultDataLoader, d2v_pairer, AllDatasetDataLoader, DummyDataLoader, MissingDataLoader
 from data_generation import MLPDataLoader
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 # from AllDataloader import AllDatasetDataLoader
 
+np.random.seed(0)
+random.seed(0)
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -423,13 +426,15 @@ def main(device="cpu"):
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    flip = cfg["flip"]
-    num_cols = cfg["num_cols"]
+    num_cols = cfg.get("num_cols")
     shuffle_cols = cfg["shuffle_cols"]
-    data_names = cfg.get("data_names")
+    train_data_names = cfg.get("train_data_names")
+    val_data_names = cfg.get("val_data_names")
+    miss_rate = cfg["miss_rate"]
     ds_group = cfg["ds_group"]
     bal_train = cfg["balance_train"]
     one_v_all = cfg["one_v_all"]
+    fixed_num_cols = cfg["fixed_num_cols"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -439,25 +444,54 @@ def main(device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "adult":
-        dl = AdultDataLoader(bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
-        val_dl = AdultDataLoader(bs=16, num_rows=num_rows, num_target=1, split="val")
+        dl = AdultDataLoader(
+            bs=bs, num_rows=num_rows, num_target=num_targets, split="train")
+        val_dl = AdultDataLoader(
+            bs=16, num_rows=num_rows, num_target=1, split="val")
         val_dl = iter(val_dl)
     elif ds == "MLP":
-        dl = MLPDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=4,
-                           config=all_cfgs["MLP_DL_params"])
+        dl = MLPDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=4, config=all_cfgs["MLP_DL_params"]
+        )
         val_dl = iter(dl)
     elif ds == "all":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, split="train")
-        val_dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, split="val")
+        dl = AllDatasetDataLoader(
+                bs=bs, num_rows=num_rows, num_targets=num_targets, 
+                num_cols=num_cols, split="train"
+            )
+        val_dl = AllDatasetDataLoader(
+                bs=bs, num_rows=num_rows, num_targets=num_targets, 
+                um_cols=num_cols, split="val"
+            )
         val_dl = iter(val_dl)
-    elif ds == "total":
-        dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
-                                  balance_train=bal_train, one_v_all=one_v_all, split="train")
-        val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
-                                      split="val")
+    elif ds == "missing":
+        dl = MissingDataLoader(
+                bs=bs, num_rows=num_rows, num_targets=num_targets, 
+                data_name=data_names[0], miss_rate=miss_rate, 
+                split="train", shuffle_cols=shuffle_cols
+            )
+        val_dl = MissingDataLoader(
+                bs=bs, num_rows=num_rows, num_targets=num_targets,
+                data_name=data_names[0], miss_rate=miss_rate, 
+                split="val", shuffle_cols=shuffle_cols
+            )
+    # elif ds == "total":
+    #     dl = AllDatasetDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+    #                               balance_train=bal_train, one_v_all=one_v_all, split="train")
+    #     val_dl = AllDatasetDataLoader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
+    #                                   split="val")
     elif ds == "dummy":
-        dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, data_names=data_names, split="train")
-        val_dl = DummyDataLoader(bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=num_cols, shuffle_cols=shuffle_cols, data_names=data_names, split="val")
+        dl = DummyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=num_cols, shuffle_cols=shuffle_cols, 
+            data_names=train_data_names, split="train", fixed_num_cols=fixed_num_cols
+        )
+        val_dl = DummyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=num_cols, shuffle_cols=shuffle_cols, 
+            data_names=val_data_names, split="val", fixed_num_cols=fixed_num_cols
+        )
 
     else:
         raise Exception("Invalid dataset")
@@ -481,9 +515,9 @@ def main(device="cpu"):
         # Train loop
         model.train()
         for batch in itertools.islice(dl, val_interval):
-            if ds == "adult":
+            try:
                 xs, ys = batch
-            else:
+            except(ValueError):
                 xs, ys, _ = batch
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
@@ -522,15 +556,15 @@ def main(device="cpu"):
             else:
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
-
+        print(f"Training accuracy : {np.round(np.mean(accs[-val_interval:]) * 100):.2f}")
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
         save_ys_targ, save_pred_labs = [], []
         for batch in itertools.islice(val_dl, val_duration):
-            if ds == "adult":
+            try:
                 xs, ys = batch
-            else:
+            except(ValueError):
                 xs, ys, _ = batch
             xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
