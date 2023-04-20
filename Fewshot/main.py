@@ -587,7 +587,7 @@ def main(all_cfgs, device="cpu"):
 
 if __name__ == "__main__":
     from evaluate_real_data import main as eval_main
-    tag = input("Desciption: ")
+    tag = input("Desrciption: ")
 
     dev = torch.device("cpu")
     for test_no in range(1):
