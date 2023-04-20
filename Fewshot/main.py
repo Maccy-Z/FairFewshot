@@ -526,7 +526,7 @@ def main(all_cfgs, device="cpu"):
             else:
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
-        print(f"Training accuracy : {np.round(np.mean(accs[-val_interval:]) * 100):.2f}")
+        print(f"Training accuracy : {np.round(np.mean(accs[-val_interval:]) * 100):.2f}%")
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
