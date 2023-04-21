@@ -37,7 +37,7 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 68
+    save_no = 1
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
@@ -62,6 +62,7 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
 
 def main():
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic()
+    print(xs_meta.shape, ys_meta.shape)
 
     # Our model
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
