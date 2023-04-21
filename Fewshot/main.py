@@ -576,7 +576,7 @@ if __name__ == "__main__":
     for eval_no in range(1):
         print()
         print("Eval number", eval_no)
-        eval_main(save_no=-(eval_no + 1))
+        eval_main(save_no=-(eval_no + 1), ds_group=-1)
 
     print()
     print()

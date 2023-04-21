@@ -1,7 +1,15 @@
 from evaluate_real_data import main as eval_main
 from tabulate import tabulate
+import torch
+import numpy as np
+import random
+
 
 if __name__ == "__main__":
+    # random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
+
     data = {}
     for ds_group in range(-1, 6, 1):
         row_accs = eval_main(save_no=-1, ds_group=ds_group, print_result=False)
