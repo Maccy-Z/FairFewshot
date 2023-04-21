@@ -100,6 +100,7 @@ class MyDataSet:
             self.allow_targs = np.arange(self.num_cols)
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
+            print(self.allow_targs)
 
         # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
         # Always done for val/test, optional for train
