@@ -57,7 +57,7 @@ class TabnetModel:
                 try:
                     self.model.fit(xs_meta, ys_meta,
                                    eval_set=[(xs_meta, ys_meta)], eval_name=["accuracy"],
-                                   batch_size=7, patience=10, drop_last=False)
+                                   batch_size=8, patience=10, drop_last=False)
                 except RuntimeError:
                     # Tabnet fails if multiple columns are exactly identical. Add a irrelevant amount of random noise to stop this.
                     xs_meta += np.random.normal(size=xs_meta.shape) * 1e-6
@@ -76,7 +76,8 @@ class TabnetModel:
             predictions = np.ones_like(ys_target) * self.pred_val
         else:
             xs_target = xs_target.detach()[0]
-            predictions = self.model.predict(X=xs_target)
+            with torch.no_grad():
+                predictions = self.model.predict(X=xs_target)
 
         ys_lr_target_labels = np.array(predictions).flatten()
         accuracy = (ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)

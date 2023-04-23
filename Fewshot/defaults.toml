@@ -33,6 +33,7 @@ num_targets = 5
 ds_group = -1
 balance_train = true
 one_v_all = true
+shuffle_cols = true
 
 [Settings]
 num_epochs = 21

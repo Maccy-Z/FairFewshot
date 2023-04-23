@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 import time
-
-from dataloader import AdultDataLoader, d2v_pairer
+import sys
+from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config

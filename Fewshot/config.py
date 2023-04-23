@@ -48,6 +48,7 @@ def write_toml():
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "balance_train": True,   # Balance dataloader during training
                                "one_v_all": True,       # How to binarise during training
+                               "shuffle_cols": True,
                                },
 
                  "Settings": {"num_epochs": 21,      # Number of train epochs
