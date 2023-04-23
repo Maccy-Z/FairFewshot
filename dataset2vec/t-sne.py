@@ -23,7 +23,7 @@ labels = np.array([str(ds)[4:] for ds in dataset])
 
 data = []
 for ds in dataset:
-    xs = ds.get_data(nsamples=50)
+    xs = ds.get_data(nsamples=100)
     data.append(xs)
 
 load = torch.load("./dataset2vec/model_3")
@@ -34,7 +34,7 @@ preds = model(data).detach().numpy()
 
 
 # Compute t-SNE embedding
-tsne = TSNE(n_components=2, random_state=42, perplexity=80)
+tsne = TSNE(n_components=2, random_state=42, perplexity=30)
 embedded_data = tsne.fit_transform(preds)
 
 # Perform K-means clustering
@@ -60,32 +60,32 @@ command = input("If you are happy with the clustering, type 'YES' clusters will 
 if command != "YES":
     print("Nothing done. Exiting")
 
-# Empty dir
-print("Deleting all old files")
-path = f'./datasets/grouped_datasets/'
-for file_name in os.listdir(path):
-    file_path = os.path.join(path, file_name)
-    try:
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-        elif os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-    except Exception as e:
-        print(f"Failed to delete {file_path}. Reason: {e}")
+# # Empty dir
+# print("Deleting all old files")
+# path = f'./datasets/grouped_datasets/'
+# for file_name in os.listdir(path):
+#     file_path = os.path.join(path, file_name)
+#     try:
+#         if os.path.isfile(file_path):
+#             os.remove(file_path)
+#         elif os.path.isdir(file_path):
+#             shutil.rmtree(file_path)
+#     except Exception as e:
+#         print(f"Failed to delete {file_path}. Reason: {e}")
 
 
-datasets = np.array(dataset)
-for i in range(num_clusters):
-    mask = (cluster_labels == i)
-    selected_ds = labels[mask]
+# datasets = np.array(dataset)
+# for i in range(num_clusters):
+#     mask = (cluster_labels == i)
+#     selected_ds = labels[mask]
 
-    for ds in selected_ds:
+#     for ds in selected_ds:
 
-        dst_dir = f'./datasets/grouped_datasets/{i}/{ds}'
-        if os.path.exists(f'./datasets/grouped_datasets/{i}/{ds}'):
-            shutil.rmtree(dst_dir)
+#         dst_dir = f'./datasets/grouped_datasets/{i}/{ds}'
+#         if os.path.exists(f'./datasets/grouped_datasets/{i}/{ds}'):
+#             shutil.rmtree(dst_dir)
 
-        shutil.copytree(f'./datasets/data/{ds}', f'./datasets/grouped_datasets/{i}/{ds}')
+#         shutil.copytree(f'./datasets/data/{ds}', f'./datasets/grouped_datasets/{i}/{ds}')
     # if os.path.exists("./datasets/data/"):
     #     print("EXISTS")
     # else:

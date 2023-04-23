@@ -39,7 +39,7 @@ class Dataset:
         # read internal target
         targets = pd.read_csv(f"{datadir}/labels_py.dat", header=None)
         targets = np.asarray(targets)
-
+        targets = self.one_vs_all(targets)
         # get data folds
 
         data = {}
@@ -82,7 +82,7 @@ class Dataset:
         xs -= m
         xs /= (s + 10e-4)
 
-        ys = self.one_vs_all(ys)
+        # ys = self.one_vs_all(ys)
 
         # Turn data from table of x and table of y to all paris of (x, y)
         pair_output = []

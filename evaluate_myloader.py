@@ -28,7 +28,26 @@ random.seed(0)
 sns.set_style('ticks')
 sns.set_palette('Set2')
 
-save_no = 63
+all_data_names = os.listdir('./datasets/data')
+all_data_names.remove('info.json')
+all_data_names.remove('.DS_Store')
+test_data_names = np.random.choice(all_data_names, size= len(all_data_names) // 5, replace=False)
+
+medical_datasets = [
+    'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+    'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
+    'breast-cancer-wisc-prog', 'cardiotocography-3clases', 
+    'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
+    'heart-hungarian', 'heart-switzerland', 'hepatitis', 'horse-colic',
+    'ilpd-indian-liver', 'lung-cancer', 'lymphography', 
+    'mammographic', 'parkinsons', 'post-operative', 'spect', 'statlog-heart',
+    'thyroid'
+]
+dl = MyDataLoader(bs=1, num_rows=5, num_targets=5, data_names=all_data_names)
+n_col = dict(zip(all_data_names, [d.num_cols for d in dl.datasets]))
+
+#%%
+save_no = 9
 base_dir = '.'
 save_dir = os.path.join(base_dir, f'saves/save_{save_no}')
 model_save = torch.load(os.path.join(save_dir, 'model.pt'))
@@ -41,7 +60,7 @@ num_targets = cfg["num_targets"]
 num_cols = cfg.get("num_cols")
 shuffle_cols = cfg["shuffle_cols"]
 
-model = ModelHolder()
+model = ModelHolder(cfg_all=all_cfgs)
 model.load_state_dict(model_save['model_state_dict'])
 
 def get_batch(dl):
@@ -129,60 +148,68 @@ def get_fewshot_acc(batch):
 baseline_models = [LogisticRegression(max_iter=1000)]#, SVC(), RandomForestClassifier(), GradientBoostingClassifier()]
 baseline_model_names = ['LR'] #, 'SVC', 'RF', 'GB']
 
-seen_data_names = cfg["train_data_names"] # Datasets used during training
-unseen_data_names = ['heart-cleveland'] # Datasets for testing
+all_data_names = cfg['all_data_names']
+unseen_data_names = cfg['test_data_names']
+seen_data_names = list(set(all_data_names).difference(set(unseen_data_names)))
+print('Seen', seen_data_names)
+print('Unseen', unseen_data_names)
 
-num_cols_ls = list(range(2, 9))
-results = pd.DataFrame()
+#%%
+results = dict()
+for unseen_data_name in unseen_data_names:
+    print("==============")
+    print(unseen_data_name)
+    num_cols_ls = list(range(2, n_col[unseen_data_name], 2))
+    results[unseen_data_name] = pd.DataFrame()
 
-for num_cols in num_cols_ls:
-    seen_acc = []
-    unseen_acc = []
-    baseline_acc = dict(zip(baseline_model_names, [[] for i in range(1)]))
-    seen_val_dl = MyDataLoader(
-        bs=bs, num_rows=num_rows, num_targets=num_targets, 
-        num_cols=[num_cols], data_names=seen_data_names, 
-        shuffle_cols=shuffle_cols, split="test"
-    )
-    unseen_val_dl = MyDataLoader(
-        bs=bs, num_rows=num_rows, num_targets=num_targets, 
-        num_cols=[num_cols], data_names=unseen_data_names, 
-        shuffle_cols=shuffle_cols, split="test"
-    )
-    
-    for j in range(200):
-        # Fewshot predictions
-        seen_val_batch = get_batch(seen_val_dl)
-        unseen_val_batch = get_batch(unseen_val_dl)
-        try:
-            model_id, xs_meta, xs_target, ys_meta, ys_target = unseen_val_batch
-        except:
-            xs_meta, xs_target, ys_meta, ys_target = unseen_val_batch
-        seen_acc.append(get_fewshot_acc(seen_val_batch))
-        unseen_acc.append(get_fewshot_acc(unseen_val_batch))
+    for num_cols in num_cols_ls:
+        seen_acc = []
+        unseen_acc = []
+        baseline_acc = dict(zip(baseline_model_names, [[] for i in range(1)]))
+        seen_val_dl = MyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=[num_cols], data_names=seen_data_names, 
+            shuffle_cols=shuffle_cols, split="test"
+        )
+        unseen_val_dl = MyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=[num_cols], data_names=[unseen_data_name], 
+            shuffle_cols=shuffle_cols, split="test"
+        )
+        
+        for j in range(200):
+            # Fewshot predictions
+            # seen_val_batch = get_batch(seen_val_dl)
+            unseen_val_batch = get_batch(unseen_val_dl)
+            try:
+                model_id, xs_meta, xs_target, ys_meta, ys_target = unseen_val_batch
+            except:
+                xs_meta, xs_target, ys_meta, ys_target = unseen_val_batch
+            # seen_acc.append(get_fewshot_acc(seen_val_batch))
+            unseen_acc.append(get_fewshot_acc(unseen_val_batch))
 
-         # Predictions for baseline models - fewshot
-        for base_model, model_name in zip(baseline_models, baseline_model_names):
-            baseline_acc[model_name].append(get_baseline_accuracy(
-                model=base_model,
-                xs_meta=xs_meta,
-                xs_target=xs_target,
-                ys_meta=ys_meta,
-                ys_target=ys_target
-            )) 
+            # Predictions for baseline models - fewshot
+            for base_model, model_name in zip(baseline_models, baseline_model_names):
+                baseline_acc[model_name].append(get_baseline_accuracy(
+                    model=base_model,
+                    xs_meta=xs_meta,
+                    xs_target=xs_target,
+                    ys_meta=ys_meta,
+                    ys_target=ys_target
+                )) 
 
-    print('---------------------')
-    print(f'num_cols: {num_cols}') 
-    print(f'Fewshot seen mean acc: {np.mean(seen_acc):.3f}')
-    print(f'Fewshot unseen mean acc: {np.mean(unseen_acc):.3f}')
-    results.loc[num_cols, 'fewshot seen'] = np.mean(seen_acc)
-    results.loc[num_cols, 'fewshot unseen'] = np.mean(unseen_acc)
-    for model_name in baseline_model_names:
-        print(f'{model_name} unseen mean acc: {np.mean(baseline_acc[model_name]):.3f}')
-        results.loc[num_cols, model_name] = np.mean(baseline_acc[model_name])
+        print('---------------------')
+        print(f'num_cols: {num_cols}') 
+        # print(f'Fewshot seen mean acc: {np.mean(seen_acc):.3f}')
+        print(f'Fewshot unseen mean acc: {np.mean(unseen_acc):.3f}')
+        # results.loc[num_cols, 'fewshot seen'] = np.mean(seen_acc)
+        results[unseen_data_name].loc[num_cols, 'fewshot unseen'] = np.mean(unseen_acc)
+        for model_name in baseline_model_names:
+            print(f'{model_name} unseen mean acc: {np.mean(baseline_acc[model_name]):.3f}')
+            results[unseen_data_name].loc[num_cols, model_name] = np.mean(baseline_acc[model_name])
 
-results.index.name = 'num_col'
-(results * 100).round(2)
+    results[unseen_data_name].index.name = 'num_col'
+    results[unseen_data_name] = (results[unseen_data_name] * 100).round(2)
 # %%
 # Embeddings
 # ----------
@@ -193,11 +220,11 @@ model_id_ls = []
 num_cols_ls = []
 
 dl = MyDataLoader(
-        bs=bs, num_rows=num_rows, num_targets=num_targets, 
-        num_cols=None, data_names=seen_data_names + unseen_data_names, 
-        shuffle_cols=shuffle_cols, split="test"
+        bs=bs, num_rows=20, num_targets=0, 
+        num_cols=None, data_names=seen_data_names + unseen_data_names,
+        shuffle_cols=shuffle_cols, split="train"
 )
-for i in range(400):
+for i in range(500):
     model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(dl)
     embed_meta, pos_enc = get_embedding(xs_meta, ys_meta, model)
     pos_enc_ls.append(pos_enc)
@@ -205,7 +232,7 @@ for i in range(400):
     model_id_ls.append(model_id)
 
 model_id_ls = [item for sublist in model_id_ls for item in sublist]
-embed_meta = torch.stack(embed_meta_ls).detach().reshape(400 * bs, 64)
+embed_meta = torch.stack(embed_meta_ls).detach().reshape(500 * bs, 64)
 
 scaler = StandardScaler()
 reducer = TSNE(n_components=3, perplexity=100)
@@ -218,15 +245,15 @@ reduced_embeddings_df = pd.DataFrame({
     'dim_3' : reduced_embeddings[:, 2],
     'model_id' : np.array(model_id_ls).astype(str),
 })
-
+#%%
 plot_df = reduced_embeddings_df
 fig, axs = plt.subplots(3, 1, figsize=(4, 12), sharex=True, sharey=True)
 sns.scatterplot(plot_df, x='dim_1', y='dim_2', ax=axs[0], hue='model_id', hue_order=seen_data_names + unseen_data_names)
-sns.scatterplot(plot_df[~plot_df.model_id.isin(unseen_data_names)], x='dim_1', y='dim_2', ax=axs[1], hue='model_id', hue_order=seen_data_names)
-sns.scatterplot(plot_df[plot_df.model_id.isin(unseen_data_names)], x='dim_1', y='dim_2', ax=axs[2], hue='model_id', palette=['C6'], hue_order=unseen_data_names)
+sns.scatterplot(plot_df[plot_df.model_id.isin(seen_data_names)], x='dim_1', y='dim_2', ax=axs[1], hue='model_id', hue_order=seen_data_names + unseen_data_names)
+sns.scatterplot(plot_df[plot_df.model_id.isin(unseen_data_names)], x='dim_1', y='dim_2', ax=axs[2], hue='model_id', hue_order=seen_data_names + unseen_data_names)
 fig.tight_layout()
-handles, labels = axs[0].get_legend_handles_labels()
-fig.legend(handles=handles, labels=labels, bbox_to_anchor=(0.75, 1.1))
+# handles, labels = axs[0].get_legend_handles_labels()
+# fig.legend(handles=handles, labels=labels, bbox_to_anchor=(0.75, 1.1))
 [ax.get_legend().remove() for ax in axs]
 plt.show()
 # %%

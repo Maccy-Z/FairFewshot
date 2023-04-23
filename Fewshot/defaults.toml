@@ -33,7 +33,8 @@ num_targets = 5
 ds_group = -1
 balance_train = true
 one_v_all = true
-train_data_names = [ "statlog-heart", "horse-colic", "fertility", "post-operative",]
+all_data_names = [ "acute-nephritis", "lymphography", "heart-cleveland", "heart-hungarian", "statlog-heart", "post-operative", "breast-cancer", "fertility", "spect", "hepatitis", "horse-colic", "thyroid",]
+test_data_names = [ "acute-nephritis", "statlog-heart", "breast-cancer",]
 shuffle_cols = true
 
 [Settings]

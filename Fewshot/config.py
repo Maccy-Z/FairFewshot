@@ -1,5 +1,14 @@
 import toml
+import os
+import numpy as np
+import random
+np.random.seed(0)
+random.seed(0)
 
+all_data_names = os.listdir('./datasets/data')
+all_data_names.remove('info.json')
+all_data_names.remove('.DS_Store')
+test_data_names = random.sample(all_data_names, len(all_data_names) // 5)
 
 def get_config(cfg_file=None):
     if cfg_file is None:
@@ -49,7 +58,8 @@ def write_toml():
                                "balance_train": True,   # Balance dataloader during training
                                "one_v_all": True,       # How to binarise during training
                                "num_cols": None,
-                               "train_data_names": ['statlog-heart', 'horse-colic', 'fertility', 'post-operative'],
+                               "all_data_names": [ "acute-nephritis", "lymphography", "heart-cleveland", "heart-hungarian", "statlog-heart", "post-operative", "breast-cancer", "fertility", "spect", "hepatitis", "horse-colic", "thyroid"],
+                               "test_data_names": ["acute-nephritis", "statlog-heart", "breast-cancer"],
                                "shuffle_cols": True,
                                },
 

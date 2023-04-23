@@ -94,8 +94,8 @@ class MyDataLoader():
             else:
                 min_col, max_col = self.min_num_cols, min(num_data_cols)
                 num_cols = np.random.randint(min_col, max_col)
-
-            datasets = random.choices(self.datasets, k=self.bs)
+            valid_datasets = [d for d in self.datasets if d.num_cols >= num_cols]
+            datasets = random.choices(valid_datasets, k=self.bs)
             datanames = [d.data_name for d in datasets]
             xs, ys = list(zip(*[d.stratified_sample(
                 self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols, num_cols=num_cols) 
@@ -110,9 +110,9 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     dl = MyDataLoader(
-        bs=1, num_rows=5, num_targets=5, num_cols=None, 
-        data_names=['oocytes_merluccius_nucleus_4d', 'oocytes_merluccius_states_2f'], 
-        split="train", shuffle_cols=True)
+        bs=1, num_rows=5, num_targets=5, num_cols=[8], 
+        data_names=['breast-cancer'], 
+        split="test", shuffle_cols=True)
 
-    for xs, ys, datanames in islice(dl, 10):
+    for xs, ys, datanames in islice(dl, 100):
         print(xs.shape)
