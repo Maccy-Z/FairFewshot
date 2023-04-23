@@ -9,7 +9,7 @@ from dataloader import AdultDataLoader, d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import AllDatasetDataLoader, SplitDataloader
+from AllDataloader import SplitDataloader
 
 
 class ResBlock(nn.Module):
@@ -290,17 +290,19 @@ class GNN(nn.Module):
         bs, num_rows, num_cols = xs.shape
         gat_weights, lin_weights = weight_list
 
-        # Flatten each table
+        # Flatten xs and append on positional encoding
         pos_enc = pos_enc.unsqueeze(1).repeat(1, num_rows, 1, 1).view(bs, num_rows * num_cols, -1)
         xs = xs.view(bs, num_rows * num_cols, 1)
         xs = torch.cat([xs, pos_enc], dim=-1)
 
+        # Edges are fully connected graph for each row. Rows are processed independently.
         edge_idx = self.graph_matrix(num_rows, num_cols).to(self.device)
 
         output = []
+        # Forward each batch separately
         for batch_weights, final_weight, x in zip(gat_weights, lin_weights, xs):
 
-            # Forward a single batch
+            # Forward each GAT layer
             for layer_weights in batch_weights:
                 lin_weight, src_weight, dst_weight, bias_weight = layer_weights
 
@@ -561,7 +563,13 @@ def main(all_cfgs, device="cpu"):
 
 if __name__ == "__main__":
     from evaluate_real_data import main as eval_main
-    tag = input("Desciption: ")
+    import random
+
+    # random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
+
+    tag = input("Description: ")
 
     dev = torch.device("cpu")
     for test_no in range(1):

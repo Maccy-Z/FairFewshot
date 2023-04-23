@@ -6,7 +6,61 @@ import random
 import toml
 
 DATADIR = './datasets'
-
+#
+# class AllDatasetDataLoader:
+#     def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
+#         assert False
+#         self.bs = bs
+#         self.num_rows = num_rows + num_targets
+#         self.split = split
+#         self.device = device
+#         self.num_cols = num_cols
+#         self.ds_group = ds_group
+#         self.train = (split == "train")
+#         self.balance_train = balance_train
+#         self.one_v_all = one_v_all
+#
+#         if not self.train and self.bs != 1:
+#             raise Exception("During val/test, BS must be 1 since full datasets are used.")
+#
+#         self.get_valid_datasets()
+#
+#     def get_valid_datasets(self):
+#         if self.ds_group == -1:
+#             ds_dir = f'{DATADIR}/data'
+#             all_data_names = os.listdir(ds_dir)
+#             all_data_names.remove('info.json')
+#         else:
+#             ds_dir = f'{DATADIR}/grouped_datasets/{self.ds_group}'
+#             all_data_names = os.listdir(ds_dir)
+#
+#         all_datasets = [
+#             MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device,
+#                       balance_train=self.balance_train, one_v_all=self.one_v_all)
+#             for d in all_data_names
+#         ]
+#         min_ds = 500 if self.train else self.num_rows * 2
+#         self.datasets = [
+#             d for d in all_datasets if d.tot_rows >= min_ds
+#         ]
+#
+#     def __iter__(self):
+#         """
+#         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+#         """
+#         while True:
+#             datasets = random.sample(self.datasets, self.bs)
+#             datanames = [d.data_name for d in datasets]
+#             if self.num_cols == -1:
+#                 num_xs = min([d.num_cols for d in datasets]) - 1
+#             else:
+#                 num_xs = self.num_cols
+#             xs, ys = list(zip(*[
+#                 datasets[i].sample(num_xs=num_xs)
+#                 for i in range(self.bs)]))
+#             xs = torch.stack(xs)
+#             ys = torch.stack(ys)
+#             yield xs, ys  # , datanames
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
     return torch.from_numpy(array).to(device).to(dtype)
@@ -100,7 +154,6 @@ class MyDataSet:
             self.allow_targs = np.arange(self.num_cols)
         else:
             self.allow_targs = np.arange(self.num_cols - num_ys, self.num_cols)
-            print(self.allow_targs)
 
         # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
         # Always done for val/test, optional for train
@@ -166,67 +219,57 @@ class MyDataSet:
         else:
             return self.sample(num_xs, force_next=True)
 
+    # Sampling used for SingleDataloader,
+    def sample2(self, num_xs):
+        """
+               Data columns and num_catagories,
+               0, Age: 76
+               1, Workclass: 9
+               2, fnlwgt: 18299
+               3, Education: 16
+               4, Education-num: 16
+               5, Marital: 7
+               6, Occupation: 15
+               7, Relation: 6
+               8, Race: 5
+               9, Sex: 2
+               10, Cap-gain: 118
+               11, Cap-loss: 91
+               12, Hr-per-wk: 92
+               13, Native_cont: 41
+               14, Income >50k: 2
+               """
+        #
+        # if self.num_rows > self.tot_rows:
+        #     self.num_rows = self.tot_rows
+
+        targ_col = self.num_cols - 1
+        predict_cols = np.arange(targ_col)
+
+        rows = np.random.choice(self.tot_rows, size=self.num_rows, replace=False, p=self.row_probs[targ_col].squeeze())
+
+        select_data = self.data[rows]
+
+        # Pick out wanted columns
+        xs = select_data[:, predict_cols]
+
+
+        ys = select_data[:, targ_col]
+        # Normalise xs
+        m = xs.mean(0, keepdim=True)
+        s = xs.std(0, unbiased=False, keepdim=True)
+        xs -= m
+        xs /= (s + 10e-4)
+
+        ys = one_vs_all(ys)
+
+        return xs, ys
+
     def __repr__(self):
         return self.data_name
 
     def __len__(self):
         return len(self.data)
-
-
-class AllDatasetDataLoader:
-    def __init__(self, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
-        assert False
-        self.bs = bs
-        self.num_rows = num_rows + num_targets
-        self.split = split
-        self.device = device
-        self.num_cols = num_cols
-        self.ds_group = ds_group
-        self.train = (split == "train")
-        self.balance_train = balance_train
-        self.one_v_all = one_v_all
-
-        if not self.train and self.bs != 1:
-            raise Exception("During val/test, BS must be 1 since full datasets are used.")
-
-        self.get_valid_datasets()
-
-    def get_valid_datasets(self):
-        if self.ds_group == -1:
-            ds_dir = f'{DATADIR}/data'
-            all_data_names = os.listdir(ds_dir)
-            all_data_names.remove('info.json')
-        else:
-            ds_dir = f'{DATADIR}/grouped_datasets/{self.ds_group}'
-            all_data_names = os.listdir(ds_dir)
-
-        all_datasets = [
-            MyDataSet(d, num_rows=self.num_rows, split=self.split, device=self.device,
-                      balance_train=self.balance_train, one_v_all=self.one_v_all)
-            for d in all_data_names
-        ]
-        min_ds = 500 if self.train else self.num_rows * 2
-        self.datasets = [
-            d for d in all_datasets if d.tot_rows >= min_ds
-        ]
-
-    def __iter__(self):
-        """
-        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
-        """
-        while True:
-            datasets = random.sample(self.datasets, self.bs)
-            datanames = [d.data_name for d in datasets]
-            if self.num_cols == -1:
-                num_xs = min([d.num_cols for d in datasets]) - 1
-            else:
-                num_xs = self.num_cols
-            xs, ys = list(zip(*[
-                datasets[i].sample(num_xs=num_xs)
-                for i in range(self.bs)]))
-            xs = torch.stack(xs)
-            ys = torch.stack(ys)
-            yield xs, ys  # , datanames
 
 
 class SplitDataloader:
@@ -264,7 +307,7 @@ class SplitDataloader:
         for split in get_splits:
             ds_names = splits[str(split)][self.split]
             for name in ds_names:
-                ds = MyDataSet(name, num_rows=self.num_rows, device=self.device, split="test",
+                ds = MyDataSet(name, num_rows=self.num_rows, device=self.device, split="all",
                                balance_train=self.balance_train, one_v_all=self.one_v_all)
                 all_datasets.append(ds)
 
@@ -294,19 +337,58 @@ class SplitDataloader:
     def __repr__(self):
         return str(self.datasets)
 
-if __name__ == "__main__":
-    dl = SplitDataloader(bs=1, num_rows=16, num_targets=3, num_cols=-1, ds_group=4, one_v_all=True, split="train")
-    print(dl)
 
-    exit(10)
+class SingleDataloader:
+    def __init__(self, ds_name, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
+
+        self.ds_name = ds_name
+        self.bs = bs
+        self.num_rows = num_rows + num_targets
+        self.device = device
+        self.num_cols = num_cols
+        self.balance_train = balance_train
+        self.one_v_all = one_v_all
+
+        self.train = (split == "train")
+        if split == "val":
+            split = "test"
+        self.split = split
+
+        if not self.train and self.bs != 1:
+            raise Exception("During val/test, BS must be 1 since full datasets are used.")
+
+        self.ds = MyDataSet(self.ds_name, num_rows=self.num_rows, device=self.device, split="all",
+                            balance_train=self.balance_train, one_v_all=self.one_v_all)
+
+    def __iter__(self):
+        """
+        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
+        """
+        while True:
+            datasets = [self.ds]
+
+            num_xs = self.num_cols
+
+            xs, ys = list(zip(*[
+                datasets[i].sample2(num_xs=num_xs)
+                for i in range(self.bs)]))
+            xs = torch.stack(xs)
+            ys = torch.stack(ys)
+            yield xs, ys  # , datanames
+
+    def __repr__(self):
+        return self.ds_name
+
+
+if __name__ == "__main__":
+    #dl = SplitDataloader(bs=1, num_rows=16, num_targets=3, num_cols=-1, ds_group=4, one_v_all=True, split="train")
+    dl = SingleDataloader(ds_name="adult", bs=1, num_rows=16, num_targets=3, num_cols=-1, ds_group=4, one_v_all=True, split="train")
 
     means = []
     dl = iter(dl)
     y_count = {i: 0 for i in range(20)}
     for _ in range(1000):
         x, y = next(dl)
-
-        print(x.shape)
 
         num = torch.sum(y).item()
         y_count[num] += 1

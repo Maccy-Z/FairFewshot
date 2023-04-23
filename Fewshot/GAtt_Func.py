@@ -58,6 +58,7 @@ class GATConvFunc(MessagePassing):
         # Next, we compute node-level attention coefficients, both for source
         # and target nodes (if present):
         # Identical to dot product here,
+
         alpha_src = (xs * att_src).sum(-1)
         alpha_dst = (xs * att_dst).sum(-1)
         alpha = (alpha_src, alpha_dst)
@@ -73,7 +74,15 @@ class GATConvFunc(MessagePassing):
             edge_index, None, fill_value=self.fill_value,
             num_nodes=num_nodes)
 
+        # Compute attention weights alpha.
         alpha = self.edge_updater(edge_index, alpha=alpha, edge_attr=None)
+        self.save_alpha = alpha
+        self.edge_index = edge_index
+        # print(alpha)
+        #
+        # print(edge_index)
+        #
+        # exit(3)
         out = self.propagate(edge_index, x=x, alpha=alpha, size=None)
 
         # Concatenate output
@@ -160,7 +169,6 @@ class GATConvFunc(MessagePassing):
                     size_i: Optional[int]) -> Tensor:
         # Given edge-level attention coefficients for source and target nodes,
         # we simply need to sum them up to "emulate" concatenation:
-
         alpha = alpha_j + alpha_i
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = softmax(alpha, index, ptr, size_i)
@@ -173,8 +181,8 @@ class GATConvFunc(MessagePassing):
 
 def main():
     # Compare the outputs of GATconv vs functional implementation
-    in_dim, out_dim = 1, 5
-    heads = 2
+    in_dim, out_dim = 1, 2
+    heads = 5
 
     linear_weight = torch.rand((out_dim * heads, in_dim), requires_grad=True)
     src = torch.rand((1, heads, out_dim))
@@ -183,9 +191,9 @@ def main():
 
     model = GATConvFunc()
 
-    edge_index = torch.tensor([[0, 1, 1, 2],
-                               [1, 0, 2, 1]], dtype=torch.long)
-    data = torch.tensor([[-1], [0], [1]], dtype=torch.float)
+    edge_index = torch.tensor([[0, 1, 1, 2, 0, 2],
+                               [1, 0, 2, 1, 2, 0]], dtype=torch.long)
+    data = torch.tensor([[1], [30.], [1]], dtype=torch.float)
 
     func_out = model(data, edge_index, lin_weight=linear_weight, att_src=src, att_dst=dst, bias=bias)
 
@@ -202,12 +210,12 @@ def main():
     print()
     print("Normal GATConv output")
     print(base_out)
-    loss = torch.mean(base_out)
-    loss.backward()
-    print(model2.lin_src.weight.grad)
+    # loss = torch.mean(base_out)
+    # loss.backward()
+    # print(model2.lin_src.weight.grad)
 
 if __name__ == "__main__":
-    torch.manual_seed(123)
+   # torch.manual_seed(123)
     main()
 
     # tensor([[0.4632, 0.5067, 0.4027],

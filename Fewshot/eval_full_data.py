@@ -1,8 +1,5 @@
 from evaluate_real_data import main as eval_main
 from tabulate import tabulate
-import torch
-import numpy as np
-import random
 
 
 if __name__ == "__main__":
