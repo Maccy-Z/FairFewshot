@@ -441,8 +441,8 @@ def main(all_cfgs, device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "total":
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
-                                  balance_train=bal_train, one_v_all=one_v_all, split="train")
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group
+                                  , split="train")
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                       split="val")
     elif ds == "mydata":
