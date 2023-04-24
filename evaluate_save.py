@@ -1,17 +1,18 @@
 import torch
 import sys
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot/Fewshot')
-from Fewshot.main import *
-from Fewshot.mydataloader import MyDataLoader
-import os
-import toml
 
+import os
 import pandas as pd
 import seaborn as sns
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 import xgboost as xgb
+
+from Fewshot.main import *
+from Fewshot.mydataloader import MyDataLoader
+from myutils import get_batch, load_model, get_flat_embedding
 
 np.random.seed(0)
 random.seed(0)
@@ -23,36 +24,6 @@ all_data_names.remove('info.json')
 all_data_names.remove('.DS_Store')
 dl = MyDataLoader(bs=1, num_rows=5, num_targets=5, data_names=all_data_names)
 num_col_dict = dict(zip(all_data_names, [d.num_cols for d in dl.datasets]))
-
-
-def load_model(save_no):
-    save_dir = os.path.join(f'./saves/save_{save_no}')
-    model_save = torch.load(os.path.join(save_dir, 'model.pt'))
-    all_cfgs = toml.load(os.path.join(save_dir, 'defaults.toml'))
-    model = ModelHolder(cfg_all=all_cfgs)
-    model.load_state_dict(model_save['model_state_dict'])
-    return model, all_cfgs
-
-def get_batch(dl, num_rows):
-    try:
-        xs, ys, model_id = next(iter(dl))
-    except:
-        xs, ys = next(iter(dl))
-        model_id = []
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    ys_target = ys_target.view(-1)
-
-    if len(model_id) > 0:
-        return model_id, xs_meta, xs_target, ys_meta, ys_target
-    return xs_meta, xs_target, ys_meta, ys_target
-
-def get_flat_embedding(model, xs_meta, ys_meta):
-    pairs_meta = d2v_pairer(xs_meta, ys_meta)
-    embed_meta, pos_enc = model.forward_meta(pairs_meta)
-    return embed_meta, pos_enc
 
 def get_flat_preddictions(model, xs_target, embed_meta, pos_enc):
     ys_pred_target =  model.forward_target(xs_target, embed_meta, pos_enc)
