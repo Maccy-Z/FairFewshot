@@ -49,9 +49,11 @@ def write_toml():
                                "balance_train": True,   # Balance dataloader during training
                                "one_v_all": True,       # How to binarise during training
                                "shuffle_cols": True,
+                               "train_data_names": ['statlog-heart', 'horse-colic', 'fertility', 'post-operative'],
+                               "num_cols": None,
                                },
 
-                 "Settings": {"num_epochs": 21,      # Number of train epochs
+                 "Settings": {"num_epochs": 41,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "total",

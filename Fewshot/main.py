@@ -10,7 +10,7 @@ from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-
+from mydataloader import MyDataLoader
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -429,6 +429,9 @@ def main(all_cfgs, device="cpu"):
     ds_group = cfg["ds_group"]
     bal_train = cfg["balance_train"]
     one_v_all = cfg["one_v_all"]
+    train_data_names = cfg["train_data_names"]
+    num_cols = cfg.get("num_cols")
+    shuffle_cols = cfg["shuffle_cols"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -442,6 +445,17 @@ def main(all_cfgs, device="cpu"):
                                   balance_train=bal_train, one_v_all=one_v_all, split="train")
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
                                       split="val")
+    elif ds == "mydata":
+        dl = MyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            num_cols=num_cols, shuffle_cols=shuffle_cols,
+            data_names=train_data_names, split="train"
+        )
+        val_dl = MyDataLoader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            num_cols=num_cols, shuffle_cols=shuffle_cols,
+            data_names=train_data_names, split="val"
+        )
     else:
         raise Exception("Invalid dataset")
 

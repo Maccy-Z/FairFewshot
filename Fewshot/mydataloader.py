@@ -40,8 +40,12 @@ class SimpleDataset():
             dataset = self.val
         elif self.split == "test":
             dataset = self.test
+
         sample_data = dataset.groupby('label', group_keys=False).apply(
-            lambda x: x.sample(num_rows // 2, replace=True)).sample(num_rows)
+            lambda x: x.sample(num_rows // 2 + 1, replace=True))
+
+        sample_data = sample_data.sample(num_rows)
+
         xs, ys = sample_data.iloc[:, :-1], sample_data.iloc[:, -1]
         if shuffle_cols:
             xs = self._shuffle_cols(xs)
@@ -54,7 +58,7 @@ class SimpleDataset():
             xs = self._normalize(xs)
         return xs, ys
 
-class MyDataLoader():
+class MyDataLoader:
     def __init__(self, bs, num_rows, num_targets, data_names, num_cols = None,
                  split="train", norm=True, shuffle_cols=False, min_num_cols=2):
         """
@@ -102,7 +106,7 @@ class MyDataLoader():
                 for d in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-            yield xs, ys.long(), datanames
+            yield xs, ys.long()# , datanames
         
 if __name__ == "__main__":
     # Test if dataloader works.

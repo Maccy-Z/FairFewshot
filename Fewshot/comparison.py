@@ -13,6 +13,7 @@ from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
+from sklearn.ensemble import RandomForestClassifier
 from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
@@ -88,6 +89,53 @@ class TabnetModel:
         return "TabNet"
 
 
+class FTTrModel:
+    model: torch.nn.Module
+    def __init__(self):
+        self.null_categ = torch.tensor([[]])
+
+    def fit(self, xs_meta, ys_meta):
+        ys_meta = ys_meta.detach()[0].flatten()
+        xs_meta = xs_meta.detach()[0]
+        # Reset the model
+        self.model = FTTransformer(
+            categories=(),  # tuple containing the number of unique values within each category
+            num_continuous=xs_meta.shape[-1],  # number of continuous values
+            dim=16,  # dimension, paper set at 32
+            dim_out=2,  # binary prediction, but could be anything
+            depth=4,  # depth, paper recommended 6
+            heads=2,  # heads, paper recommends 8
+            # attn_dropout=0.1,  # post-attention dropout
+            # ff_dropout=0.1  # feed forward dropout
+        )
+
+        optim = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+
+        for _ in range(50):
+            x_categ = torch.tensor([[]])
+            clf = self.model(x_categ, xs_meta)
+
+            loss = torch.nn.functional.cross_entropy(clf, ys_meta.squeeze())
+            loss.backward()
+            optim.step()
+            optim.zero_grad()
+
+
+    def get_acc(self, xs_target, ys_target):
+        xs_target = xs_target[0]
+
+        self.model.eval()
+        with torch.no_grad():
+            target_preds = self.model(self.null_categ, xs_target)
+        preds = torch.argmax(target_preds, dim=1)
+        accuracy = (preds == ys_target).sum().item() / len(ys_target)
+
+        return accuracy
+
+    def __repr__(self):
+        return "FTTransformer"
+
+
 class BasicModel:
     def __init__(self, name):
         match name:
@@ -100,6 +148,8 @@ class BasicModel:
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=6, depth=4, learning_rate=1,
                            loss_function='Logloss',allow_const_label=True, verbose=False)
+            case "R_Forest":
+                self.model = RandomForestClassifier(n_estimators=100)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -168,53 +218,6 @@ class Fewshot:
         return "Fewshot"
 
 
-class FTTrModel:
-    model: torch.nn.Module
-    def __init__(self):
-        self.null_categ = torch.tensor([[]])
-
-    def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.detach()[0].flatten()
-        xs_meta = xs_meta.detach()[0]
-        # Reset the model
-        self.model = FTTransformer(
-            categories=(),  # tuple containing the number of unique values within each category
-            num_continuous=xs_meta.shape[-1],  # number of continuous values
-            dim=16,  # dimension, paper set at 32
-            dim_out=2,  # binary prediction, but could be anything
-            depth=4,  # depth, paper recommended 6
-            heads=2,  # heads, paper recommends 8
-            # attn_dropout=0.1,  # post-attention dropout
-            # ff_dropout=0.1  # feed forward dropout
-        )
-
-        optim = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-
-        for _ in range(50):
-            x_categ = torch.tensor([[]])
-            clf = self.model(x_categ, xs_meta)
-
-            loss = torch.nn.functional.cross_entropy(clf, ys_meta.squeeze())
-            loss.backward()
-            optim.step()
-            optim.zero_grad()
-
-
-    def get_acc(self, xs_target, ys_target):
-        xs_target = xs_target[0]
-
-        self.model.eval()
-        with torch.no_grad():
-            target_preds = self.model(self.null_categ, xs_target)
-        preds = torch.argmax(target_preds, dim=1)
-        accuracy = (preds == ys_target).sum().item() / len(ys_target)
-
-        return accuracy
-
-    def __repr__(self):
-        return "FTTransformer"
-
-
 def main(save_no, ds_group=-1, print_result=True):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
@@ -230,9 +233,10 @@ def main(save_no, ds_group=-1, print_result=True):
     # ds_group = 2 # cfg["ds_group"]
 
     models = [Fewshot(save_dir),
-              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("KNN"),
-              TabnetModel(),
-              FTTrModel()
+              # BasicModel("LR"), #BasicModel("CatBoost"), BasicModel("KNN"),
+              #TabnetModel(),
+                # FTTrModel()
+              BasicModel("R_Forest"),
               ]
 
     col_accs = {}
@@ -241,7 +245,7 @@ def main(save_no, ds_group=-1, print_result=True):
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
                                  num_cols=num_cols, ds_group=ds_group, split="val")
 
-        for j in range(400):
+        for j in range(500):
             # Fewshot predictions
             xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
 
@@ -259,6 +263,7 @@ def main(save_no, ds_group=-1, print_result=True):
             print(num_cols)
             for model_name, all_accs in accs.items():
                 print(f'{model_name}, {all_accs:.3f}')
+                # print(f'{all_accs:.3f}')
 
     return col_accs
 
@@ -271,9 +276,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    for eval_no in range(1):
-        print()
-        print("Eval number", eval_no)
-        col_accs = main(save_no=-(eval_no + 1), ds_group=-1)
+    col_accs = main(save_no=-2, ds_group=-1)
 
-        print(col_accs)
+    print(col_accs)

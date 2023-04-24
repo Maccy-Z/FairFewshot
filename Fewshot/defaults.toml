@@ -34,9 +34,10 @@ ds_group = -1
 balance_train = true
 one_v_all = true
 shuffle_cols = true
+train_data_names = [ "statlog-heart", "horse-colic", "fertility", "post-operative",]
 
 [Settings]
-num_epochs = 21
+num_epochs = 31
 val_duration = 100
 val_interval = 2000
-dataset = "total"
+dataset = "mydata"
