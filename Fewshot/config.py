@@ -2,13 +2,16 @@ import toml
 import os
 import numpy as np
 import random
+import json
+
 np.random.seed(0)
 random.seed(0)
 
-all_data_names = os.listdir('./datasets/data')
-all_data_names.remove('info.json')
-all_data_names.remove('.DS_Store')
-test_data_names = random.sample(all_data_names, len(all_data_names) // 5)
+N_SPLIT = 0
+N_SPLIT = str(N_SPLIT)
+
+with open('./datasets/med_splits.json') as f:
+    med_splits = json.load(f)
 
 def get_config(cfg_file=None):
     if cfg_file is None:
@@ -57,13 +60,14 @@ def write_toml():
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "balance_train": True,   # Balance dataloader during training
                                "one_v_all": True,       # How to binarise during training
-                               "num_cols": None,
-                               "all_data_names": [ "acute-nephritis", "lymphography", "heart-cleveland", "heart-hungarian", "statlog-heart", "post-operative", "breast-cancer", "fertility", "spect", "hepatitis", "horse-colic", "thyroid"],
-                               "test_data_names": ["acute-nephritis", "statlog-heart", "breast-cancer"],
+                               "num_split": N_SPLIT,
+                               "num_cols": list(range(2, med_splits[N_SPLIT]['max_col'] + 1)),
+                               "train_data_names": med_splits[N_SPLIT]['train'],
+                               "test_data_names": med_splits[N_SPLIT]['test'],
                                "shuffle_cols": True,
                                },
 
-                 "Settings": {"num_epochs": 100,      # Number of trainin epochs
+                 "Settings": {"num_epochs": 50,      # Number of trainin epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 1000,     # Number of batches to train for each epoch
                               "dataset": "mydata",

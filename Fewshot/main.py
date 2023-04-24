@@ -433,9 +433,8 @@ def main(all_cfgs, device="cpu"):
     ds_group = cfg["ds_group"]
     bal_train = cfg["balance_train"]
     one_v_all = cfg["one_v_all"]
-    all_data_names = cfg["all_data_names"]
+    train_data_names = cfg["train_data_names"]
     test_data_names = cfg["test_data_names"]
-    train_data_names = list(set(all_data_names).difference(set(test_data_names)))
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -451,16 +450,16 @@ def main(all_cfgs, device="cpu"):
                                       split="val")
     elif ds == "mydata":
         print("training datasets:", train_data_names)
+        print("test datasets:", test_data_names)
         dl = MyDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets, 
             num_cols=num_cols, shuffle_cols=shuffle_cols, 
             data_names=train_data_names, split="train"
         )
-        print("test datasets:", test_data_names)
         val_dl = MyDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets, 
             num_cols=num_cols, shuffle_cols=shuffle_cols, 
-            data_names=test_data_names, split="val"
+            data_names=train_data_names, split="val"
         )
 
     else:

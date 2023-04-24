@@ -33,12 +33,14 @@ num_targets = 5
 ds_group = -1
 balance_train = true
 one_v_all = true
-all_data_names = [ "acute-nephritis", "lymphography", "heart-cleveland", "heart-hungarian", "statlog-heart", "post-operative", "breast-cancer", "fertility", "spect", "hepatitis", "horse-colic", "thyroid",]
-test_data_names = [ "acute-nephritis", "statlog-heart", "breast-cancer",]
+num_split = "0"
+num_cols = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,]
+train_data_names = [ "dermatology", "hepatitis", "lung-cancer", "breast-cancer-wisc-prog", "cardiotocography-3clases", "breast-tissue", "statlog-heart", "thyroid", "acute-inflammation", "breast-cancer-wisc-diag", "parkinsons", "arrhythmia", "echocardiogram", "mammographic", "heart-cleveland", "lymphography", "blood", "primary-tumor", "heart-hungarian", "acute-nephritis", "spect", "heart-va", "spectf", "heart-switzerland", "fertility", "breast-cancer-wisc", "ilpd-indian-liver",]
+test_data_names = [ "post-operative", "breast-cancer", "horse-colic", "vertebral-column-2clases",]
 shuffle_cols = true
 
 [Settings]
-num_epochs = 100
+num_epochs = 50
 val_duration = 100
 val_interval = 1000
 dataset = "mydata"
