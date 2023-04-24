@@ -9,7 +9,7 @@ import shutil
 import os
 
 from dataset2vec import Dataset2Vec
-from d2v_dataset import Dataloader
+from my_d2v_dataset import Dataloader
 
 print(os.getcwd())
 
@@ -26,7 +26,7 @@ for ds in dataset:
     xs = ds.get_data(nsamples=100)
     data.append(xs)
 
-load = torch.load("./dataset2vec/model_3")
+load = torch.load("./dataset2vec/model_saves/my_model_50k")
 state, params = load["state_dict"], load["params"]
 model = Dataset2Vec(*params)
 model.load_state_dict(state)
@@ -34,7 +34,7 @@ preds = model(data).detach().numpy()
 
 
 # Compute t-SNE embedding
-tsne = TSNE(n_components=2, random_state=42, perplexity=30)
+tsne = TSNE(n_components=2, random_state=42, perplexity=10)
 embedded_data = tsne.fit_transform(preds)
 
 # Perform K-means clustering

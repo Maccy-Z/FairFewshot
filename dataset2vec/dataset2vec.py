@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from d2v_dataset import Dataloader
+from my_d2v_dataset import Dataloader
 import time
 import numpy as np
 import random
@@ -91,8 +91,8 @@ class ModelTrainer:
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=3e-4)
         self.dl = Dataloader(bs=12, bs_num_ds=6, device=device, nsamples=16, min_ds_len=250)
 
-    def train_loop(self):
-        self.dl.steps = 15000
+    def train_loop(self, n_steps=15000):
+        self.dl.steps = n_steps
         self.dl.train(True)
 
         st = time.time()
@@ -172,9 +172,9 @@ class ModelTrainer:
 
         return loss, (same_diff, diff_diff)
 
-    def save_model(self):
+    def save_model(self, save_name):
         torch.save({"state_dict": self.model.state_dict(),
-                    "params": self.params}, "./dataset2vec/model")
+                    "params": self.params}, f"./dataset2vec/model_saves/{save_name}")
 
     def load_model(self):
         self.model = torch.load("./dataset2vec/model")
@@ -184,12 +184,10 @@ if __name__ == "__main__":
 
     trainer = ModelTrainer(device=d)
 
-    trainer.train_loop()
-    print()
-    print()
-    trainer.test_loop()
-
-    trainer.save_model()
+    for i in range(5):
+        trainer.train_loop(n_steps=10000)
+        trainer.test_loop()
+        trainer.save_model(f'my_model_{(i + 1)*10}k')
 
 
 """# 64 32
