@@ -29,7 +29,7 @@ all_data_names.remove('.DS_Store')
 dl = MyDataLoader(bs=1, num_rows=5, num_targets=5, data_names=all_data_names)
 num_col_dict = dict(zip(all_data_names, [d.num_cols for d in dl.datasets]))
 
-save_no = 5
+save_no = 0
 base_dir = '.'
 model, all_cfg = load_model(save_no)
 cfg = all_cfg["DL_params"]
@@ -53,7 +53,7 @@ for d in seen_data_names + unseen_data_names:
     )
     for i in range(50):
         model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(dl, num_rows)
-        embed_meta, pos_enc = get_flat_embedding(xs_meta, ys_meta, model)
+        embed_meta, pos_enc = get_flat_embedding(model, xs_meta, ys_meta)
         embed_meta_ls.append(embed_meta)
         model_id_ls.append(model_id)
 

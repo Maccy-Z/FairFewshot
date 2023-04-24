@@ -27,7 +27,7 @@ def get_batch(dl, num_rows):
         return model_id, xs_meta, xs_target, ys_meta, ys_target
     return xs_meta, xs_target, ys_meta, ys_target
 
-def get_flat_embedding(xs_meta, ys_meta, model):
+def get_flat_embedding(model, xs_meta, ys_meta):
     pairs_meta = d2v_pairer(xs_meta, ys_meta)
     embed_meta, pos_enc = model.forward_meta(pairs_meta)
     return embed_meta, pos_enc
