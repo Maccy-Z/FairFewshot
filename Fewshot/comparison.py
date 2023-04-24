@@ -3,12 +3,15 @@ from main import *
 from dataloader import d2v_pairer
 from AllDataloader import SplitDataloader
 from config import get_config
+
 import os
 import toml
 import numpy as np
 import random
 import sys, io, warnings
 from scipy import stats
+from abc import ABC, abstractmethod
+import pandas as pd
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -20,11 +23,7 @@ from tab_transformer_pytorch import FTTransformer
 
 
 def get_batch(dl, num_rows):
-    try:
-        xs, ys, model_id = next(iter(dl))
-    except:
-        xs, ys = next(iter(dl))
-        model_id = []
+    xs, ys, model_id = next(iter(dl))
 
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
@@ -32,18 +31,32 @@ def get_batch(dl, num_rows):
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
     ys_target = ys_target.view(-1)
 
-    if len(model_id) > 0:
-        return model_id, xs_meta, xs_target, ys_meta, ys_target
     return xs_meta, xs_target, ys_meta, ys_target
 
+class Model(ABC):
+    def get_accuracy(self, batch):
+        xs_meta, xs_target, ys_meta, ys_target = batch
 
-class TabnetModel:
+        self.fit(xs_meta, ys_meta)
+
+        return self.get_acc(xs_target, ys_target)
+
+    @abstractmethod
+    def fit(self, xs_meta, ys_meta):
+        pass
+
+    @abstractmethod
+    def get_acc(self, xs_target, ys_target):
+        pass
+
+
+class TabnetModel(Model):
     def __init__(self):
         self.model = TabNetClassifier(device_name="cpu")
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.detach()[0].flatten().numpy()
-        xs_meta = xs_meta.detach()[0].numpy()
+        ys_meta = ys_meta[0].flatten().numpy()
+        xs_meta = xs_meta[0].numpy()
 
         if ys_meta.min() == ys_meta.max():
             self.identical_batch = True
@@ -89,14 +102,14 @@ class TabnetModel:
         return "TabNet"
 
 
-class FTTrModel:
+class FTTrModel(Model):
     model: torch.nn.Module
     def __init__(self):
         self.null_categ = torch.tensor([[]])
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.detach()[0].flatten()
-        xs_meta = xs_meta.detach()[0]
+        ys_meta = ys_meta[0].flatten()
+        xs_meta = xs_meta[0]
         # Reset the model
         self.model = FTTransformer(
             categories=(),  # tuple containing the number of unique values within each category
@@ -136,7 +149,7 @@ class FTTrModel:
         return "FTTransformer"
 
 
-class BasicModel:
+class BasicModel(Model):
     def __init__(self, name):
         match name:
             case "LR":
@@ -149,7 +162,7 @@ class BasicModel:
                 self.model = CatBoostClassifier(iterations=6, depth=4, learning_rate=1,
                            loss_function='Logloss',allow_const_label=True, verbose=False)
             case "R_Forest":
-                self.model = RandomForestClassifier(n_estimators=100)
+                self.model = RandomForestClassifier(n_estimators=30)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -157,8 +170,8 @@ class BasicModel:
         self.identical_batch = False
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.detach()[0].flatten().numpy()
-        xs_meta = xs_meta.detach()[0].numpy()
+        ys_meta = ys_meta[0].flatten().numpy()
+        xs_meta = xs_meta[0].numpy()
 
         if ys_meta.min() == ys_meta.max():
             self.identical_batch = True
@@ -192,7 +205,7 @@ class BasicModel:
         return self.name
 
 
-class Fewshot:
+class Fewshot(Model):
     def __init__(self, save_dir):
         print(f'Loading model at {save_dir = }')
 
@@ -218,7 +231,40 @@ class Fewshot:
         return "Fewshot"
 
 
-def main(save_no, ds_group=-1, print_result=True):
+def get_results_by_dataset(test_data_names, models, num_rows=10, agg=False):
+    """
+    Evaluates the model and baseline_models on the test data sets.
+    Results are groupped by: data set, model, number of test columns.
+    """
+
+    results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
+
+    for data_name in test_data_names:
+        save_name = "SEEN" if agg else data_name
+
+        for num_cols in range(1, 20, 4):
+
+            # get batch
+            test_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
+                                 num_cols=num_cols, get_ds=data_name, split="test")
+
+            batch = get_batch(test_dl, num_rows)
+
+            for model in models:
+                result = pd.DataFrame({
+                                        'data_name': save_name,
+                                        'model': str(model),
+                                        'num_cols': num_cols,
+                                        'acc': model.get_accuracy(batch)
+                                        }, index=[0])
+
+                results = pd.concat([results, result])
+
+    results.reset_index(drop=True, inplace=True)
+    return results
+
+
+def main(save_no):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
@@ -229,43 +275,26 @@ def main(save_no, ds_group=-1, print_result=True):
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
     num_rows = 10  # cfg["num_rows"]
-    num_targets = cfg["num_targets"]
-    # ds_group = 2 # cfg["ds_group"]
 
-    models = [Fewshot(save_dir),
-              # BasicModel("LR"), #BasicModel("CatBoost"), BasicModel("KNN"),
+    models = [#Fewshot(save_dir),
+              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("KNN"),
               #TabnetModel(),
-                # FTTrModel()
-              BasicModel("R_Forest"),
+              #FTTrModel(),
+              #BasicModel("R_Forest"),
               ]
 
-    col_accs = {}
-    for num_cols in range(1, 20, 2):
-        accs = {str(model): [] for model in models}
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
-                                 num_cols=num_cols, ds_group=ds_group, split="val")
+    unseen_results = get_results_by_dataset(cfg["test_data_names"], models, num_rows=num_rows)
+    print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
 
-        for j in range(500):
-            # Fewshot predictions
-            xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
+    seen_results = get_results_by_dataset([cfg["train_data_names"]], models, num_rows=num_rows, agg=True)
 
-            for model in models:
-                model.fit(xs_meta, ys_meta)
-                acc = model.get_acc(xs_target, ys_target)
-                accs[str(model)].append(acc)
+    print()
+    print()
+    print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
 
-        for model_name, all_accs in accs.items():
-            mean_acc = np.mean(all_accs)
-            accs[model_name] = mean_acc
-        col_accs[num_cols] = accs
 
-        if print_result:
-            print(num_cols)
-            for model_name, all_accs in accs.items():
-                print(f'{model_name}, {all_accs:.3f}')
-                # print(f'{all_accs:.3f}')
+    return unseen_results
 
-    return col_accs
 
 
 if __name__ == "__main__":
@@ -276,6 +305,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-2, ds_group=-1)
+    col_accs = main(save_no=-2)
 
-    print(col_accs)
+    # print(col_accs)
