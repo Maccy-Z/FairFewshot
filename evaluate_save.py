@@ -116,7 +116,12 @@ def get_flat_acc(model, batch):
     ys_pred_target = get_flat_preddictions(model, xs_target, embed_meta, pos_enc)
     return get_flat_accuracy(ys_pred_target, ys_target)
 
-def get_results_by_dataset(test_data_names, model, baseline_models, baseline_model_names):
+def get_results_by_dataset(
+        test_data_names, model, baseline_models, baseline_model_names):
+    """
+    Evaluates the model and baseline_models on the test data sets. 
+    Results are groupped by: data set, model, number of test columns.
+    """
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
 
     for data_name in test_data_names:
@@ -148,7 +153,12 @@ def get_results_by_dataset(test_data_names, model, baseline_models, baseline_mod
     results.reset_index(drop=True, inplace=True)
     return results
 
-def get_agg_results(test_data_names, model, baseline_models, baseline_model_names):
+def get_agg_results(
+        test_data_names, model, baseline_models, baseline_model_names):
+    """
+    Evaluates the model and baseline_models on the test data sets. 
+    Results are groupped by: model, number of test columns.
+    """
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
     while num_cols <= 32:
@@ -167,7 +177,6 @@ def get_agg_results(test_data_names, model, baseline_models, baseline_model_name
         results = pd.concat([results, result])
 
         for base_model, model_name in zip(baseline_models, baseline_model_names):
-            baseline_acc = get_baseline_accuracy(base_model, batch)
             result = pd.DataFrame({
                 'model': model_name, 
                 'num_cols': num_cols, 
