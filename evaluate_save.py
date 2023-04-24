@@ -180,7 +180,7 @@ def get_agg_results(test_data_names, model, baseline_models, baseline_model_name
 
 if __name__ == "__main__":
 
-    save_no = 5
+    save_no = 7
 
     model, all_cfg = load_model(save_no)
     cfg = all_cfg["DL_params"]
