@@ -257,10 +257,6 @@ class SplitDataloader:
 
         self.split = split
 
-
-        if split != "train" and self.bs != 1:
-            raise Exception("During val/test, BS must be 1 since full datasets are used.")
-
         self.get_valid_datasets()
 
 
@@ -303,12 +299,14 @@ class SplitDataloader:
         while True:
             datasets = random.choices(self.datasets, k=self.bs)
             datanames = [str(d) for d in datasets]
+
+            max_num_cols = min([d.ds_cols for d in datasets]) - 1
             if self.num_cols == -1:
-                num_cols = min([d.ds_cols for d in datasets]) - 1
+                num_cols = max_num_cols
             elif self.num_cols == 0:
-                num_cols = np.random.randint(2, min([d.ds_cols for d in datasets]) - 1)
+                num_cols = np.random.randint(2, max_num_cols)
             else:
-                num_cols = self.num_cols
+                num_cols = min(self.num_cols, max_num_cols)
 
             xs, ys = list(zip(*[
                 datasets[i].sample(num_cols=num_cols)

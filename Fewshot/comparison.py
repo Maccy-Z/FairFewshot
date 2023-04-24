@@ -24,22 +24,25 @@ from tab_transformer_pytorch import FTTransformer
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
-
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    ys_target = ys_target.view(-1)
+    # ys_target = ys_target.view(-1)
 
     return xs_meta, xs_target, ys_meta, ys_target
 
 class Model(ABC):
+    # Process batch of data
     def get_accuracy(self, batch):
-        xs_meta, xs_target, ys_meta, ys_target = batch
+        xs_metas, xs_targets, ys_metas, ys_targets = batch
+        accs = []
+        for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
+            #print(xs_meta.shape)
+            self.fit(xs_meta, ys_meta)
+            accs.append(self.get_acc(xs_target, ys_target))
 
-        self.fit(xs_meta, ys_meta)
-
-        return self.get_acc(xs_target, ys_target)
+        return np.mean(accs)
 
     @abstractmethod
     def fit(self, xs_meta, ys_meta):
@@ -170,8 +173,8 @@ class BasicModel(Model):
         self.identical_batch = False
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta[0].flatten().numpy()
-        xs_meta = xs_meta[0].numpy()
+        ys_meta = ys_meta.flatten().numpy()
+        xs_meta = xs_meta.numpy()
 
         if ys_meta.min() == ys_meta.max():
             self.identical_batch = True
@@ -189,11 +192,11 @@ class BasicModel(Model):
 
     def get_acc(self, xs_target, ys_target):
         xs_target = xs_target.numpy()
-
+        #print(xs_target.shape, ys_target.shape)
         if self.identical_batch:
             predictions = np.ones_like(ys_target) * self.pred_val
         else:
-            xs_target = xs_target[0]
+            # xs_target = xs_target[0]
             predictions = self.model.predict(xs_target)
 
         ys_lr_target_labels = np.array(predictions).flatten()
@@ -245,7 +248,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, agg=False):
         for num_cols in range(1, 20, 4):
 
             # get batch
-            test_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
+            test_dl = SplitDataloader(bs=3, num_rows=num_rows, num_targets=5,
                                  num_cols=num_cols, get_ds=data_name, split="test")
 
             batch = get_batch(test_dl, num_rows)
@@ -284,13 +287,20 @@ def main(save_no):
               ]
 
     unseen_results = get_results_by_dataset(cfg["test_data_names"], models, num_rows=num_rows)
-    print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
-
+    print("Unseen completed")
     seen_results = get_results_by_dataset([cfg["train_data_names"]], models, num_rows=num_rows, agg=True)
 
+    print("========================================")
+    print("Test accuracy on unseen datasets")
+    print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
     print()
-    print()
+    print("========================================")
+    print("Test accuracy on seen datasets (aggregated)")
     print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
+    print()
+    print("========================================")
+    print("Test accuracy on unseen datasets (aggregated)")
+    print(unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack())
 
 
     return unseen_results
