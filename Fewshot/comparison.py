@@ -111,8 +111,8 @@ class FTTrModel(Model):
         self.null_categ = torch.tensor([[]])
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta[0].flatten()
-        xs_meta = xs_meta[0]
+        ys_meta = ys_meta.flatten()
+        xs_meta = xs_meta
         # Reset the model
         self.model = FTTransformer(
             categories=(),  # tuple containing the number of unique values within each category
@@ -138,7 +138,6 @@ class FTTrModel(Model):
 
 
     def get_acc(self, xs_target, ys_target):
-        xs_target = xs_target[0]
 
         self.model.eval()
         with torch.no_grad():
@@ -217,11 +216,13 @@ class Fewshot(Model):
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
+        xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
 
     def get_acc(self, xs_target, ys_target):
+        xs_target = xs_target.unsqueeze(0)
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
@@ -279,15 +280,15 @@ def main(save_no):
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = 10  # cfg["num_rows"]
+    num_rows = 5  # cfg["num_rows"]
     num_targets = 5
-    num_samples = 5
+    num_samples = 50
 
-    models = [#Fewshot(save_dir),
-              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("KNN"),
+    models = [Fewshot(save_dir),
+              BasicModel("LR"), BasicModel("KNN")# , BasicModel("R_Forest"),  BasicModel("CatBoost"),
               #TabnetModel(),
               #FTTrModel(),
-              #BasicModel("R_Forest"),
+              # BasicModel("R_Forest"),
               ]
 
     unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
