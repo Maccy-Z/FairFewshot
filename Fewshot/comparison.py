@@ -234,7 +234,7 @@ class Fewshot(Model):
         return "Fewshot"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, agg=False):
+def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -246,10 +246,12 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, agg=False):
         save_name = "SEEN" if agg else data_name
 
         for num_cols in range(1, 20, 4):
-
             # get batch
-            test_dl = SplitDataloader(bs=3, num_rows=num_rows, num_targets=5,
+            test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
                                  num_cols=num_cols, get_ds=data_name, split="test")
+
+            if not agg and num_cols > test_dl.max_cols:
+                break
 
             batch = get_batch(test_dl, num_rows)
 
@@ -278,6 +280,8 @@ def main(save_no):
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
     num_rows = 10  # cfg["num_rows"]
+    num_targets = 5
+    num_samples = 5
 
     models = [#Fewshot(save_dir),
               BasicModel("LR"), BasicModel("CatBoost"), BasicModel("KNN"),
@@ -286,9 +290,11 @@ def main(save_no):
               #BasicModel("R_Forest"),
               ]
 
-    unseen_results = get_results_by_dataset(cfg["test_data_names"], models, num_rows=num_rows)
+    unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
+                                            num_rows=num_rows, num_targets=num_targets, num_samples=num_samples)
     print("Unseen completed")
-    seen_results = get_results_by_dataset([cfg["train_data_names"]], models, num_rows=num_rows, agg=True)
+    seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
+                                          num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
 
     print("========================================")
     print("Test accuracy on unseen datasets")

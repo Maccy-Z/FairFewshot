@@ -288,9 +288,12 @@ class SplitDataloader:
             all_datasets.append(ds)
 
         min_ds = self.tot_rows * 2
+
         self.datasets = [
             d for d in all_datasets if len(d) >= min_ds
         ]
+
+        self.max_cols = min([d.ds_cols for d in self.datasets]) - 1
 
     def __iter__(self):
         """
