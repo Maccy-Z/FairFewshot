@@ -251,20 +251,6 @@ class SplitDataloader:
                 ds_names.remove('info.json')
                 if '.DS_Store' in ds_names:
                     ds_names.remove('.DS_Store')
-
-            # Treat total dataset splits differently.
-            elif self.split_file == './datasets/grouped_datasets/splits':
-
-                splits = toml.load(self.split_file)
-                if self.ds_group == -1:
-                    get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/")
-                                         if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
-                else:
-                    get_splits = [str(self.ds_group)]
-                ds_names = []
-                for split in get_splits:
-                    ds_name = splits[str(split)][self.ds_split]
-                    ds_names += ds_name
             else:
                 # get datasets from pre-defined split
                 splits = toml.load(self.split_file)
@@ -320,14 +306,14 @@ class SplitDataloader:
 
                     elif self.num_cols == -1:
                         max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-
                     num_cols_range = [2, max_num_cols]
+
                 else:
                     num_cols_range = self.num_cols
-
+                
                 if self.decrease_col_prob == -1:
                     num_cols = np.random.choice(
-                        list(range(num_cols_range[0], num_cols_range[1])), size=1)[0]
+                        list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
                 else:
                     num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
                     num_cols = max(num_cols_range[0], num_cols)
@@ -366,10 +352,9 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=0.1,
-        num_cols=0, ds_group=["acute-inflammation"], ds_split="test",
-        split_file="./datasets/grouped_datasets/med_splits")
-    
+        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=-1,
+        num_cols=-3, ds_group=0, ds_split="train")
+    print(dl.all_datasets)
     num_cols = []
     for xs, ys, datanames in islice(dl, 10):
         print(xs.shape)
