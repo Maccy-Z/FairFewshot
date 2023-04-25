@@ -42,12 +42,13 @@ def write_toml():
                  "Optim": {"lr": 5e-4,
                            "eps": 3e-4},
 
-                 "DL_params": {"bs": 3,
+                 "DL_params": {"bs": 5,
                                "num_rows": 5,
                                "num_targets": 5,
                                "ds_group": 0,          # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
-                               "decrease_col_prob": 0.12
+                               "decrease_col_prob": 0.12,
+                               "split_file" : 'my_split'
                                },
 
                  "Settings": {"num_epochs": 51,      # Number of train epochs

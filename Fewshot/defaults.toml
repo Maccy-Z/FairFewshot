@@ -27,12 +27,13 @@ lr = 0.0005
 eps = 0.0003
 
 [DL_params]
-bs = 3
+bs = 5
 num_rows = 5
 num_targets = 5
 ds_group = 0
 binarise = true
 decrease_col_prob = 0.12
+split_file = "my_split"
 
 [Settings]
 num_epochs = 51

@@ -429,6 +429,7 @@ def main(all_cfgs, device="cpu"):
     num_cols = cfg.get("num_cols")
     decrease_col_prob = cfg.get("decrease_col_prob")
     binarise = cfg["binarise"]
+    split_file = cfg.get("split_file")
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -450,7 +451,7 @@ def main(all_cfgs, device="cpu"):
         print("Test data names:", val_dl.all_datasets)
 
     if ds == "med_split":
-        split_file = "./datasets/grouped_datasets/med_splits"
+        split_file = f"./datasets/grouped_datasets/{split_file}"
         with open(split_file) as f:
             split = toml.load(f)
         max_col = split[str(ds_group)]['max_col']
