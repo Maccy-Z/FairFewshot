@@ -31,11 +31,10 @@ bs = 3
 num_rows = 5
 num_targets = 5
 ds_group = 1
-num_cols = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,]
 binarise = true
 
 [Settings]
 num_epochs = 51
 val_duration = 100
 val_interval = 1000
-dataset = "split"
+dataset = "med_split"

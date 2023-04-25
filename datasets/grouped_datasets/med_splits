@@ -1,0 +1,29 @@
+[0]
+train = [ "acute-inflammation", "arrhythmia", "spectf", "fertility", "vertebral-column-2clases", "hepatitis", "breast-cancer-wisc-diag", "statlog-heart", "thyroid", "primary-tumor", "blood", "mammographic", "echocardiogram", "breast-cancer-wisc-prog", "dermatology", "heart-va", "breast-cancer-wisc", "cardiotocography-3clases", "heart-hungarian", "post-operative", "breast-cancer", "heart-cleveland", "heart-switzerland", "breast-tissue", "acute-nephritis", "ilpd-indian-liver", "horse-colic",]
+test = [ "spect", "lung-cancer", "parkinsons", "lymphography",]
+max_col = 56
+
+[1]
+train = [ "acute-inflammation", "arrhythmia", "spectf", "vertebral-column-2clases", "hepatitis", "breast-cancer-wisc-diag", "statlog-heart", "thyroid", "blood", "mammographic", "echocardiogram", "breast-cancer-wisc-prog", "dermatology", "parkinsons", "lymphography", "heart-va", "breast-cancer-wisc", "cardiotocography-3clases", "lung-cancer", "heart-hungarian", "spect", "breast-cancer", "heart-cleveland", "heart-switzerland", "acute-nephritis", "ilpd-indian-liver", "horse-colic",]
+test = [ "post-operative", "breast-tissue", "fertility", "primary-tumor",]
+max_col = 17
+
+[2]
+train = [ "acute-inflammation", "arrhythmia", "spectf", "fertility", "hepatitis", "breast-cancer-wisc-diag", "statlog-heart", "thyroid", "primary-tumor", "mammographic", "echocardiogram", "breast-cancer-wisc-prog", "parkinsons", "lymphography", "heart-va", "breast-cancer-wisc", "cardiotocography-3clases", "lung-cancer", "heart-hungarian", "spect", "post-operative", "breast-cancer", "heart-cleveland", "heart-switzerland", "breast-tissue", "ilpd-indian-liver", "horse-colic",]
+test = [ "acute-nephritis", "dermatology", "blood", "vertebral-column-2clases",]
+max_col = 34
+
+[3]
+train = [ "acute-inflammation", "arrhythmia", "spectf", "fertility", "vertebral-column-2clases", "hepatitis", "breast-cancer-wisc-diag", "statlog-heart", "primary-tumor", "blood", "echocardiogram", "breast-cancer-wisc-prog", "dermatology", "parkinsons", "lymphography", "heart-va", "breast-cancer-wisc", "lung-cancer", "heart-hungarian", "spect", "post-operative", "breast-cancer", "heart-cleveland", "heart-switzerland", "breast-tissue", "acute-nephritis", "horse-colic",]
+test = [ "thyroid", "cardiotocography-3clases", "mammographic", "ilpd-indian-liver",]
+max_col = 21
+
+[4]
+train = [ "arrhythmia", "fertility", "vertebral-column-2clases", "hepatitis", "breast-cancer-wisc-diag", "statlog-heart", "thyroid", "primary-tumor", "blood", "mammographic", "breast-cancer-wisc-prog", "dermatology", "parkinsons", "lymphography", "heart-va", "breast-cancer-wisc", "cardiotocography-3clases", "lung-cancer", "heart-hungarian", "spect", "post-operative", "breast-cancer", "heart-cleveland", "heart-switzerland", "breast-tissue", "acute-nephritis", "ilpd-indian-liver",]
+test = [ "spectf", "echocardiogram", "acute-inflammation", "horse-colic",]
+max_col = 44
+
+[5]
+train = [ "acute-inflammation", "arrhythmia", "spectf", "fertility", "vertebral-column-2clases", "breast-cancer-wisc-diag", "thyroid", "primary-tumor", "blood", "mammographic", "echocardiogram", "breast-cancer-wisc-prog", "dermatology", "parkinsons", "lymphography", "heart-va", "cardiotocography-3clases", "lung-cancer", "heart-hungarian", "spect", "post-operative", "heart-cleveland", "heart-switzerland", "breast-tissue", "acute-nephritis", "ilpd-indian-liver", "horse-colic",]
+test = [ "breast-cancer-wisc", "statlog-heart", "breast-cancer", "hepatitis",]
+max_col = 19

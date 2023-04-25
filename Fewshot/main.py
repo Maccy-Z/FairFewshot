@@ -4,13 +4,12 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 import time
-import sys
+import toml
 from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-from mydataloader import MyDataLoader
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -448,6 +447,25 @@ def main(all_cfgs, device="cpu"):
             binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
+    if ds == "med_split":
+        split_file = "./datasets/grouped_datasets/med_splits"
+        with open(split_file) as f:
+            split = toml.load(f)
+        max_col = split[str(ds_group)]['max_col']
+        dl = SplitDataloader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=list(range(2, max_col)), 
+            ds_group=ds_group, ds_split="train",
+            split_file=split_file
+        )
+        print("Training data names:", dl.all_datasets)
+        val_dl = SplitDataloader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=list(range(2, max_col)), 
+            ds_group=ds_group, ds_split="test",
+            split_file=split_file
+        )
+        print("Testing data names:", val_dl.all_datasets)
     else:
         raise Exception("Invalid dataset")
 
@@ -512,6 +530,7 @@ def main(all_cfgs, device="cpu"):
             else:
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
+        print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
 
         # Validation loop
         model.eval()

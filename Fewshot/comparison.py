@@ -1,8 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader
-from mydataloader import MyDataLoader
+from AllDataloader import SplitDataloader, MyDataSet
 from config import get_config
 
 import os
@@ -242,35 +241,47 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     """
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
-
-    for data_name in test_data_names:
-        save_name = "SEEN" if agg else data_name
-
-        for num_cols in range(1, 20, 4):
-            # get batch
-            test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                                 num_cols=num_cols, get_ds=data_name, split="test")
-
-            # test_dl = MyDataLoader(
-            #     bs=num_samples, num_rows=num_rows,
-            #     num_targets=num_targets, data_names=data_name,
-            #     num_cols=num_cols, split="test"
-            # )
-
-            if not agg and num_cols > test_dl.max_cols:
-                break
-
+    datasets = [
+        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all") 
+        for d in test_data_names]
+    n_cols = [d.ds_cols - 1 for d in datasets]
+    max_test_col = max([d.ds_cols - 1 for d in datasets])
+    n_cols = dict(zip(test_data_names, n_cols))
+    num_cols = 2
+    while num_cols <= max_test_col:
+        if agg:
+            test_dl = SplitDataloader(
+                bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+                num_cols=[num_cols], ds_group=test_data_names
+            )
             batch = get_batch(test_dl, num_rows)
-
             for model in models:
                 result = pd.DataFrame({
-                                        'data_name': save_name,
-                                        'model': str(model),
-                                        'num_cols': num_cols,
-                                        'acc': model.get_accuracy(batch)
-                                        }, index=[0])
+                    'data_name': "all seen",
+                    'model': str(model),
+                    'num_cols': num_cols,
+                    'acc': model.get_accuracy(batch)
+                }, index=[0])
 
                 results = pd.concat([results, result])
+        else:
+            for data_name in test_data_names:
+                if n_cols[data_name] >= num_cols:
+                    test_dl = SplitDataloader(
+                        bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+                        num_cols=[num_cols], ds_group=data_name
+                    )
+                    batch = get_batch(test_dl, num_rows)
+                    for model in models:
+                        result = pd.DataFrame({
+                            'data_name': data_name,
+                            'model': str(model),
+                            'num_cols': num_cols,
+                            'acc': model.get_accuracy(batch)
+                        }, index=[0])
+
+                        results = pd.concat([results, result])
+        num_cols *= 2
 
     results.reset_index(drop=True, inplace=True)
     return results
@@ -284,31 +295,43 @@ def main(save_no):
     save_no = existing_saves[save_no]
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
-    cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
+    all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
+    cfg = all_cfg["DL_params"]
+    ds = all_cfg["Settings"]["dataset"]
 
-    num_rows = 5  # cfg["num_rows"]
-    num_targets = 5
+    if ds == "med_split":
+        split_file = "./datasets/grouped_datasets/med_splits"
+        with open(split_file) as f:
+            split = toml.load(f)
+        train_data_names = split[str(cfg["ds_group"])]["train"]
+        test_data_names = split[str(cfg["ds_group"])]["test"]
+
+    num_rows = cfg["num_rows"]
+    num_targets = cfg["num_targets"]
     num_samples = 50
 
     models = [Fewshot(save_dir),
               BasicModel("LR"), BasicModel("KNN"), # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
               #TabnetModel(),
-              FTTrModel(),
+              #FTTrModel(),
               ]
 
-    unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
-                                            num_rows=num_rows, num_targets=num_targets, num_samples=num_samples)
+    unseen_results = get_results_by_dataset(
+        test_data_names, models,
+        num_rows=num_rows, num_targets=num_targets, 
+        num_samples=num_samples
+    )
     print("======================================================")
     print("Test accuracy on unseen datasets")
-    unseen_print = unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc')
+    unseen_print = unseen_results.pivot(
+        columns=['data_name', 'model'], index='num_cols', values='acc')
     print(unseen_print.to_string())
 
-    seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
-                                          num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
-
-    # print("========================================")
-    # print("Test accuracy on unseen datasets")
-    # print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
+    seen_results = get_results_by_dataset(
+        train_data_names, models,
+        num_rows=num_rows, num_targets=num_targets, 
+        num_samples=num_samples, agg=True
+    )
     print()
     print("======================================================")
     print("Test accuracy on seen datasets (aggregated)")
@@ -331,6 +354,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-1)
+    col_accs = main(save_no=8)
 
     # print(col_accs)

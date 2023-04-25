@@ -1,3 +1,4 @@
+#%%
 import os
 import random
 import toml
@@ -32,3 +33,5 @@ print(dataset_splits)
 with open(f'{base_dir}/splits', "w") as f:
     toml.dump(dataset_splits, f)
 
+
+# %%
