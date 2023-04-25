@@ -46,9 +46,6 @@ def write_toml():
                                "num_rows": 16,
                                "num_targets": 5,
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
-                               "balance_train": True,   # Balance dataloader during training
-                               "one_v_all": True,       # How to binarise during training
-                               "shuffle_cols": True,
                                "train_data_names": ['statlog-heart', 'horse-colic', 'fertility', 'post-operative'],
                                "num_cols": None,
                                },

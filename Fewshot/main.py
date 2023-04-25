@@ -427,11 +427,7 @@ def main(all_cfgs, device="cpu"):
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
-    bal_train = cfg["balance_train"]
-    one_v_all = cfg["one_v_all"]
-    train_data_names = cfg["train_data_names"]
     num_cols = cfg.get("num_cols")
-    shuffle_cols = cfg["shuffle_cols"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -446,17 +442,12 @@ def main(all_cfgs, device="cpu"):
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group,
                                       split="test")
     elif ds == "mydata":
-        assert False
-        dl = MyDataLoader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            num_cols=num_cols, shuffle_cols=shuffle_cols,
-            data_names=train_data_names, split="train"
-        )
-        val_dl = MyDataLoader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            num_cols=num_cols, shuffle_cols=shuffle_cols,
-            data_names=train_data_names, split="val"
-        )
+        train_data_names = cfg["train_data_names"]
+        test_data_names = cfg["test_data_names"]
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=train_data_names
+                                  , split="train")
+        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=test_data_names,
+                                      split="test")
     else:
         raise Exception("Invalid dataset")
 
