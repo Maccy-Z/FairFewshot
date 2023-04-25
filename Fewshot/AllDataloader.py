@@ -245,8 +245,15 @@ class SplitDataloader:
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, int):
+            if self.ds_group == -1:
+                # get all datasets
+                ds_names = os.listdir(ds_dir)
+                ds_names.remove('info.json')
+                if '.DS_Store' in ds_names:
+                    ds_names.remove('.DS_Store')
+
             # Treat total dataset splits differently.
-            if self.split_file == './datasets/grouped_datasets/splits':
+            elif self.split_file == './datasets/grouped_datasets/splits':
 
                 splits = toml.load(self.split_file)
                 if self.ds_group == -1:
@@ -258,13 +265,6 @@ class SplitDataloader:
                 for split in get_splits:
                     ds_name = splits[str(split)][self.ds_split]
                     ds_names += ds_name
-
-            elif self.ds_group == -1:
-                # get all datasets
-                ds_names = os.listdir(ds_dir)
-                ds_names.remove('info.json')
-                if '.DS_Store' in ds_names:
-                    ds_names.remove('.DS_Store')
             else:
                 # get datasets from pre-defined split
                 splits = toml.load(self.split_file)
@@ -313,7 +313,7 @@ class SplitDataloader:
         """
         while True:
             # Sample columns uniformly
-            if self.num_cols == 0 or self.numcols == -1 or isinstance(self.num_cols, list):
+            if self.num_cols == 0 or self.num_cols == -1 or isinstance(self.num_cols, list):
                 if isinstance(self.num_cols, int):
                     if self.num_cols == 0:
                         max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
