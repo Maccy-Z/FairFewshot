@@ -402,7 +402,7 @@ class ModelHolder(nn.Module):
         return preds_meta
 
     def loss_fn(self, preds, targs):
-        cross_entropy = torch.nn.functional.cross_entropy(preds, targs)
+        cross_entropy = torch.nn.functional.cross_entropy(preds, targs.long())
 
         kl_div: torch.Tensor = 0
         if self.reparam_weight:
@@ -428,6 +428,7 @@ def main(all_cfgs, device="cpu"):
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
     num_cols = cfg.get("num_cols")
+    binarise = cfg["binarise"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -436,18 +437,17 @@ def main(all_cfgs, device="cpu"):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "total":
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group
-                                  , split="train")
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group,
-                                      split="test")
-    elif ds == "mydata":
-        train_data_names = cfg["train_data_names"]
-        test_data_names = cfg["test_data_names"]
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=train_data_names
-                                  , split="train")
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=test_data_names,
-                                      split="test")
+    if ds == "split":
+        dl = SplitDataloader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="train"
+        )
+        print("Training data names:", dl.all_datasets)
+        val_dl = SplitDataloader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
+        )
+        print("Test data names:", val_dl.all_datasets)
     else:
         raise Exception("Invalid dataset")
 
@@ -534,7 +534,7 @@ def main(all_cfgs, device="cpu"):
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
                 ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-                loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target)
+                loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)

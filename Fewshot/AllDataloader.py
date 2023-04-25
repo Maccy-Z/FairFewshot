@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import random
 import toml
+from itertools import islice
 
 DATADIR = './datasets'
 
@@ -33,7 +34,9 @@ def one_vs_all(ys):
 
 
 class MyDataSet:
-    def __init__(self, ds_name, num_rows, num_targets, binarise, split, dtype=torch.float32, device="cpu"):
+    def __init__(
+            self, ds_name, num_rows, num_targets, binarise, split, 
+            dtype=torch.float32, device="cpu"):
         # data_name = "adult"
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -60,14 +63,17 @@ class MyDataSet:
         """
         ds_dir = f'{DATADIR}/data'
         # get train fold
-        folds = pd.read_csv(f"{ds_dir}/{ds_name}/folds_py.dat", header=None)[0]
+        folds = pd.read_csv(
+            f"{ds_dir}/{ds_name}/folds_py.dat", header=None)[0]
         folds = np.asarray(folds)
         # get validation fold
-        vldfold = pd.read_csv(f"{ds_dir}/{ds_name}/validation_folds_py.dat", header=None)[0]
+        vldfold = pd.read_csv(
+            f"{ds_dir}/{ds_name}/validation_folds_py.dat", header=None)[0]
         vldfold = np.asarray(vldfold)
 
         # read predictors
-        predictors = pd.read_csv(f"{ds_dir}/{ds_name}/{self.ds_name}_py.dat", header=None)
+        predictors = pd.read_csv(
+            f"{ds_dir}/{ds_name}/{self.ds_name}_py.dat", header=None)
         predictors = np.asarray(predictors)
         # read internal target
         targets = pd.read_csv(f"{ds_dir}/{ds_name}/labels_py.dat", header=None)
@@ -116,7 +122,8 @@ class MyDataSet:
             row_probs = np.ones(self.ds_rows)
 
             col_data = self.data[:, -1]
-            unique_lab, unique_idx, counts = np.unique(col_data, return_counts=True, return_inverse=True)
+            unique_lab, unique_idx, counts = np.unique(
+                col_data, return_counts=True, return_inverse=True)
             if np.max(counts) / self.ds_rows > 0.5:
                 max_prob = self.ds_rows / np.max(counts) - 1
 
@@ -135,9 +142,6 @@ class MyDataSet:
 
 
     def sample(self, num_cols):
-        if num_cols > self.ds_cols - 1:  # or not self.train:
-            num_cols = self.ds_cols - 1
-
         targ_col = -1
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
         if self.binarise:
@@ -148,22 +152,27 @@ class MyDataSet:
 
             meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
 
-            meta_0s_row = np.random.choice(self.num_0s, size=meta_0s, replace=False)
-            meta_1s_row = np.random.choice(self.num_1s, size=meta_1s, replace=False)
+            meta_0s_row = np.random.choice(
+                self.num_0s, size=meta_0s, replace=False)
+            meta_1s_row = np.random.choice(
+                self.num_1s, size=meta_1s, replace=False)
 
             rem_0 = np.setdiff1d(np.arange(self.num_0s), meta_0s_row)
             rem_1 = np.setdiff1d(np.arange(self.num_1s), meta_1s_row)
             targ_0s_row = np.random.choice(rem_0, size=target_0s, replace=False)
             targ_1s_row = np.random.choice(rem_1, size=target_1s, replace=False)
 
-            meta_rows = torch.concatenate((self.zeros[meta_0s_row], self.ones[meta_1s_row]))
-            targ_rows = torch.concatenate((self.zeros[targ_0s_row], self.ones[targ_1s_row]))
+            meta_rows = torch.cat(
+                (self.zeros[meta_0s_row], self.ones[meta_1s_row]))
+            targ_rows = torch.cat(
+                (self.zeros[targ_0s_row], self.ones[targ_1s_row]))
 
             # Join meta and target. Split apart later.
-            select_data = torch.concatenate([meta_rows, targ_rows])
+            select_data = torch.cat([meta_rows, targ_rows])
 
         else:
-            rows = np.random.choice(self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
+            rows = np.random.choice(
+                self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
             select_data = self.data[rows]
 
         # Pick out wanted columns
@@ -188,17 +197,27 @@ class MyDataSet:
 
 
 class SplitDataloader:
-    def __init__(self, bs, num_rows, num_targets, binarise=False, num_cols=-1, get_ds=-1, split="train", device="cpu"):
+    def __init__(
+            self, bs, num_rows, num_targets, binarise=False,
+            num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
+            split_file='./datasets/grouped_datasets/splits'):
         """
 
         :param bs: Number of datasets to sample from each batch
         :param num_rows: Number of meta rows
         :param num_targets: Number of target rows
         :param binarise: Binarise the dataset upon loading instead of with each sample
-        :param num_cols: Number of columns to sample from. -1 for all, 0 for random.
-        :param get_ds: Which datasets to sample from. If int, referes to premade group. If string or list of string,
-                        sample from that specific dataset(s).
-        :param split: If ds_group is int, the test or train split.
+        :param num_cols: Number of columns to sample from. 
+            If 0, random no. columns between 2 and the largest number of 
+                columns among all datasets
+            If -1, random no. columns between 2 and the smallest number of 
+                columns among all datasets
+            If list, sample from a range of no. columns specified in the list
+        :param ds_group: Which datasets to sample from. 
+            If -1, sample all available datasets
+            If int >= 0, referes to premade group specified in the split_file 
+            If string or list of strings, sample from that specified dataset(s).
+        :param ds_split: If ds_group is int >= 0, the test or train split.
         """
 
         self.bs = bs
@@ -207,65 +226,75 @@ class SplitDataloader:
         self.num_targets = num_targets
         self.binarise = binarise
         self.num_cols = num_cols
-        self.get_ds = get_ds
-
+        self.ds_group = ds_group
         self.device = device
+        self.ds_split = ds_split
+        self.split_file = split_file
 
-        self.split = split
+        self._get_valid_datasets()
+        if isinstance(num_cols, list):
+            self._check_num_cols()
 
-        self.get_valid_datasets()
-
-
-    def get_valid_datasets(self):
-        ds_dir = f'{DATADIR}/grouped_datasets/'
-        ds_to_get = None
-        if isinstance(self.get_ds, int):
-            splits = toml.load(f'{ds_dir}/splits')
-            if self.get_ds == -1:
-                get_splits = sorted([f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')])
+    def _get_valid_datasets(self):
+        ds_dir = f'{DATADIR}/data/'
+        if isinstance(self.ds_group, int):
+            if self.ds_group == -1:
+                # get all datasets
+                ds_names = os.listdir(ds_dir)
+                ds_names.remove('info.json')
+                if '.DS_Store' in ds_names:
+                    ds_names.remove('.DS_Store')
             else:
-                get_splits = [str(self.get_ds)]
+                # get datasets from pre-defined spli
+                splits = toml.load(self.split_file)
+                ds_names = splits[str(self.ds_group)][self.ds_split]
 
-            ds_to_get = []
-            for split in get_splits:
-                ds_names = splits[str(split)][self.split]
-                ds_to_get += ds_names
+        elif isinstance(self.ds_group, str):
+            ds_names = [self.ds_group]
 
-        elif isinstance(self.get_ds, str):
-            ds_to_get = [self.get_ds]
+        elif isinstance(self.ds_group, list):
+            ds_names = self.ds_group
 
-        elif isinstance(self.get_ds, list):
-            ds_to_get = self.get_ds
-
-        all_datasets = []
-        for name in ds_to_get:
-            ds = MyDataSet(name, num_rows=self.num_rows, num_targets=self.num_targets,
-                           binarise=self.binarise, device=self.device, split="all",)
-            all_datasets.append(ds)
-
+        all_datasets = [
+            MyDataSet(name, num_rows=self.num_rows, 
+                        num_targets=self.num_targets,
+                        binarise=self.binarise, 
+                        device=self.device, split="all")
+            for name in ds_names]
+        
         min_ds = self.tot_rows * 2
 
-        self.datasets = [
+        self.all_datasets = [
             d for d in all_datasets if len(d) >= min_ds
         ]
 
-        self.max_cols = min([d.ds_cols for d in self.datasets]) - 1
+    def _check_num_cols(self):
+        max_num_cols = max(self.num_cols)
+        valid_datasets = [
+            d for d in self.all_datasets if d.ds_cols > max_num_cols]
+        if not valid_datasets:
+            raise Exception(
+                "Provided range of columns to sample exceeds the "
+                + "dimension of the largest dataset available")
 
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            datasets = random.choices(self.datasets, k=self.bs)
-            datanames = [str(d) for d in datasets]
-
-            max_num_cols = min([d.ds_cols for d in datasets]) - 1
-            if self.num_cols == -1:
-                num_cols = max_num_cols
-            elif self.num_cols == 0:
+            
+            if self.num_cols == 0:
+                max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
-            else:
-                num_cols = min(self.num_cols, max_num_cols)
+            elif self.num_cols == -1:
+                max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
+                num_cols = np.random.randint(2, max_num_cols)
+            elif isinstance(self.num_cols, list):
+                num_cols = np.random.choice(self.num_cols, size=1)[0]
+            
+            valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+            datasets = random.choices(valid_datasets, k=self.bs)
+            datanames = [str(d) for d in datasets]
 
             xs, ys = list(zip(*[
                 datasets[i].sample(num_cols=num_cols)
@@ -278,31 +307,14 @@ class SplitDataloader:
         return str(self.datasets)
 
 
-
 if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(bs=5, num_rows=16, binarise=False, num_targets=3, num_cols=0, get_ds=["adult", "car"], split="train")
-    # dl = SingleDataloader(ds_name="adult", bs=1, num_rows=16, num_targets=3, num_cols=-1, ds_group=4, one_v_all=True, split="train")
-
-    means = []
-    dl = iter(dl)
-    # y_count = {i: 0 for i in range(20)}
-    for _ in range(1000):
-        x, y, _ = next(dl)
-        print(x.shape)
-        num = torch.sum(y).item()
-       # y_count[num] += 1
-
-        y_mean = torch.mean(y, dtype=float)
-        means.append(y_mean)
-
-    means = torch.stack(means)
-    means = torch.mean(means)
-    print("Mean y value", f'{means.item():.4g}')
-    # print("Histogram of number of positive samples", y_count)
-
-# {0: 14, 1: 10, 2: 13, 3: 26, 4: 33, 5: 76, 6: 348, 7: 311, 8: 67, 9: 46, 10: 12, 11: 7, 12: 7, 13: 30}
-# {0: 28, 1: 21, 2: 22, 3: 23, 4: 36, 5: 52, 6: 313, 7: 343, 8: 49, 9: 37, 10: 17, 11: 10, 12: 9, 13: 40}
+    dl = SplitDataloader(
+        bs=2, num_rows=5, binarise=False, num_targets=5, 
+        num_cols=list(range(1, 10)), ds_group=["adult"], ds_split="test")
+    
+    for xs, ys, datanames in islice(dl, 10):
+        print(xs.shape)

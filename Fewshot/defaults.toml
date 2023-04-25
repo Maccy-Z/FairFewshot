@@ -1,10 +1,10 @@
 [NN_dims]
 set_h_dim = 64
 set_out_dim = 64
-d2v_layers = [ 4, 2, 4,]
+d2v_layers = [ 3, 2, 3,]
 pos_depth = 2
 pos_enc_dim = 15
-load_d2v = true
+load_d2v = false
 freeze_d2v = false
 model_load = "model_3"
 weight_hid_dim = 64
@@ -28,13 +28,14 @@ eps = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 16
+num_rows = 5
 num_targets = 5
-ds_group = -1
-train_data_names = [ "statlog-heart", "horse-colic", "fertility", "post-operative",]
+ds_group = 1
+num_cols = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,]
+binarise = true
 
 [Settings]
-num_epochs = 31
+num_epochs = 51
 val_duration = 100
-val_interval = 2000
-dataset = "total"
+val_interval = 1000
+dataset = "split"

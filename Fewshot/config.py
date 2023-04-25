@@ -13,10 +13,10 @@ def get_config(cfg_file=None):
 def write_toml():
     save_dict = {"NN_dims": {"set_h_dim": 64,           # D2v hidden dimension
                              "set_out_dim": 64,         # D2v output dimension
-                             "d2v_layers": [4, 2, 4],   # layers of d2v. first 3 are d2v dims, last positional encoder
+                             "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": True,          # Load pretrained datset2vec
+                             "load_d2v": False,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_3",  # Which D2V to load from
 
@@ -43,17 +43,17 @@ def write_toml():
                            "eps": 3e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 16,
+                               "num_rows": 5,
                                "num_targets": 5,
-                               "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
-                               "train_data_names": ['statlog-heart', 'horse-colic', 'fertility', 'post-operative'],
-                               "num_cols": None,
+                               "ds_group": 1,          # Group of datasets from which to select from. -1 for full dataset
+                               "num_cols": list(range(2, 20)),
+                               "binarise" : True
                                },
 
-                 "Settings": {"num_epochs": 31,      # Number of train epochs
+                 "Settings": {"num_epochs": 51,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
-                              "val_interval": 2000,     # Number of batches to train for each epoch
-                              "dataset": "total",
+                              "val_interval": 1000,     # Number of batches to train for each epoch
+                              "dataset": "split",
                               },
                  }
 

@@ -10,7 +10,6 @@ import random
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from pytorch_tabnet.tab_model import TabNetClassifier
 
 
 class ZeroModel:
