@@ -180,50 +180,6 @@ class MyDataSet:
         return xs, ys
 
 
-    # Sampling used for SingleDataloader,
-    def sample2(self, num_xs):
-        """
-               Data columns and num_catagories,
-               0, Age: 76
-               1, Workclass: 9
-               2, fnlwgt: 18299
-               3, Education: 16
-               4, Education-num: 16
-               5, Marital: 7
-               6, Occupation: 15
-               7, Relation: 6
-               8, Race: 5
-               9, Sex: 2
-               10, Cap-gain: 118
-               11, Cap-loss: 91
-               12, Hr-per-wk: 92
-               13, Native_cont: 41
-               14, Income >50k: 2
-               """
-
-
-        targ_col = self.num_cols - 1
-        predict_cols = np.arange(targ_col)
-
-        rows = np.random.choice(self.tot_rows, size=self.tot_rows, replace=False, p=self.row_probs[targ_col].squeeze())
-
-        select_data = self.data[rows]
-
-        # Pick out wanted columns
-        xs = select_data[:, predict_cols]
-
-
-        ys = select_data[:, targ_col]
-        # Normalise xs
-        m = xs.mean(0, keepdim=True)
-        s = xs.std(0, unbiased=False, keepdim=True)
-        xs -= m
-        xs /= (s + 10e-4)
-
-        ys = one_vs_all(ys)
-
-        return xs, ys
-
     def __repr__(self):
         return self.ds_name
 
@@ -321,46 +277,6 @@ class SplitDataloader:
     def __repr__(self):
         return str(self.datasets)
 
-
-class SingleDataloader:
-    def __init__(self, ds_name, bs, num_rows, num_targets, num_cols=-1, ds_group=-1, one_v_all=False, balance_train=True, device="cpu", split="train"):
-
-        self.ds_name = ds_name
-        self.bs = bs
-        self.num_rows = num_rows + num_targets
-        self.device = device
-        self.num_cols = num_cols
-        self.balance_train = balance_train
-        self.one_v_all = one_v_all
-
-        self.train = (split == "train")
-        if split == "val":
-            split = "test"
-        self.split = split
-
-        if not self.train and self.bs != 1:
-            raise Exception("During val/test, BS must be 1 since full datasets are used.")
-
-        self.ds = MyDataSet(self.ds_name, num_rows=self.num_rows, num_targets=self.num_targets, device=self.device, split="all")
-
-    def __iter__(self):
-        """
-        :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
-        """
-        while True:
-            datasets = [self.ds]
-
-            num_xs = self.num_cols
-
-            xs, ys = list(zip(*[
-                datasets[i].sample2(num_xs=num_xs)
-                for i in range(self.bs)]))
-            xs = torch.stack(xs)
-            ys = torch.stack(ys)
-            yield xs, ys  # , datanames
-
-    def __repr__(self):
-        return self.ds_name
 
 
 if __name__ == "__main__":

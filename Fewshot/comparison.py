@@ -2,6 +2,7 @@ import torch
 from main import *
 from dataloader import d2v_pairer
 from AllDataloader import SplitDataloader
+from mydataloader import MyDataLoader
 from config import get_config
 
 import os
@@ -248,8 +249,15 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
         for num_cols in range(1, 20, 4):
             # get batch
-            test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                                 num_cols=num_cols, get_ds=data_name, split="test")
+            # test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+            #                      num_cols=num_cols, get_ds=data_name, split="test")
+
+            print(data_name)
+            test_dl = MyDataLoader(
+                bs=num_samples, num_rows=num_rows,
+                num_targets=num_targets, data_names=data_name,
+                num_cols=[num_cols], split="test"
+            )
 
             if not agg and num_cols > test_dl.max_cols:
                 break
@@ -282,7 +290,7 @@ def main(save_no):
 
     num_rows = 5  # cfg["num_rows"]
     num_targets = 5
-    num_samples = 50
+    num_samples = 20
 
     models = [Fewshot(save_dir),
               BasicModel("LR"), BasicModel("KNN")# , BasicModel("R_Forest"),  BasicModel("CatBoost"),
@@ -293,7 +301,9 @@ def main(save_no):
 
     unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
                                             num_rows=num_rows, num_targets=num_targets, num_samples=num_samples)
-    print("Unseen completed")
+
+    print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
+
     seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
                                           num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
 
@@ -322,6 +332,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-2)
+    col_accs = main(save_no=-3)
 
     # print(col_accs)

@@ -84,7 +84,13 @@ class MyDataLoader:
         self.num_cols = num_cols
         self.data_names = data_names
         self.min_num_cols = min_num_cols
-        self.datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+
+        if isinstance(self.datasets, str):
+            self.datasets = SimpleDataset(self.data_names, split=split)
+        else:
+
+            self.datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+        self.max_cols = self.datasets[0].num_cols
 
 
     def __iter__(self):
@@ -106,7 +112,7 @@ class MyDataLoader:
                 for d in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-            yield xs, ys.long()# , datanames
+            yield xs, ys.long() , datanames
         
 if __name__ == "__main__":
     # Test if dataloader works.
