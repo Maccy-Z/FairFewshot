@@ -427,7 +427,7 @@ def main(all_cfgs, device="cpu"):
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
-    num_cols = cfg.get("num_cols")
+    binarise = cfg["binarise"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -437,17 +437,17 @@ def main(all_cfgs, device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "total":
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group, binarise=binarise
                                   , split="train")
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group,
+        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group, binarise=binarise,
                                       split="test")
     elif ds == "mydata":
         train_data_names = cfg["train_data_names"]
         test_data_names = cfg["test_data_names"]
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=train_data_names
-                                  , split="train")
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=train_data_names,
+                             binarise=binarise, split="train")
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=test_data_names,
-                                      split="test")
+                                 binarise=binarise, split="test")
     else:
         raise Exception("Invalid dataset")
 
@@ -458,7 +458,7 @@ def main(all_cfgs, device="cpu"):
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
+    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=1e-5)
 
     accs, losses = [], []
     val_accs, val_losses = [], []

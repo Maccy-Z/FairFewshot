@@ -122,13 +122,13 @@ class FTTrModel(Model):
             dim_out=2,  # binary prediction, but could be anything
             depth=4,  # depth, paper recommended 6
             heads=2,  # heads, paper recommends 8
-            # attn_dropout=0.1,  # post-attention dropout
+            attn_dropout=0.1,  # post-attention dropout
             # ff_dropout=0.1  # feed forward dropout
         )
 
-        optim = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        optim = torch.optim.AdamW(self.model.parameters(), lr=2e-3)
 
-        for _ in range(50):
+        for _ in range(30):
             x_categ = torch.tensor([[]])
             clf = self.model(x_categ, xs_meta)
 
@@ -149,7 +149,7 @@ class FTTrModel(Model):
         return accuracy
 
     def __repr__(self):
-        return "FTTransformer"
+        return "FTTransf"
 
 
 class BasicModel(Model):
@@ -242,24 +242,22 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     """
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
-
     for data_name in test_data_names:
         save_name = "SEEN" if agg else data_name
 
         for num_cols in range(1, 20, 4):
             # get batch
             test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                                 num_cols=num_cols, get_ds=data_name, split="test")
+                                 num_cols=num_cols, get_ds=data_name, split="train")
 
             # test_dl = MyDataLoader(
             #     bs=num_samples, num_rows=num_rows,
             #     num_targets=num_targets, data_names=data_name,
             #     num_cols=num_cols, split="test"
             # )
-
             if not agg and num_cols > test_dl.max_cols:
                 break
-
+            # print(num_cols,  test_dl.max_cols)
             batch = get_batch(test_dl, num_rows)
 
             for model in models:
@@ -286,37 +284,36 @@ def main(save_no):
 
     cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    num_rows = 5  # cfg["num_rows"]
+    num_rows = 10  # cfg["num_rows"]
     num_targets = 5
-    num_samples = 50
+    num_samples = 40
 
     models = [Fewshot(save_dir),
-              BasicModel("LR"), BasicModel("KNN"), # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
-              #TabnetModel(),
+              BasicModel("LR"), BasicModel("KNN"), # BasicModel("R_Forest"),  BasicModel("CatBoost"),
+              # TabnetModel(),
               FTTrModel(),
               ]
+    # cfg["test_data_names"] = [ "dermatology", "hepatitis", "lung-cancer", "breast-cancer-wisc-prog", "cardiotocography-3clases", "breast-tissue", "statlog-heart", "acute-inflammation", "breast-cancer-wisc-diag", "parkinsons", "arrhythmia", "echocardiogram", "mammographic", "vertebral-column-2clases", "heart-cleveland", "post-operative", "lymphography", "primary-tumor", "heart-hungarian", "spect", "breast-cancer", "horse-colic", "heart-va", "spectf", "heart-switzerland", "fertility", "ilpd-indian-liver",]
 
     unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
                                             num_rows=num_rows, num_targets=num_targets, num_samples=num_samples)
+
     print("======================================================")
     print("Test accuracy on unseen datasets")
     unseen_print = unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc')
     print(unseen_print.to_string())
-
-    seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
-                                          num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
-
-    # print("========================================")
-    # print("Test accuracy on unseen datasets")
-    # print(unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc'))
-    print()
-    print("======================================================")
-    print("Test accuracy on seen datasets (aggregated)")
-    print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
     print(unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack())
+
+    seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
+                                          num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
+
+    print()
+    print("======================================================")
+    print("Test accuracy on seen datasets (aggregated)")
+    print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
 
 
     return unseen_results
@@ -332,5 +329,8 @@ if __name__ == "__main__":
     # main(save_no=save_number)
 
     col_accs = main(save_no=-1)
-
+    import pickle
+    #
+    with open("./savea", "wb") as f:
+        pickle.dump(col_accs, f)
     # print(col_accs)
