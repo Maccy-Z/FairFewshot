@@ -227,9 +227,10 @@ class SplitDataloader:
         self.binarise = binarise
         self.num_cols = num_cols
         self.ds_group = ds_group
-        self.device = device
         self.ds_split = ds_split
         self.split_file = split_file
+
+        self.device = device
 
         self._get_valid_datasets()
         if isinstance(num_cols, list):
@@ -238,7 +239,20 @@ class SplitDataloader:
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, int):
-            if self.ds_group == -1:
+            # Treat total dataset splits differently.
+            if self.split_file == './datasets/grouped_datasets/splits':
+
+                splits = toml.load(self.split_file)
+                if self.ds_group == -1:
+                    get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/") if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
+                else:
+                    get_splits = [str(self.ds_group)]
+                ds_names = []
+                for split in get_splits:
+                    ds_name = splits[str(split)][self.ds_split]
+                    ds_names += ds_name
+
+            elif self.ds_group == -1:
                 # get all datasets
                 ds_names = os.listdir(ds_dir)
                 ds_names.remove('info.json')
@@ -293,6 +307,7 @@ class SplitDataloader:
                 num_cols = np.random.choice(self.num_cols, size=1)[0]
 
             else:
+                print(self.num_cols)
                 raise Exception("Invalid num_cols")
             
             valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
@@ -316,7 +331,7 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(bs=5, num_rows=16, binarise=True, num_targets=3, num_cols=[3, 4, 5], ds_group=-1, ds_split="train")
-
+    exit(2)
     means = []
     dl = iter(dl)
     # y_count = {i: 0 for i in range(20)}

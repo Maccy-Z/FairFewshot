@@ -45,7 +45,7 @@ def write_toml():
                  "DL_params": {"bs": 3,
                                "num_rows": 5,
                                "num_targets": 5,
-                               "ds_group": 1,          # Group of datasets from which to select from. -1 for full dataset
+                               "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
                                "binarise": True
                                },
 

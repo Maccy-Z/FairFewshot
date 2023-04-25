@@ -426,7 +426,6 @@ def main(all_cfgs, device="cpu"):
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
-    num_cols = cfg.get("num_cols")
     binarise = cfg["binarise"]
 
     cfg = all_cfgs["Settings"]
@@ -436,19 +435,19 @@ def main(all_cfgs, device="cpu"):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "split":
+    if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="train"
+            binarise=binarise, num_cols=-1, ds_group=ds_group, ds_split="train"
         )
         print("Training data names:", dl.all_datasets)
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
+            binarise=binarise, num_cols=-1, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
 
-    if ds == "med_split":
+    elif ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
             split = toml.load(f)
