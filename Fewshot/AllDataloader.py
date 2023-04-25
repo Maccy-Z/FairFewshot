@@ -8,7 +8,7 @@ import toml
 from itertools import islice
 import matplotlib.pyplot as plt
 
-DATADIR = './datasets'
+DATADIR = '/Users/kasiakobalczyk/FairFewshot/datasets'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -259,18 +259,23 @@ class SplitDataloader:
         elif isinstance(self.ds_group, list):
             ds_names = self.ds_group
 
-        all_datasets = [
+        self.all_datasets = [
             MyDataSet(name, num_rows=self.num_rows, 
                         num_targets=self.num_targets,
                         binarise=self.binarise, 
                         device=self.device, split="all")
             for name in ds_names]
         
-        min_ds = self.tot_rows * 2
+        min_ds = self.tot_rows
 
-        self.all_datasets = [
-            d for d in all_datasets if len(d) >= min_ds
-        ]
+        valid_datasets = []
+        for d in self.all_datasets:
+            if len(d) >= min_ds:
+                valid_datasets.append(d)
+            else:
+                print(f"WARN: Discarding {d}, due to not enough rows")
+        self.all_datasets = valid_datasets
+        
 
     def _check_num_cols(self):
         max_num_cols = max(self.num_cols)
@@ -325,11 +330,12 @@ if __name__ == "__main__":
 
     dl = SplitDataloader(
         bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=0.1,
-        num_cols=0, ds_group=2, ds_split="test",
+        num_cols=0, ds_group=["acute-inflammation"], ds_split="test",
         split_file="./datasets/grouped_datasets/med_splits")
     
     num_cols = []
-    for xs, ys, datanames in islice(dl, 500):
+    for xs, ys, datanames in islice(dl, 10):
+        print(xs.shape)
         num_cols.append(xs.shape[2])
 
     fig, ax = plt.subplots()
