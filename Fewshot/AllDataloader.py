@@ -213,6 +213,7 @@ class SplitDataloader:
             If -1, random no. columns between 2 and the smallest number of 
                 columns among all datasets
             If -2, sample datasets with equal probability, then sample valid number of columns.
+            If -3, sample datasets with equal probability, take max allowed number of columns.
             If list, sample from a range of no. columns specified in the list
         :param ds_group: Which datasets to sample from. 
             If -1, sample all available datasets
@@ -245,7 +246,8 @@ class SplitDataloader:
 
                 splits = toml.load(self.split_file)
                 if self.ds_group == -1:
-                    get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/") if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
+                    get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/")
+                                         if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
                 else:
                     get_splits = [str(self.ds_group)]
                 ds_names = []
@@ -301,34 +303,47 @@ class SplitDataloader:
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            
+
+            # Sample columns uniformly
             if self.num_cols == 0:
                 max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
+
+                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+                datasets = random.choices(valid_datasets, k=self.bs)
+
             elif self.num_cols == -1:
                 max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
-                print(max_num_cols)
+
+                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+                datasets = random.choices(valid_datasets, k=self.bs)
+
             elif isinstance(self.num_cols, list):
                 num_cols = np.random.choice(self.num_cols, size=1)[0]
 
+                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+                datasets = random.choices(valid_datasets, k=self.bs)
+
+            # Sample datasets uniformly
             elif self.num_cols == -2:
-                selected_ds = random.choices(self.all_datasets, k=self.bs)
-                max_num_cols = min([d.ds_cols for d in selected_ds]) - 1
+                datasets = random.choices(self.all_datasets, k=self.bs)
+                max_num_cols = min([d.ds_cols for d in datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
+
+            elif self.num_cols == -3:
+                datasets = random.choices(self.all_datasets, k=self.bs)
+                num_cols = min([d.ds_cols for d in datasets]) - 1
             else:
                 raise Exception("Invalid num_cols")
 
-            valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
-            datasets = random.choices(valid_datasets, k=self.bs)
-            datanames = [str(d) for d in datasets]
 
             xs, ys = list(zip(*[
                 ds.sample(num_cols=num_cols)
                 for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
-            yield xs, ys, datanames
+            yield xs, ys, str(self)
 
     def __repr__(self):
         return str(self.all_datasets)
@@ -339,15 +354,17 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(bs=3, num_rows=16, binarise=False, num_targets=3, num_cols=-2, ds_group=-1, ds_split="train")
+    dl = SplitDataloader(bs=3, num_rows=16, binarise=False, num_targets=3, num_cols=-3, ds_group=-1, ds_split="train")
     print(str(dl))
 
     means = []
+    dims = []
     dl = iter(dl)
     # y_count = {i: 0 for i in range(20)}
     for _ in range(1000):
         x, y, _ = next(dl)
         print(x.shape)
+        dims.append(x.shape[-1])
         num = torch.sum(y).item()
        # y_count[num] += 1
 
@@ -357,4 +374,6 @@ if __name__ == "__main__":
     means = torch.stack(means)
     means = torch.mean(means)
     print("Mean y value", f'{means.item():.4g}')
-    # print("Histogram of number of positive samples", y_count)
+    print("Mean y value", f'{np.mean(dims):.4g}')
+    # Mean y value 0.4862
+    # Mean dim 9.257

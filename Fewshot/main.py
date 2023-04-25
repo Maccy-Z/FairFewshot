@@ -443,7 +443,7 @@ def main(all_cfgs, device="cpu"):
         print("Training data names:", dl.all_datasets)
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=ds_group, ds_split="test"
+            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
 
