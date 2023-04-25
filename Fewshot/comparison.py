@@ -252,7 +252,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         if agg:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                num_cols=[num_cols, num_cols + 1], ds_group=test_data_names
+                num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -268,8 +268,9 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             for data_name in test_data_names:
                 if n_cols[data_name] >= num_cols:
                     test_dl = SplitDataloader(
-                        bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                        num_cols=[num_cols, num_cols + 1], ds_group=data_name
+                        bs=num_samples * len(test_data_names), num_rows=num_rows, 
+                        num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
+                        ds_group=data_name
                     )
                     batch = get_batch(test_dl, num_rows)
                     for model in models:
@@ -358,6 +359,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=10)
+    col_accs = main(save_no=12)
 
     # print(col_accs)
