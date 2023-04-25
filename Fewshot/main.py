@@ -441,11 +441,12 @@ def main(all_cfgs, device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "total":
-        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group
+        dl = SplitDataloader(bs=bs, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group
                                   , split="train")
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, ds_group=ds_group,
-                                      split="val")
+        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=num_targets, get_ds=ds_group,
+                                      split="test")
     elif ds == "mydata":
+        assert False
         dl = MyDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             num_cols=num_cols, shuffle_cols=shuffle_cols,
@@ -481,7 +482,7 @@ def main(all_cfgs, device="cpu"):
 
         # Train loop
         model.train()
-        for xs, ys in itertools.islice(dl, val_interval):
+        for xs, ys, _ in itertools.islice(dl, val_interval):
 
             xs, ys = xs.to(device), ys.to(device)
             # Train loop
@@ -525,7 +526,7 @@ def main(all_cfgs, device="cpu"):
         model.eval()
         epoch_accs, epoch_losses = [], []
         save_ys_targ, save_pred_labs = [], []
-        for xs, ys in itertools.islice(val_dl, val_duration):
+        for xs, ys, _ in itertools.islice(val_dl, val_duration):
             xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
 

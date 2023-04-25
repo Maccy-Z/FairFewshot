@@ -58,6 +58,7 @@ class SimpleDataset():
             xs = self._normalize(xs)
         return xs, ys
 
+
 class MyDataLoader:
     def __init__(self, bs, num_rows, num_targets, data_names, num_cols = None,
                  split="train", norm=True, shuffle_cols=False, min_num_cols=2):
@@ -78,18 +79,18 @@ class MyDataLoader:
         """
         self.bs = bs
         self.num_rows = num_rows + num_targets
-        self.num_cols = num_cols
+        # self.num_cols = num_cols
         self.norm = norm
         self.shuffle_cols = shuffle_cols
-        self.num_cols = num_cols
+        self.num_cols = [num_cols]
         self.data_names = data_names
         self.min_num_cols = min_num_cols
 
-        if isinstance(self.datasets, str):
-            self.datasets = SimpleDataset(self.data_names, split=split)
+        if isinstance(self.data_names, str):
+            self.datasets = [SimpleDataset(self.data_names, split=split)]
         else:
-
             self.datasets = [SimpleDataset(d, split=split) for d in self.data_names]
+
         self.max_cols = self.datasets[0].num_cols
 
 
@@ -105,8 +106,10 @@ class MyDataLoader:
                 min_col, max_col = self.min_num_cols, min(num_data_cols)
                 num_cols = np.random.randint(min_col, max_col)
 
-            datasets = random.choices(self.datasets, k=self.bs)
+            valid_datasets = [d for d in self.datasets if d.num_cols >= num_cols]
+            datasets = random.choices(valid_datasets, k=self.bs)
             datanames = [d.data_name for d in datasets]
+
             xs, ys = list(zip(*[d.stratified_sample(
                 self.num_rows, norm=self.norm, shuffle_cols=self.shuffle_cols, num_cols=num_cols) 
                 for d in datasets]))

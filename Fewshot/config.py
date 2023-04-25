@@ -53,7 +53,7 @@ def write_toml():
                                "num_cols": None,
                                },
 
-                 "Settings": {"num_epochs": 41,      # Number of train epochs
+                 "Settings": {"num_epochs": 31,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "total",

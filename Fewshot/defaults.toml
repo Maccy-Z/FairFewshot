@@ -40,4 +40,4 @@ train_data_names = [ "statlog-heart", "horse-colic", "fertility", "post-operativ
 num_epochs = 31
 val_duration = 100
 val_interval = 2000
-dataset = "mydata"
+dataset = "total"
