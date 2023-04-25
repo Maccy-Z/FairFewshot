@@ -212,6 +212,7 @@ class SplitDataloader:
                 columns among all datasets
             If -1, random no. columns between 2 and the smallest number of 
                 columns among all datasets
+            If -2, sample datasets with equal probability, then sample valid number of columns.
             If list, sample from a range of no. columns specified in the list
         :param ds_group: Which datasets to sample from. 
             If -1, sample all available datasets
@@ -268,6 +269,8 @@ class SplitDataloader:
 
         elif isinstance(self.ds_group, list):
             ds_names = self.ds_group
+        else:
+            raise Exception("Invalid ds_group")
 
         all_datasets = [
             MyDataSet(name, num_rows=self.num_rows, 
@@ -303,13 +306,17 @@ class SplitDataloader:
             elif self.num_cols == -1:
                 max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
+                print(max_num_cols)
             elif isinstance(self.num_cols, list):
                 num_cols = np.random.choice(self.num_cols, size=1)[0]
 
+            elif self.num_cols == -2:
+                selected_ds = random.choices(self.all_datasets, k=self.bs)
+                max_num_cols = min([d.ds_cols for d in selected_ds]) - 1
+                num_cols = np.random.randint(2, max_num_cols)
             else:
-                print(self.num_cols)
                 raise Exception("Invalid num_cols")
-            
+
             valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
             datasets = random.choices(valid_datasets, k=self.bs)
             datanames = [str(d) for d in datasets]
@@ -322,7 +329,7 @@ class SplitDataloader:
             yield xs, ys, datanames
 
     def __repr__(self):
-        return str(self.datasets)
+        return str(self.all_datasets)
 
 
 if __name__ == "__main__":
@@ -330,8 +337,9 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(bs=5, num_rows=16, binarise=True, num_targets=3, num_cols=[3, 4, 5], ds_group=-1, ds_split="train")
-    exit(2)
+    dl = SplitDataloader(bs=3, num_rows=16, binarise=False, num_targets=3, num_cols=-2, ds_group=-1, ds_split="train")
+    print(str(dl))
+
     means = []
     dl = iter(dl)
     # y_count = {i: 0 for i in range(20)}
