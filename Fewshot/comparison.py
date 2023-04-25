@@ -252,7 +252,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         if agg:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                num_cols=[num_cols], ds_group=test_data_names
+                num_cols=[num_cols, num_cols + 1], ds_group=test_data_names
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -269,7 +269,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 if n_cols[data_name] >= num_cols:
                     test_dl = SplitDataloader(
                         bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                        num_cols=[num_cols], ds_group=data_name
+                        num_cols=[num_cols, num_cols + 1], ds_group=data_name
                     )
                     batch = get_batch(test_dl, num_rows)
                     for model in models:
@@ -325,7 +325,7 @@ def main(save_no):
     print("Test accuracy on unseen datasets")
     unseen_print = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values='acc')
-    print(unseen_print.to_string())
+    print((unseen_print * 100).round(2).to_string())
 
     seen_results = get_results_by_dataset(
         train_data_names, models,
@@ -337,13 +337,13 @@ def main(save_no):
     print("Test accuracy on seen datasets (aggregated)")
     df = seen_results.pivot(columns='model', index='num_cols', values='acc')
     df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print(df)
+    print((df * 100).round(2).to_string())
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
     df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
     df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print(df)
+    print((df * 100).round(2).to_string())
 
 
     return unseen_results
@@ -358,6 +358,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=8)
+    col_accs = main(save_no=10)
 
     # print(col_accs)

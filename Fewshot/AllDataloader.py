@@ -1,3 +1,4 @@
+#%%
 import torch
 import numpy as np
 import pandas as pd
@@ -5,6 +6,7 @@ import os
 import random
 import toml
 from itertools import islice
+import matplotlib.pyplot as plt
 
 DATADIR = './datasets'
 
@@ -200,7 +202,8 @@ class SplitDataloader:
     def __init__(
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
-            split_file='./datasets/grouped_datasets/splits'):
+            split_file='./datasets/grouped_datasets/splits',
+            decrease_col_prob=-1):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -230,6 +233,7 @@ class SplitDataloader:
         self.device = device
         self.ds_split = ds_split
         self.split_file = split_file
+        self.decrease_col_prob = decrease_col_prob
 
         self._get_valid_datasets()
         if isinstance(num_cols, list):
@@ -283,15 +287,22 @@ class SplitDataloader:
         """
         while True:
             
-            if self.num_cols == 0:
-                max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
-                num_cols = np.random.randint(2, max_num_cols)
-            elif self.num_cols == -1:
-                max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-                num_cols = np.random.randint(2, max_num_cols)
+            if isinstance(self.num_cols, int):
+                if self.num_cols == 0:
+                    max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
+                elif self.num_cols == -1:
+                    max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
+                num_cols_range = [2, max_num_cols]
             elif isinstance(self.num_cols, list):
-                num_cols = np.random.choice(self.num_cols, size=1)[0]
-            
+                num_cols_range = self.num_cols
+                
+            if self.decrease_col_prob == -1:
+                num_cols = np.random.choice(
+                    list(range(num_cols_range[0], num_cols_range[1])), size=1)[0]
+            else:
+                num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
+                num_cols = max(num_cols_range[0], num_cols)
+                num_cols = min(num_cols, num_cols_range[1])
             valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
             datasets = random.choices(valid_datasets, k=self.bs)
             datanames = [str(d) for d in datasets]
@@ -313,8 +324,15 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=2, num_rows=5, binarise=False, num_targets=5, 
-        num_cols=list(range(1, 10)), ds_group=["adult"], ds_split="test")
+        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=0.1,
+        num_cols=0, ds_group=2, ds_split="test",
+        split_file="./datasets/grouped_datasets/med_splits")
     
-    for xs, ys, datanames in islice(dl, 10):
-        print(xs.shape)
+    num_cols = []
+    for xs, ys, datanames in islice(dl, 500):
+        num_cols.append(xs.shape[2])
+
+    fig, ax = plt.subplots()
+    ax.hist(num_cols)
+    fig.show()
+# %%

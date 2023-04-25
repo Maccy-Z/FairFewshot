@@ -427,6 +427,7 @@ def main(all_cfgs, device="cpu"):
     num_targets = cfg["num_targets"]
     ds_group = cfg["ds_group"]
     num_cols = cfg.get("num_cols")
+    decrease_col_prob = cfg.get("decrease_col_prob")
     binarise = cfg["binarise"]
 
     cfg = all_cfgs["Settings"]
@@ -447,6 +448,7 @@ def main(all_cfgs, device="cpu"):
             binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
+
     if ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
@@ -454,14 +456,17 @@ def main(all_cfgs, device="cpu"):
         max_col = split[str(ds_group)]['max_col']
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=list(range(2, max_col)), 
+            binarise=binarise, num_cols=[2, max_col],
+            decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
             split_file=split_file
         )
         print("Training data names:", dl.all_datasets)
+
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=list(range(2, max_col)), 
+            binarise=binarise, num_cols=[2, max_col],
+            decrease_col_prob=decrease_col_prob, 
             ds_group=ds_group, ds_split="test",
             split_file=split_file
         )

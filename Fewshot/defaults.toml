@@ -30,11 +30,12 @@ eps = 0.0003
 bs = 3
 num_rows = 5
 num_targets = 5
-ds_group = 1
+ds_group = 0
 binarise = true
+decrease_col_prob = 0.12
 
 [Settings]
 num_epochs = 51
 val_duration = 100
-val_interval = 1000
+val_interval = 2000
 dataset = "med_split"
