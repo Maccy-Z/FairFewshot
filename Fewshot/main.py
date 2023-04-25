@@ -183,7 +183,7 @@ class WeightGenerator(nn.Module):
         # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
         if self.learn_norm:
             if self.norm_weights:
-                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.]))
+                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.25]))
             if self.norm_lin:
                 self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
 
