@@ -16,7 +16,7 @@ def write_toml():
                              "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": False,          # Load pretrained datset2vec
+                             "load_d2v": True,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_3",  # Which D2V to load from
 
@@ -43,16 +43,16 @@ def write_toml():
                            "eps": 3e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 5,
+                               "num_rows": 16,
                                "num_targets": 5,
                                "ds_group": -1,          # Group of datasets from which to select from. -1 for full dataset
-                               "binarise": True
+                               "binarise": False
                                },
 
-                 "Settings": {"num_epochs": 31,      # Number of train epochs
+                 "Settings": {"num_epochs": 21,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
-                              "dataset": "split",
+                              "dataset": "total",
                               },
                  }
 

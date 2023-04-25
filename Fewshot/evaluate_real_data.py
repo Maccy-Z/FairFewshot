@@ -22,11 +22,7 @@ class ZeroModel:
 
 
 def get_batch(dl, num_rows):
-    try:
-        xs, ys, model_id = next(iter(dl))
-    except:
-        xs, ys = next(iter(dl))
-        model_id = []
+    xs, ys, model_id = next(iter(dl))
 
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
@@ -34,8 +30,6 @@ def get_batch(dl, num_rows):
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
     ys_target = ys_target.view(-1)
 
-    if len(model_id) > 0:
-        return model_id, xs_meta, xs_target, ys_meta, ys_target
     return xs_meta, xs_target, ys_meta, ys_target
 
 
@@ -90,7 +84,7 @@ def main(save_no, ds_group=-1, print_result=True):
     model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
     model.load_state_dict(state_dict['model_state_dict'])
 
-    cfg = toml.load(os.path.join(save_dir, '../Fewshot/defaults.toml'))["DL_params"]
+    cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
     num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
@@ -103,7 +97,7 @@ def main(save_no, ds_group=-1, print_result=True):
     for num_cols in range(1, 20, 2):
         accs = {name: [] for name in ["fewshot"] + baseline_model_names}
         val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
-                                 num_cols=num_cols, ds_group=ds_group, split="val")
+                                 num_cols=-2, ds_group=ds_group, ds_split="test")
 
         for j in range(2000):
             # Fewshot predictions

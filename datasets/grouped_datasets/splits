@@ -1,10 +1,10 @@
 [0]
 train = [ "heart-hungarian", "annealing", "bank", "fertility", "blood", "pittsburg-bridges-REL-L", "breast-cancer", "pittsburg-bridges-TYPE", "musk-1", "monks-2", "teaching", "optical", "ozone", "heart-switzerland", "pittsburg-bridges-SPAN", "post-operative", "adult", "echocardiogram", "hepatitis", "acute-nephritis", "horse-colic", "contrac", "statlog-shuttle", "ilpd-indian-liver", "oocytes_merluccius_nucleus_4d", "heart-cleveland", "zoo", "musk-2", "titanic", "breast-cancer-wisc", "statlog-heart", "monks-1", "led-display", "page-blocks", "cardiotocography-3clases", "oocytes_trisopterus_nucleus_2f", "monks-3",]
-test = [ "credit-approval", "flags", "mushroom", "lymphography", "oocytes_trisopterus_states_5b", "cylinder-bands", "statlog-german-credit", "primary-tumor", "heart-va", "pittsburg-bridges-T-OR-D", "miniboone", "wall-following",]
+test = [ "credit-approval", "flags", "mushroom", "lymphography", "oocytes_trisopterus_states_5b", "cylinder-bands", "primary-tumor", "heart-va", "pittsburg-bridges-T-OR-D", "miniboone", "wall-following",]
 
 [1]
 train = [ "twonorm", "wine-quality-white", "statlog-vehicle", "waveform", "monks-2", "ionosphere", "waveform-noise", "wine", "primary-tumor", "breast-cancer-wisc-prog", "synthetic-control", "planning", "semeion", "statlog-landsat", "libras", "flags", "vertebral-column-2clases", "heart-va", "hayes-roth", "vertebral-column-3clases", "ecoli", "abalone", "zoo", "musk-2", "led-display",]
-test = [ "monks-3", "teaching", "cardiotocography-10clases", "audiology-std", "dermatology", "ringnorm", "conn-bench-vowel-deterding", "letter",]
+test = [ "monks-3", "teaching", "cardiotocography-10clases", "dermatology", "ringnorm", "conn-bench-vowel-deterding",]
 
 [2]
 train = [ "mammographic", "iris", "nursery", "energy-y2", "statlog-vehicle", "energy-y1", "chess-krvk", "molec-biol-splice", "molec-biol-promoter", "waveform-noise", "pittsburg-bridges-SPAN", "pittsburg-bridges-MATERIAL", "tic-tac-toe", "glass", "hayes-roth", "vertebral-column-3clases", "seeds", "pendigits",]
@@ -12,7 +12,7 @@ test = [ "waveform", "car", "abalone", "spectf", "balance-scale",]
 
 [3]
 train = [ "image-segmentation", "oocytes_merluccius_states_2f", "mammographic", "soybean", "pima", "steel-plates", "musk-1", "plant-margin", "chess-krvk", "low-res-spect", "statlog-image", "optical", "cardiotocography-10clases", "ozone", "heart-switzerland", "breast-cancer-wisc-diag", "magic", "plant-shape", "libras", "conn-bench-vowel-deterding", "conn-bench-sonar-mines-rocks", "contrac", "oocytes_trisopterus_states_5b", "parkinsons", "oocytes_merluccius_nucleus_4d", "pendigits", "breast-tissue", "statlog-heart", "monks-1", "page-blocks",]
-test = [ "echocardiogram", "blood", "plant-texture", "synthetic-control", "letter", "cardiotocography-3clases", "statlog-landsat", "wine-quality-red", "pittsburg-bridges-T-OR-D", "oocytes_trisopterus_nucleus_2f",]
+test = [ "echocardiogram", "blood", "plant-texture", "synthetic-control", "letter", "cardiotocography-3clases", "statlog-landsat", "oocytes_trisopterus_nucleus_2f",]
 
 [4]
 train = [ "spambase", "heart-hungarian", "thyroid", "yeast", "annealing", "bank", "statlog-image", "hill-valley", "spect", "statlog-australian-credit", "lymphography", "post-operative", "connect-4", "chess-krvkp", "credit-approval", "acute-nephritis", "congressional-voting", "cylinder-bands", "heart-cleveland", "miniboone",]
@@ -20,4 +20,4 @@ test = [ "statlog-german-credit", "audiology-std", "hepatitis", "semeion", "arrh
 
 [5]
 train = [ "oocytes_merluccius_states_2f", "plant-texture", "wine-quality-white", "ringnorm", "pima", "steel-plates", "plant-margin", "ionosphere", "low-res-spect", "hill-valley", "statlog-australian-credit", "wall-following", "haberman-survival", "breast-cancer-wisc-prog", "adult", "magic", "planning", "pittsburg-bridges-MATERIAL", "vertebral-column-2clases", "glass", "dermatology", "car", "ilpd-indian-liver", "parkinsons", "breast-cancer-wisc",]
-test = [ "wine", "soybean", "wine-quality-red", "spectf", "breast-cancer-wisc-diag", "image-segmentation", "twonorm", "conn-bench-sonar-mines-rocks",]
+test = [ "wine", "soybean", "wine-quality-red", "breast-cancer-wisc-diag", "image-segmentation", "twonorm", "conn-bench-sonar-mines-rocks",]

@@ -32,13 +32,14 @@ def get_batch(dl, num_rows):
 
     return xs_meta, xs_target, ys_meta, ys_target
 
+
 class Model(ABC):
     # Process batch of data
     def get_accuracy(self, batch):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
-            #print(xs_meta.shape)
+            # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             accs.append(self.get_acc(xs_target, ys_target))
 
@@ -87,7 +88,6 @@ class TabnetModel(Model):
 
             self.pred_val = None
 
-
     def get_acc(self, xs_target, ys_target):
         if self.identical_batch:
             predictions = np.ones_like(ys_target) * self.pred_val
@@ -107,6 +107,7 @@ class TabnetModel(Model):
 
 class FTTrModel(Model):
     model: torch.nn.Module
+
     def __init__(self):
         self.null_categ = torch.tensor([[]])
 
@@ -136,9 +137,7 @@ class FTTrModel(Model):
             optim.step()
             optim.zero_grad()
 
-
     def get_acc(self, xs_target, ys_target):
-
         self.model.eval()
         with torch.no_grad():
             target_preds = self.model(self.null_categ, xs_target)
@@ -162,7 +161,7 @@ class BasicModel(Model):
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=6, depth=4, learning_rate=1,
-                           loss_function='Logloss',allow_const_label=True, verbose=False)
+                                                loss_function='Logloss', allow_const_label=True, verbose=False)
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=30)
             case _:
@@ -241,8 +240,9 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     """
 
     datasets = [
-        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all") 
-        for d in test_data_names]
+        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all")
+        for d in test_data_names
+    ]
 
     n_cols = [d.ds_cols - 1 for d in datasets]
     max_test_col = max([d.ds_cols - 1 for d in datasets])
@@ -301,43 +301,60 @@ def main(save_no):
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
 
-    ds = "split"
-
     if ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
             split = toml.load(f)
         train_data_names = split[str(cfg["ds_group"])]["train"]
         test_data_names = split[str(cfg["ds_group"])]["test"]
-    elif ds == "split":
-        train_data_names = -1
-        test_data_names = -1
+    elif ds == "total":
+        split_file = './datasets/grouped_datasets/splits'
+        splits = toml.load(split_file)
 
+        get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/") if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
+
+        ds_names = []
+        for split in get_splits:
+            ds_name = splits[str(split)]["test"]
+            ds_names += ds_name
+
+        train_data_names = -1
+        test_data_names = ds_names
+    else:
+        raise Exception("Invalid data split")
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 50
+    num_samples = 10
 
     models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("KNN"), # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
-              #TabnetModel(),
-              #FTTrModel(),
+              BasicModel("LR"), BasicModel("KNN"),  # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
+              # TabnetModel(),
+              # FTTrModel(),
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, 
+        num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples
     )
-    print("======================================================")
-    print("Test accuracy on unseen datasets")
+
     unseen_print = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values='acc')
-    print(unseen_print.to_string())
+    print("======================================================")
+    print("Test accuracy on unseen datasets")
+    print(unseen_results.to_string())
+
+    print()
+    print("======================================================")
+    print("Test accuracy on unseen datasets (aggregated)")
+    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    print(df)
 
     seen_results = get_results_by_dataset(
         train_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, 
+        num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples, agg=True
     )
     print()
@@ -346,16 +363,8 @@ def main(save_no):
     df = seen_results.pivot(columns='model', index='num_cols', values='acc')
     df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
     print(df)
-    print()
-    print("======================================================")
-    print("Test accuracy on unseen datasets (aggregated)")
-    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print(df)
-
 
     return unseen_results
-
 
 
 if __name__ == "__main__":
