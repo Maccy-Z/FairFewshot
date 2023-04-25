@@ -447,6 +447,7 @@ def main(all_cfgs, device="cpu"):
             binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
+
     if ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
@@ -587,8 +588,7 @@ def main(all_cfgs, device="cpu"):
 
 
 if __name__ == "__main__":
-    from evaluate_real_data import main as eval_main
-    import random
+    from old.evaluate_real_data import main as eval_main
 
     # random.seed(0)
     # np.random.seed(0)

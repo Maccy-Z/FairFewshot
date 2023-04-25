@@ -240,13 +240,15 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     Results are groupped by: data set, model, number of test columns.
     """
 
-    results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     datasets = [
         MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all") 
         for d in test_data_names]
+
     n_cols = [d.ds_cols - 1 for d in datasets]
     max_test_col = max([d.ds_cols - 1 for d in datasets])
     n_cols = dict(zip(test_data_names, n_cols))
+
+    results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
     while num_cols <= max_test_col:
         if agg:
@@ -299,12 +301,18 @@ def main(save_no):
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
 
+    ds = "split"
+
     if ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
             split = toml.load(f)
         train_data_names = split[str(cfg["ds_group"])]["train"]
         test_data_names = split[str(cfg["ds_group"])]["test"]
+    elif ds == "split":
+        train_data_names = -1
+        test_data_names = -1
+
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
@@ -358,6 +366,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=8)
+    col_accs = main(save_no=-1)
 
     # print(col_accs)

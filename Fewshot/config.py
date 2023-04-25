@@ -46,13 +46,13 @@ def write_toml():
                                "num_rows": 5,
                                "num_targets": 5,
                                "ds_group": 1,          # Group of datasets from which to select from. -1 for full dataset
-                               "binarise" : True
+                               "binarise": True
                                },
 
-                 "Settings": {"num_epochs": 51,      # Number of train epochs
+                 "Settings": {"num_epochs": 31,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
-                              "val_interval": 1000,     # Number of batches to train for each epoch
-                              "dataset": "med_split",
+                              "val_interval": 2000,     # Number of batches to train for each epoch
+                              "dataset": "split",
                               },
                  }
 

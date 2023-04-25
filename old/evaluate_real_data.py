@@ -90,7 +90,7 @@ def main(save_no, ds_group=-1, print_result=True):
     model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
     model.load_state_dict(state_dict['model_state_dict'])
 
-    cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
+    cfg = toml.load(os.path.join(save_dir, '../Fewshot/defaults.toml'))["DL_params"]
 
     num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]

@@ -34,7 +34,7 @@ ds_group = 1
 binarise = true
 
 [Settings]
-num_epochs = 51
+num_epochs = 31
 val_duration = 100
-val_interval = 1000
-dataset = "med_split"
+val_interval = 2000
+dataset = "split"

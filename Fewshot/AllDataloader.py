@@ -245,7 +245,7 @@ class SplitDataloader:
                 if '.DS_Store' in ds_names:
                     ds_names.remove('.DS_Store')
             else:
-                # get datasets from pre-defined spli
+                # get datasets from pre-defined split
                 splits = toml.load(self.split_file)
                 ds_names = splits[str(self.ds_group)][self.ds_split]
 
@@ -291,14 +291,17 @@ class SplitDataloader:
                 num_cols = np.random.randint(2, max_num_cols)
             elif isinstance(self.num_cols, list):
                 num_cols = np.random.choice(self.num_cols, size=1)[0]
+
+            else:
+                raise Exception("Invalid num_cols")
             
             valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
             datasets = random.choices(valid_datasets, k=self.bs)
             datanames = [str(d) for d in datasets]
 
             xs, ys = list(zip(*[
-                datasets[i].sample(num_cols=num_cols)
-                for i in range(self.bs)]))
+                ds.sample(num_cols=num_cols)
+                for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
             yield xs, ys, datanames
@@ -312,9 +315,21 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(
-        bs=2, num_rows=5, binarise=False, num_targets=5, 
-        num_cols=list(range(1, 10)), ds_group=["adult"], ds_split="test")
-    
-    for xs, ys, datanames in islice(dl, 10):
-        print(xs.shape)
+    dl = SplitDataloader(bs=5, num_rows=16, binarise=True, num_targets=3, num_cols=[3, 4, 5], ds_group=-1, ds_split="train")
+
+    means = []
+    dl = iter(dl)
+    # y_count = {i: 0 for i in range(20)}
+    for _ in range(1000):
+        x, y, _ = next(dl)
+        print(x.shape)
+        num = torch.sum(y).item()
+       # y_count[num] += 1
+
+        y_mean = torch.mean(y, dtype=float)
+        means.append(y_mean)
+
+    means = torch.stack(means)
+    means = torch.mean(means)
+    print("Mean y value", f'{means.item():.4g}')
+    # print("Histogram of number of positive samples", y_count)
