@@ -215,6 +215,8 @@ class SplitDataloader:
                 columns among all datasets
             If -1, random no. columns between 2 and the smallest number of 
                 columns among all datasets
+            If -2, sample datasets with equal probability, then sample valid number of columns.
+            If -3, sample datasets with equal probability, take max allowed number of columns.
             If list, sample from a range of no. columns specified in the list
         :param ds_group: Which datasets to sample from. 
             If -1, sample all available datasets
@@ -230,10 +232,11 @@ class SplitDataloader:
         self.binarise = binarise
         self.num_cols = num_cols
         self.ds_group = ds_group
-        self.device = device
         self.ds_split = ds_split
         self.split_file = split_file
         self.decrease_col_prob = decrease_col_prob
+
+        self.device = device
 
         self._get_valid_datasets()
         if isinstance(num_cols, list):
@@ -242,14 +245,28 @@ class SplitDataloader:
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, int):
-            if self.ds_group == -1:
+            # Treat total dataset splits differently.
+            if self.split_file == './datasets/grouped_datasets/splits':
+
+                splits = toml.load(self.split_file)
+                if self.ds_group == -1:
+                    get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/")
+                                         if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
+                else:
+                    get_splits = [str(self.ds_group)]
+                ds_names = []
+                for split in get_splits:
+                    ds_name = splits[str(split)][self.ds_split]
+                    ds_names += ds_name
+
+            elif self.ds_group == -1:
                 # get all datasets
                 ds_names = os.listdir(ds_dir)
                 ds_names.remove('info.json')
                 if '.DS_Store' in ds_names:
                     ds_names.remove('.DS_Store')
             else:
-                # get datasets from pre-defined spli
+                # get datasets from pre-defined split
                 splits = toml.load(self.split_file)
                 ds_names = splits[str(self.ds_group)][self.ds_split]
 
@@ -258,6 +275,8 @@ class SplitDataloader:
 
         elif isinstance(self.ds_group, list):
             ds_names = self.ds_group
+        else:
+            raise Exception("Invalid ds_group")
 
         self.all_datasets = [
             MyDataSet(name, num_rows=self.num_rows, 
@@ -286,41 +305,59 @@ class SplitDataloader:
                 "Provided range of columns to sample exceeds the "
                 + "dimension of the largest dataset available")
 
+
+
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            
-            if isinstance(self.num_cols, int):
-                if self.num_cols == 0:
-                    max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
-                elif self.num_cols == -1:
-                    max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-                num_cols_range = [2, max_num_cols]
-            elif isinstance(self.num_cols, list):
-                num_cols_range = self.num_cols
-                
-            if self.decrease_col_prob == -1:
-                num_cols = np.random.choice(
-                    list(range(num_cols_range[0], num_cols_range[1])), size=1)[0]
-            else:
-                num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
-                num_cols = max(num_cols_range[0], num_cols)
-                num_cols = min(num_cols, num_cols_range[1])
-            valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
-            datasets = random.choices(valid_datasets, k=self.bs)
-            datanames = [str(d) for d in datasets]
+            # Sample columns uniformly
+            if self.num_cols == 0 or self.numcols == -1 or isinstance(self.num_cols, list):
+                if isinstance(self.num_cols, int):
+                    if self.num_cols == 0:
+                        max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
 
+                    elif self.num_cols == -1:
+                        max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
+
+                    num_cols_range = [2, max_num_cols]
+                else:
+                    num_cols_range = self.num_cols
+
+                if self.decrease_col_prob == -1:
+                    num_cols = np.random.choice(
+                        list(range(num_cols_range[0], num_cols_range[1])), size=1)[0]
+                else:
+                    num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
+                    num_cols = max(num_cols_range[0], num_cols)
+                    num_cols = min(num_cols, num_cols_range[1])
+                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+                datasets = random.choices(valid_datasets, k=self.bs)
+
+            # Sample datasets uniformly
+            elif self.num_cols == -2:
+                datasets = random.choices(self.all_datasets, k=self.bs)
+                max_num_cols = min([d.ds_cols for d in datasets]) - 1
+                num_cols = np.random.randint(2, max_num_cols)
+
+            elif self.num_cols == -3:
+                datasets = random.choices(self.all_datasets, k=self.bs)
+                num_cols = min([d.ds_cols for d in datasets]) - 1
+            else:
+                raise Exception("Invalid num_cols")
+
+            datanames = [str(d) for d in datasets]
+            
             xs, ys = list(zip(*[
-                datasets[i].sample(num_cols=num_cols)
-                for i in range(self.bs)]))
+                ds.sample(num_cols=num_cols)
+                for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
             yield xs, ys, datanames
 
     def __repr__(self):
-        return str(self.datasets)
+        return str(self.all_datasets)
 
 
 if __name__ == "__main__":

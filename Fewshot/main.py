@@ -438,15 +438,15 @@ def main(all_cfgs, device="cpu"):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "split":
+    if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="train"
+            binarise=binarise, num_cols=-2, ds_group=ds_group, ds_split="train"
         )
         print("Training data names:", dl.all_datasets)
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols, ds_group=ds_group, ds_split="test"
+            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="test"
         )
         print("Test data names:", val_dl.all_datasets)
 
@@ -593,8 +593,6 @@ def main(all_cfgs, device="cpu"):
 
 
 if __name__ == "__main__":
-    from evaluate_real_data import main as eval_main
-    import random
 
     # random.seed(0)
     # np.random.seed(0)
@@ -612,12 +610,3 @@ if __name__ == "__main__":
     print("")
     print("Training Completed")
 
-    for eval_no in range(1):
-        print()
-        print("Eval number", eval_no)
-        eval_main(save_no=-(eval_no + 1), ds_group=-1)
-
-    print()
-    print()
-
-    print(tag)

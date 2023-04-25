@@ -55,6 +55,10 @@ for i, label in enumerate(labels):
 
 plt.show()
 
+
+
+
+exit()
 command = input("If you are happy with the clustering, type 'YES' clusters will be saved, deleting old clusters: \n")
 if command != "YES":
     print("Nothing done. Exiting")

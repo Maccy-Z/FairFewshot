@@ -1,0 +1,4 @@
+[0]
+train = [ "post-operative", "lung-cancer", "hepatitis", "breast-cancer", "heart-va", "heart-switzerland", "fertility", "echocardiogram", "lymphography",]
+test = [ "post-operative", "breast-cancer", "echocardiogram",]
+max_col = 10
