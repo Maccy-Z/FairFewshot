@@ -206,7 +206,7 @@ class BasicModel(Model):
         return self.name
 
 
-class Fewshot(Model):
+class FLAT(Model):
     def __init__(self, save_dir):
         print(f'Loading model at {save_dir = }')
 
@@ -231,7 +231,7 @@ class Fewshot(Model):
         return accuracy
 
     def __repr__(self):
-        return "Fewshot"
+        return "FLAT"
 
 
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
@@ -310,7 +310,7 @@ def main(save_no):
     num_targets = cfg["num_targets"]
     num_samples = 50
 
-    models = [Fewshot(save_dir),
+    models = [FLAT(save_dir),
               BasicModel("LR"), BasicModel("KNN"), # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
               #TabnetModel(),
               #FTTrModel(),
@@ -335,11 +335,15 @@ def main(save_no):
     print()
     print("======================================================")
     print("Test accuracy on seen datasets (aggregated)")
-    print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
+    df = seen_results.pivot(columns='model', index='num_cols', values='acc')
+    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    print(df)
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
-    print(unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack())
+    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    print(df)
 
 
     return unseen_results
