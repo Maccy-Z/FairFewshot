@@ -8,7 +8,7 @@ import toml
 from itertools import islice
 import matplotlib.pyplot as plt
 
-DATADIR = '/Users/kasiakobalczyk/FairFewshot/datasets'
+DATADIR = './datasets'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -223,6 +223,7 @@ class SplitDataloader:
             If int >= 0, referes to premade group specified in the split_file 
             If string or list of strings, sample from that specified dataset(s).
         :param ds_split: If ds_group is int >= 0, the test or train split.
+        :param split_fmt: format of data to load.
         """
 
         self.bs = bs
@@ -244,7 +245,20 @@ class SplitDataloader:
 
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
-        if isinstance(self.ds_group, int):
+        if isinstance(self.ds_group, tuple):
+            fold_no, split_no = self.ds_group
+            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+            if split_no == -1:
+                get_splits = range(6)
+            else:
+                get_splits = [split_no]
+
+            ds_names = []
+            for split in get_splits:
+                names = splits[str(split)][self.ds_split]
+                ds_names += names
+
+        elif isinstance(self.ds_group, int):
             if self.ds_group == -1:
                 # get all datasets
                 ds_names = os.listdir(ds_dir)
@@ -280,7 +294,6 @@ class SplitDataloader:
             else:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
-        
 
     def _check_num_cols(self):
         max_num_cols = max(self.num_cols)
@@ -290,8 +303,6 @@ class SplitDataloader:
             raise Exception(
                 "Provided range of columns to sample exceeds the "
                 + "dimension of the largest dataset available")
-
-
 
     def __iter__(self):
         """

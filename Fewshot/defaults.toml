@@ -27,8 +27,8 @@ lr = 0.0005
 eps = 0.0003
 
 [DL_params]
-bs = 5
-num_rows = 5
+bs = 3
+num_rows = 16
 num_targets = 5
 ds_group = 5
 binarise = true
@@ -39,4 +39,4 @@ split_file = "med_splits"
 num_epochs = 51
 val_duration = 100
 val_interval = 2000
-dataset = "med_split"
+dataset = "total"
