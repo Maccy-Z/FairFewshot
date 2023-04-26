@@ -233,62 +233,63 @@ class FLAT(Model):
         return "FLAT"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
+def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, by_dataset=True, by_cols=True):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
     """
 
     datasets = [
-        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all")
+        MyDataSet(d, num_rows=0, num_targets=0, binarise=True, split="all")
         for d in test_data_names
     ]
-
     n_cols = [d.ds_cols - 1 for d in datasets]
     max_test_col = max([d.ds_cols - 1 for d in datasets])
     n_cols = dict(zip(test_data_names, n_cols))
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
-    num_cols = 2
-    while num_cols <= max_test_col:
-        print(num_cols)
-        if agg:
-            test_dl = SplitDataloader(
-                bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
-            )
-            batch = get_batch(test_dl, num_rows)
-            for model in models:
-                result = pd.DataFrame({
-                    'data_name': "all seen",
-                    'model': str(model),
-                    'num_cols': num_cols,
-                    'acc': model.get_accuracy(batch)
-                }, index=[0])
 
-                results = pd.concat([results, result])
-        else:
-            for data_name in test_data_names:
-                if n_cols[data_name] >= num_cols:
-                    test_dl = SplitDataloader(
-                        bs=num_samples * len(test_data_names), num_rows=num_rows,
-                        num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
-                        ds_group=data_name
-                    )
-                    batch = get_batch(test_dl, num_rows)
-                    for model in models:
-                        result = pd.DataFrame({
-                            'data_name': data_name,
-                            'model': str(model),
-                            'num_cols': num_cols,
-                            'acc': model.get_accuracy(batch)
-                        }, index=[0])
+    if by_cols:
+        num_cols = 2
+        while num_cols <= max_test_col:
+            if not by_dataset:
+                test_dl = SplitDataloader(
+                    bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+                    num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
+                )
+                batch = get_batch(test_dl, num_rows)
+                for model in models:
+                    result = pd.DataFrame({
+                        'data_name': "all seen",
+                        'model': str(model),
+                        'num_cols': num_cols,
+                        'acc': model.get_accuracy(batch)
+                    }, index=[0])
 
-                        results = pd.concat([results, result])
-        num_cols *= 2
+                    results = pd.concat([results, result])
+            else:
+                for data_name in test_data_names:
+                    if n_cols[data_name] >= num_cols:
+                        test_dl = SplitDataloader(
+                            bs=num_samples * len(test_data_names), num_rows=num_rows,
+                            num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
+                            ds_group=data_name
+                        )
+                        batch = get_batch(test_dl, num_rows)
+                        for model in models:
+                            acc = model.get_accuracy(batch)
+                            result = pd.DataFrame({
+                                'data_name': data_name,
+                                'model': str(model),
+                                'num_cols': num_cols,
+                                'acc': acc
+                            }, index=[0])
+
+                            results = pd.concat([results, result])
+            num_cols *= 2
 
     # Test on full dataset
-    if not agg:
+    elif not by_cols and by_dataset:
         for data_name in test_data_names:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
@@ -305,17 +306,21 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 }, index=[0])
 
                 results = pd.concat([results, result])
+    
+    else:
+        Exception("At least one of by_cols or by_dataset must be True")
 
     results.reset_index(drop=True, inplace=True)
+
     return results
 
 
 def main(save_no):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
-    files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    save_no = existing_saves[save_no]
+    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+    # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    # save_no = existing_saves[save_no]
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
     all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
@@ -368,12 +373,15 @@ def main(save_no):
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples
+        num_samples=num_samples, by_cols=True, by_dataset=True
     )
-
+    print("======================================================")
+    print("Test accuracy on unseen datasets (by dataset)")
     unseen_print = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values='acc')
     print((unseen_print * 100).round(2).to_string())
+    unseen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results.csv')
+    
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
     df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
@@ -383,7 +391,7 @@ def main(save_no):
     seen_results = get_results_by_dataset(
         train_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, agg=True
+        num_samples=num_samples, by_cols=True, by_dataset=False
     )
     print()
     print("======================================================")
@@ -391,8 +399,8 @@ def main(save_no):
     df = seen_results.pivot(columns='model', index='num_cols', values='acc')
     df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
     print((df * 100).round(2).to_string())
+    seen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/seen_results.csv')
 
-    return unseen_results
 
 
 if __name__ == "__main__":
@@ -401,8 +409,8 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     # save_number = int(input("Enter save number:\n"))
-    # main(save_no=save_number)
+    main(save_no=19)
 
-    col_accs = main(save_no=6)
+    #col_accs = main(save_no=2)
 
     # print(col_accs)

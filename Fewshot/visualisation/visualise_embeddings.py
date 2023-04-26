@@ -4,7 +4,6 @@
 
 import torch
 import sys
-import os
 import random
 import numpy as np
 
@@ -17,48 +16,24 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot/Fewshot')
 from main import *
-from AllDataloader import SplitDataloader, MyDataSet
+from AllDataloader import SplitDataloader
+from utils import get_batch, load_model, get_num_rows_cols
 
 np.random.seed(0)
 random.seed(0)
 sns.set_style('ticks')
 sns.set_palette('Set2')
 
-all_data_names = os.listdir('../datasets/data')
-all_data_names.remove('info.json')
-all_data_names.remove('.DS_Store')
+save_no = 1
 
-all_datasets = [
-    MyDataSet(d, num_rows=0, num_targets=0, binarise=True, split="all") 
-    for d in all_data_names]
-num_cols_ls = [d.ds_cols - 1 for d in all_datasets]
-num_cols_dict = dict(zip(all_data_names, num_cols_ls))
-num_rows_ls = [d.ds_rows for d in all_datasets]
-num_rows_dict = dict(zip(all_data_names, num_rows_ls))
-
-save_no = 10
-save_dir = f'../saves/save_{save_no}'
-state_dict = torch.load(f'{save_dir}/model.pt')
-cfg_all = get_config(cfg_file=f'{save_dir}/defaults.toml')
+num_rows_dict, num_cols_dict = get_num_rows_cols()
+model, cfg_all = load_model(save_no)
 cfg = cfg_all["DL_params"]
-model = ModelHolder(cfg_all=cfg_all)
-model.load_state_dict(state_dict['model_state_dict'])
-
-
-def get_batch(dl, num_rows):
-    xs, ys, model_id = next(iter(dl))
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    ys_target = ys_target.view(-1)
-
-    return model_id, xs_meta, xs_target, ys_meta, ys_target
-
 # %%
 # Embeddings
 # ----------
-split_file = '../datasets/grouped_datasets/med_splits'
+split_file = cfg["split_file"]
+split_file = f'/Users/kasiakobalczyk/FairFewshot/datasets/grouped_datasets/{split_file}'
 train_dl = SplitDataloader(bs=0, num_rows=0, num_targets=0, binarise=cfg["binarise"],
                     ds_group=cfg["ds_group"], ds_split="train", 
                     split_file=split_file)
@@ -79,7 +54,7 @@ model_id_ls = []
 num_cols_ls = []
 
 num_rows = 30
-discard_cnt = 0
+num_samples = 50
 
 for d in datanames:
     d = str(d)
@@ -88,7 +63,7 @@ for d in datanames:
             bs=1, num_rows=num_rows_dict[d] // 2, num_targets=0, 
             num_cols=[n_col - 1, n_col], ds_group=[d],
     )
-    for i in range(50):
+    for i in range(num_samples):
         model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(dl, num_rows)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -98,7 +73,7 @@ for d in datanames:
 
 model_id_ls = [item for sublist in model_id_ls for item in sublist]
 embed_meta = torch.stack(embed_meta_ls).detach().reshape(
-    50 * (len(datanames) - discard_cnt), 64)
+    num_samples * (len(datanames)), 64)
 
 #%%
 scaler = StandardScaler()

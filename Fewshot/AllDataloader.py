@@ -8,8 +8,7 @@ import toml
 from itertools import islice
 import matplotlib.pyplot as plt
 
-DATADIR = './datasets'
-
+DATADIR = '/Users/kasiakobalczyk/FairFewshot/datasets'
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
     return torch.from_numpy(array).to(device).to(dtype)

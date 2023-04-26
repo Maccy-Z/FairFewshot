@@ -1,0 +1,63 @@
+[0]
+train = [ "lung-cancer", "breast-cancer", "mammographic", "echocardiogram", "heart-va", "post-operative", "heart-switzerland",]
+val = []
+test = [ "fertility",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 9
+
+[1]
+train = [ "fertility", "breast-cancer", "mammographic", "echocardiogram", "heart-va", "post-operative", "heart-switzerland",]
+val = []
+test = [ "lung-cancer",]
+max_train_col = 12
+max_val_col = 0
+max_test_col = 56
+
+[2]
+train = [ "fertility", "lung-cancer", "breast-cancer", "echocardiogram", "heart-va", "post-operative", "heart-switzerland",]
+val = []
+test = [ "mammographic",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 5
+
+[3]
+train = [ "fertility", "lung-cancer", "breast-cancer", "mammographic", "echocardiogram", "heart-va", "post-operative",]
+val = []
+test = [ "heart-switzerland",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 12
+
+[4]
+train = [ "fertility", "lung-cancer", "breast-cancer", "mammographic", "heart-va", "post-operative", "heart-switzerland",]
+val = []
+test = [ "echocardiogram",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 10
+
+[5]
+train = [ "fertility", "lung-cancer", "mammographic", "echocardiogram", "heart-va", "post-operative", "heart-switzerland",]
+val = []
+test = [ "breast-cancer",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 9
+
+[6]
+train = [ "fertility", "lung-cancer", "breast-cancer", "mammographic", "echocardiogram", "post-operative", "heart-switzerland",]
+val = []
+test = [ "heart-va",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 12
+
+[7]
+train = [ "fertility", "lung-cancer", "breast-cancer", "mammographic", "echocardiogram", "heart-va", "heart-switzerland",]
+val = []
+test = [ "post-operative",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 8

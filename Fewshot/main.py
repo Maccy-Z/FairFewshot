@@ -11,6 +11,8 @@ from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
 
+BASEDIR = '/Users/kasiakobalczyk/FairFewshot'
+
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
         super().__init__()
@@ -341,7 +343,7 @@ class ModelHolder(nn.Module):
             print()
             print("Loading model. Possibly overriding some config options")
             model_load = cfg["model_load"]
-            load = torch.load(f"./dataset2vec/{model_load}")
+            load = torch.load(f"{BASEDIR}/dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
             set_h_dim, set_out_dim, d2v_layers = params
             cfg["set_h_dim"] = set_h_dim
@@ -452,18 +454,6 @@ def main(all_cfgs, device="cpu"):
 
     elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        if not num_cols:
-            num_cols = {
-                'train': [2, split[str(ds_group)]['max_test_col']],
-                'val' : [2, split[str(ds_group)]['max_val_col']],
-            }
-        else:
-            num_cols = {
-                'train': num_cols,
-                'val' : num_cols,
-            }
         print(num_cols)
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
@@ -478,7 +468,7 @@ def main(all_cfgs, device="cpu"):
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="val",
+            ds_group=ds_group, ds_split="test",
             split_file=split_file
         )
         print("Validation data names:", val_dl.all_datasets)
