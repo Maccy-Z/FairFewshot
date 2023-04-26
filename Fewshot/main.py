@@ -457,9 +457,11 @@ def main(all_cfgs, device="cpu"):
         if not num_cols:
             max_col = split[str(ds_group)]['max_col']
             num_cols = [2, max_col]
+        else:
+            num_cols = num_cols
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=[2, max_col],
+            binarise=binarise, num_col=num_cols,
             decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
             split_file=split_file
@@ -468,7 +470,7 @@ def main(all_cfgs, device="cpu"):
 
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=[2, max_col],
+            binarise=binarise, num_cols=num_cols,
             decrease_col_prob=decrease_col_prob, 
             ds_group=ds_group, ds_split="val",
             split_file=split_file
