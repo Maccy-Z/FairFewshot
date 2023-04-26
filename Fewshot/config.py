@@ -55,7 +55,7 @@ def write_toml():
                                "split_file" : 'my_splits',
                                },
 
-                 "Settings": {"num_epochs": 51,      # Number of train epochs
+                 "Settings": {"num_epochs": 31,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "my_split",
