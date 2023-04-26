@@ -464,6 +464,7 @@ def main(all_cfgs, device="cpu"):
                 'train': num_cols,
                 'val' : num_cols,
             }
+        print(num_cols)
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=num_cols['train'],

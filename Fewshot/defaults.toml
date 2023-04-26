@@ -30,13 +30,13 @@ eps = 0.0003
 bs = 5
 num_rows = 5
 num_targets = 5
-ds_group = 1
+ds_group = 0
 binarise = true
 decrease_col_prob = 0.12
 split_file = "my_splits"
 
 [Settings]
-num_epochs = 51
+num_epochs = 31
 val_duration = 100
 val_interval = 2000
 dataset = "my_split"

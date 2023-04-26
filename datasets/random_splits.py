@@ -57,8 +57,8 @@ def split_datasets(all_data_names):
         max_val_col = max([n_col[d] for d in ds_val])
         splits[str(i)] = {
             'train': ds_train,
-            'val': ds_test,
-            'test': ds_val,
+            'val': ds_val,
+            'test': ds_test,
             'max_val_col': max_val_col,
             'max_test_col': max_test_col
         }
