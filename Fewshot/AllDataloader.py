@@ -8,7 +8,7 @@ import toml
 from itertools import islice
 import matplotlib.pyplot as plt
 
-DATADIR = '/Users/kasiakobalczyk/FairFewshot/datasets'
+DATADIR = './datasets'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -203,7 +203,7 @@ class SplitDataloader:
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            decrease_col_prob=-1):
+            decrease_col_prob=-1, split_fmt=None):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -223,6 +223,7 @@ class SplitDataloader:
             If int >= 0, referes to premade group specified in the split_file 
             If string or list of strings, sample from that specified dataset(s).
         :param ds_split: If ds_group is int >= 0, the test or train split.
+        :param split_fmt: format of data to load.
         """
 
         self.bs = bs
@@ -238,7 +239,10 @@ class SplitDataloader:
 
         self.device = device
 
-        self._get_valid_datasets()
+        if split_fmt =="total":
+            self._get_total_datasets()
+        else:
+            self._get_valid_datasets()
         if isinstance(num_cols, list):
             self._check_num_cols()
 
@@ -280,7 +284,43 @@ class SplitDataloader:
             else:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
-        
+
+    def _get_total_datasets(self):
+        ds_dir = f'{DATADIR}/grouped_datasets/'
+        ds_to_get = None
+        if isinstance(self.ds_group, int):
+            splits = toml.load(f'{ds_dir}/splits')
+            if self.ds_group == -1:
+                get_splits = sorted([f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')])
+            else:
+                get_splits = [str(self.ds_group)]
+
+            ds_to_get = []
+            for split in get_splits:
+                ds_names = splits[str(split)][self.ds_split]
+                ds_to_get += ds_names
+
+        elif isinstance(self.ds_group, str):
+            ds_to_get = [self.ds_group]
+
+        elif isinstance(self.ds_group, list):
+            ds_to_get = self.ds_group
+
+        all_datasets = []
+        for name in ds_to_get:
+            ds = MyDataSet(name, num_rows=self.num_rows, num_targets=self.num_targets,
+                           binarise=self.binarise, device=self.device, split="all", )
+            all_datasets.append(ds)
+
+        min_ds = self.tot_rows * 2
+
+        self.all_datasets = [
+            d for d in all_datasets if len(d) >= min_ds
+        ]
+
+        self.max_cols = min([d.ds_cols for d in self.all_datasets]) - 1
+
+
 
     def _check_num_cols(self):
         max_num_cols = max(self.num_cols)
@@ -290,8 +330,6 @@ class SplitDataloader:
             raise Exception(
                 "Provided range of columns to sample exceeds the "
                 + "dimension of the largest dataset available")
-
-
 
     def __iter__(self):
         """

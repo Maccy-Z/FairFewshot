@@ -441,16 +441,16 @@ def main(all_cfgs, device="cpu"):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=ds_group, ds_split="train"
+            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="train", split_fmt="total"
         )
         print("Training data names:", dl.all_datasets)
         val_dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="test"
+            bs=1, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="test", split_fmt="total"
         )
         print("Test data names:", val_dl.all_datasets)
 
-    if ds == "med_split":
+    elif ds == "med_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
         with open(split_file) as f:
             split = toml.load(f)

@@ -1,7 +1,8 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
+from AllDataloader import SplitDataloader
+from mydataloader import MyDataLoader
 from config import get_config
 
 import os
@@ -32,14 +33,13 @@ def get_batch(dl, num_rows):
 
     return xs_meta, xs_target, ys_meta, ys_target
 
-
 class Model(ABC):
     # Process batch of data
     def get_accuracy(self, batch):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
-            # print(xs_meta.shape)
+            #print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             accs.append(self.get_acc(xs_target, ys_target))
 
@@ -88,6 +88,7 @@ class TabnetModel(Model):
 
             self.pred_val = None
 
+
     def get_acc(self, xs_target, ys_target):
         if self.identical_batch:
             predictions = np.ones_like(ys_target) * self.pred_val
@@ -107,7 +108,6 @@ class TabnetModel(Model):
 
 class FTTrModel(Model):
     model: torch.nn.Module
-
     def __init__(self):
         self.null_categ = torch.tensor([[]])
 
@@ -126,7 +126,7 @@ class FTTrModel(Model):
             # ff_dropout=0.1  # feed forward dropout
         )
 
-        optim = torch.optim.Adam(self.model.parameters(), lr=2e-3)
+        optim = torch.optim.AdamW(self.model.parameters(), lr=2e-3)
 
         for _ in range(30):
             x_categ = torch.tensor([[]])
@@ -137,7 +137,9 @@ class FTTrModel(Model):
             optim.step()
             optim.zero_grad()
 
+
     def get_acc(self, xs_target, ys_target):
+
         self.model.eval()
         with torch.no_grad():
             target_preds = self.model(self.null_categ, xs_target)
@@ -147,7 +149,7 @@ class FTTrModel(Model):
         return accuracy
 
     def __repr__(self):
-        return "FTTransformer"
+        return "FTTransf"
 
 
 class BasicModel(Model):
@@ -161,7 +163,7 @@ class BasicModel(Model):
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=6, depth=4, learning_rate=1,
-                                                loss_function='Logloss', allow_const_label=True, verbose=False)
+                           loss_function='Logloss',allow_const_label=True, verbose=False)
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=30)
             case _:
@@ -205,7 +207,7 @@ class BasicModel(Model):
         return self.name
 
 
-class FLAT(Model):
+class Fewshot(Model):
     def __init__(self, save_dir):
         print(f'Loading model at {save_dir = }')
 
@@ -230,7 +232,7 @@ class FLAT(Model):
         return accuracy
 
     def __repr__(self):
-        return "FLAT"
+        return "Fewshot"
 
 
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
@@ -239,52 +241,29 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     Results are groupped by: data set, model, number of test columns.
     """
 
-    datasets = [
-        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all")
-        for d in test_data_names
-    ]
-
-    n_cols = [d.ds_cols - 1 for d in datasets]
-    max_test_col = max([d.ds_cols - 1 for d in datasets])
-    n_cols = dict(zip(test_data_names, n_cols))
-
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
-    num_cols = 2
-    while num_cols <= max_test_col:
-        if agg:
-            test_dl = SplitDataloader(
-                bs=num_samples, num_rows=num_rows, num_targets=num_targets,
-                num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
-            )
+    for data_name in test_data_names:
+        save_name = "SEEN" if agg else data_name
+
+        for num_cols in range(1, 20, 4):
+            # get batch
+            test_dl = SplitDataloader(bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+                                 num_cols=num_cols, ds_group=data_name, ds_split="train", split_fmt="total")
+
+            if not agg and num_cols > test_dl.max_cols:
+                break
+
             batch = get_batch(test_dl, num_rows)
+
             for model in models:
                 result = pd.DataFrame({
-                    'data_name': "all seen",
-                    'model': str(model),
-                    'num_cols': num_cols,
-                    'acc': model.get_accuracy(batch)
-                }, index=[0])
+                                        'data_name': save_name,
+                                        'model': str(model),
+                                        'num_cols': num_cols,
+                                        'acc': model.get_accuracy(batch)
+                                        }, index=[0])
 
                 results = pd.concat([results, result])
-        else:
-            for data_name in test_data_names:
-                if n_cols[data_name] >= num_cols:
-                    test_dl = SplitDataloader(
-                        bs=num_samples * len(test_data_names), num_rows=num_rows, 
-                        num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
-                        ds_group=data_name
-                    )
-                    batch = get_batch(test_dl, num_rows)
-                    for model in models:
-                        result = pd.DataFrame({
-                            'data_name': data_name,
-                            'model': str(model),
-                            'num_cols': num_cols,
-                            'acc': model.get_accuracy(batch)
-                        }, index=[0])
-
-                        results = pd.concat([results, result])
-        num_cols *= 2
 
     results.reset_index(drop=True, inplace=True)
     return results
@@ -298,71 +277,39 @@ def main(save_no):
     save_no = existing_saves[save_no]
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
-    all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
+    cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))["DL_params"]
 
-    if ds == "med_split":
-        split_file = "./datasets/grouped_datasets/med_splits"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(cfg["ds_group"])]["train"]
-        test_data_names = split[str(cfg["ds_group"])]["test"]
-    elif ds == "total":
-        split_file = './datasets/grouped_datasets/splits'
-        splits = toml.load(split_file)
+    num_rows = 10  # cfg["num_rows"]
+    num_targets = 5
+    num_samples = 40
 
-        get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/") if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-    else:
-        raise Exception("Invalid data split")
-
-    num_rows = cfg["num_rows"]
-    num_targets = cfg["num_targets"]
-    num_samples = 10
-
-    models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("KNN"),  # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
+    models = [Fewshot(save_dir),
+              BasicModel("LR"), BasicModel("KNN"), # BasicModel("R_Forest"),  BasicModel("CatBoost"),
               # TabnetModel(),
-              # FTTrModel(),
+              FTTrModel(),
               ]
 
-    unseen_results = get_results_by_dataset(
-        test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples
-    )
+    # Unseen results
+    unseen_results = get_results_by_dataset(cfg["test_data_names"], models,
+                                            num_rows=num_rows, num_targets=num_targets, num_samples=num_samples)
 
-    unseen_print = unseen_results.pivot(
-        columns=['data_name', 'model'], index='num_cols', values='acc')
-    print((unseen_print * 100).round(2).to_string())
-
-    seen_results = get_results_by_dataset(
-        train_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, agg=True
-    )
-    print()
     print("======================================================")
-    print("Test accuracy on seen datasets (aggregated)")
-    df = seen_results.pivot(columns='model', index='num_cols', values='acc')
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
+    print("Test accuracy on unseen datasets")
+    unseen_print = unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values='acc')
+    print(unseen_print.to_string())
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
-    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
+    print(unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack())
+
+    # Seen results
+    seen_results = get_results_by_dataset([cfg["train_data_names"]], models,
+                                          num_rows=num_rows, num_targets=num_targets, num_samples=num_samples, agg=True, )
+
+    print()
+    print("======================================================")
+    print("Test accuracy on seen datasets (aggregated)")
+    print(seen_results.pivot(columns='model', index='num_cols', values='acc'))
 
 
     return unseen_results
@@ -376,6 +323,9 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=12)
-
+    col_accs = main(save_no=-1)
+    import pickle
+    #
+    with open("./savea", "wb") as f:
+        pickle.dump(col_accs, f)
     # print(col_accs)
