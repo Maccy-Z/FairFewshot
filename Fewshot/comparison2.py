@@ -41,16 +41,22 @@ class Model(ABC):
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
             # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
-            accs.append(self.get_acc(xs_target, ys_target))
+            a = self.get_acc(xs_target, ys_target)
 
-        return np.mean(accs)
+            accs.append(a)
+
+        accs = np.concatenate(accs)
+
+        mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
+
+        return mean, std
 
     @abstractmethod
     def fit(self, xs_meta, ys_meta):
         pass
 
     @abstractmethod
-    def get_acc(self, xs_target, ys_target):
+    def get_acc(self, xs_target, ys_target) -> np.array:
         pass
 
 
@@ -97,9 +103,8 @@ class TabnetModel(Model):
                 predictions = self.model.predict(X=xs_target)
 
         ys_lr_target_labels = np.array(predictions).flatten()
-        accuracy = (ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)
 
-        return accuracy
+        return ys_lr_target_labels == np.array(ys_target)
 
     def __repr__(self):
         return "TabNet"
@@ -142,9 +147,8 @@ class FTTrModel(Model):
         with torch.no_grad():
             target_preds = self.model(self.null_categ, xs_target)
         preds = torch.argmax(target_preds, dim=1)
-        accuracy = (preds == ys_target).sum().item() / len(ys_target)
 
-        return accuracy
+        return (preds == ys_target).numpy()
 
     def __repr__(self):
         return "FTTransformer"
@@ -193,13 +197,9 @@ class BasicModel(Model):
         if self.identical_batch:
             predictions = np.ones_like(ys_target) * self.pred_val
         else:
-            # xs_target = xs_target[0]
             predictions = self.model.predict(xs_target)
 
-        ys_lr_target_labels = np.array(predictions).flatten()
-        accuracy = (ys_lr_target_labels == np.array(ys_target)).sum().item() / len(ys_target)
-
-        return accuracy
+        return np.array(predictions).flatten() == np.array(ys_target)
 
     def __repr__(self):
         return self.name
@@ -219,15 +219,14 @@ class FLAT(Model):
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
 
-    def get_acc(self, xs_target, ys_target):
+    def get_acc(self, xs_target, ys_target) -> np.array:
         xs_target = xs_target.unsqueeze(0)
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
         ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
-        accuracy = (ys_pred_target_labels == ys_target).sum().item() / len(ys_target)
 
-        return accuracy
+        return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
         return "FLAT"
@@ -250,7 +249,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
-    while num_cols <= max_test_col and num_cols<= 100:
+    while num_cols <= max_test_col and num_cols <= 100:
         print(num_cols)
         if agg:
             test_dl = SplitDataloader(
@@ -259,11 +258,13 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
+                mean_acc, std_acc = model.get_accuracy(batch)
                 result = pd.DataFrame({
                     'data_name': "all seen",
                     'model': str(model),
                     'num_cols': num_cols,
-                    'acc': model.get_accuracy(batch)
+                    'acc': mean_acc,
+                    'std': std_acc
                 }, index=[0])
 
                 results = pd.concat([results, result])
@@ -277,11 +278,14 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                     )
                     batch = get_batch(test_dl, num_rows)
                     for model in models:
+                        mean_acc, std_acc = model.get_accuracy(batch)
+
                         result = pd.DataFrame({
                             'data_name': data_name,
                             'model': str(model),
                             'num_cols': num_cols,
-                            'acc': model.get_accuracy(batch)
+                            'acc': mean_acc,
+                            'std': std_acc
                         }, index=[0])
 
                         results = pd.concat([results, result])
@@ -297,11 +301,13 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
+                mean_acc, std_acc = model.get_accuracy(batch)
                 result = pd.DataFrame({
                     'data_name': data_name,
                     'model': str(model),
                     'num_cols': -1,
-                    'acc': model.get_accuracy(batch)
+                    'acc': mean_acc,
+                    'std': std_acc
                 }, index=[0])
 
                 results = pd.concat([results, result])
@@ -354,14 +360,14 @@ def main(save_no):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 10 # cfg["num_rows"]
+    num_rows = 5  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 50
+    num_samples = 200
 
     models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("KNN"),  # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
+              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
-              FTTrModel(),
+              # FTTrModel(),
               ]
 
     unseen_results = get_results_by_dataset(
@@ -370,38 +376,93 @@ def main(save_no):
         num_samples=num_samples
     )
 
-    unseen_print = unseen_results.pivot(
-        columns=['data_name', 'model'], index='num_cols', values='acc')
-    print((unseen_print * 100).round(2).to_string())
-    print("======================================================")
-    print("Test accuracy on unseen datasets (aggregated)")
-    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
+    # Results for each dataset
+    detailed_results = unseen_results.copy()
 
-    seen_results = get_results_by_dataset(
-        train_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, agg=True
-    )
+    mean, std = detailed_results["acc"], detailed_results["std"]
+    mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
+    detailed_results['acc'] = mean_std
+
+    detailed_results = detailed_results.pivot(
+        columns=['data_name', 'model'], index='num_cols', values=['acc'])
+
+    print("======================================================")
+    print("Test accuracy on unseen datasets")
+    print(detailed_results.to_string())
+
+    # Aggreate results
+    agg_results = unseen_results.copy()
+
+    # Move flat to first column
+    agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    new_column_order = ["FLAT"] + [col for col in agg_results.columns if col != "FLAT"]
+    agg_results = agg_results.reindex(columns=new_column_order)
+    # Difference between FLAT and best model
+    agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 1:].max(axis=1)) * 100
+    agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
+
+    # Get errors using appropriate formulas.
+    pivot_acc = unseen_results.pivot(
+        columns=['data_name', 'model'], index='num_cols', values=['acc'])
+    pivot_std = unseen_results.pivot(
+        columns=['data_name', 'model'], index='num_cols', values=['std'])
+    model_names = pivot_acc.columns.get_level_values(2).unique()
+    for model_name in model_names:
+
+        model_accs = pivot_acc.loc[:, ("acc", slice(None), model_name)]
+        model_stds = pivot_std.loc[:, ("std", slice(None), model_name)]
+
+        mean_stds = []
+        for i in range(pivot_acc.shape[0]):
+            accs = np.array(model_accs.iloc[i].dropna())
+            std = np.array(model_stds.iloc[i].dropna())
+
+            assert std.shape == accs.shape
+            mean_acc = np.mean(accs)
+            std_acc = np.sqrt(np.sum(std ** 2)) / std.shape[0]
+            mean_std = f'{mean_acc * 100:.2f}±{std_acc * 100:.2f}'
+            mean_stds.append(mean_std)
+
+        agg_results[model_name] = mean_stds
+
     print()
     print("======================================================")
-    print("Test accuracy on seen datasets (aggregated)")
-    df = seen_results.pivot(columns='model', index='num_cols', values='acc')
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
+    print("Test accuracy on unseen datasets (aggregated)")
+    print(agg_results.to_string())
+
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets (aggregated)")
+
+    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    # new_column_order = ["FLAT"] + [col for col in df.columns if col != "FLAT"]
+    # df = df.reindex(columns=new_column_order)
+
+    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    # print((df * 100).round(2).to_string())
+
+    # seen_results = get_results_by_dataset(
+    #     train_data_names, models,
+    #     num_rows=num_rows, num_targets=num_targets,
+    #     num_samples=num_samples, agg=True
+    # )
+    # print()
+    # print("======================================================")
+    # print("Test accuracy on seen datasets (aggregated)")
+    # df = seen_results.pivot(columns='model', index='num_cols', values='acc')
+    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    # print((df * 100).round(2).to_string())
 
     return unseen_results
 
 
 if __name__ == "__main__":
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
+    # random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
 
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-1)
+    col_accs = main(save_no=-2)
 
     # print(col_accs)
