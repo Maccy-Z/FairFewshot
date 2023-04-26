@@ -598,7 +598,7 @@ if __name__ == "__main__":
     # np.random.seed(0)
     # torch.manual_seed(0)
 
-    tag = input("Description: ")
+    # tag = input("Description: ")
 
     dev = torch.device("cpu")
     for test_no in range(1):

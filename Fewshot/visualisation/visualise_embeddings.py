@@ -74,13 +74,6 @@ datasets = seen_datasets + unseen_datasets
 datanames = seen_data_names + unseen_data_names
 
 #%%
-dl = SplitDataloader(
-                bs=1, num_rows=20, num_targets=0, 
-                num_cols=0, ds_group=-1,
-        )
-print(dl.all_datasets)
-
-#%%
 embed_meta_ls = []
 model_id_ls = []
 num_cols_ls = []

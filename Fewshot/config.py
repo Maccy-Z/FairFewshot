@@ -1,5 +1,9 @@
 import toml
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--ds-group', type=int)   
+args = parser.parse_args()
 
 def get_config(cfg_file=None):
     if cfg_file is None:
@@ -45,13 +49,13 @@ def write_toml():
                  "DL_params": {"bs": 5,
                                "num_rows": 5,
                                "num_targets": 5,
-                               "ds_group": 0,          # Group of datasets from which to select from. -1 for full dataset
+                               "ds_group": args.ds_group,   # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
                                "decrease_col_prob": 0.12,
-                               "split_file" : 'my_split'
+                               "split_file" : 'med_splits'
                                },
 
-                 "Settings": {"num_epochs": 21,      # Number of train epochs
+                 "Settings": {"num_epochs": 51,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "med_split",
