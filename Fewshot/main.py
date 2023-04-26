@@ -455,13 +455,18 @@ def main(all_cfgs, device="cpu"):
         with open(split_file) as f:
             split = toml.load(f)
         if not num_cols:
-            max_col = split[str(ds_group)]['max_col']
-            num_cols = [2, max_col]
+            num_cols = {
+                'train': [2, split[str(ds_group)]['max_test_col']],
+                'val' : [2, split[str(ds_group)]['max_val_col']],
+            }
         else:
-            num_cols = num_cols
+            num_cols = {
+                'train': num_cols,
+                'val' : num_cols,
+            }
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_col=num_cols,
+            binarise=binarise, num_cols=num_cols['train'],
             decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
             split_file=split_file
@@ -470,7 +475,7 @@ def main(all_cfgs, device="cpu"):
 
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols,
+            binarise=binarise, num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 
             ds_group=ds_group, ds_split="val",
             split_file=split_file

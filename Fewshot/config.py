@@ -53,7 +53,6 @@ def write_toml():
                                "binarise" : True,
                                "decrease_col_prob": 0.12,
                                "split_file" : 'my_splits',
-                               "num_col" : -2,
                                },
 
                  "Settings": {"num_epochs": 51,      # Number of train epochs

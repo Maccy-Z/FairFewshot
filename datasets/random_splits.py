@@ -59,7 +59,8 @@ def split_datasets(all_data_names):
             'train': ds_train,
             'val': ds_test,
             'test': ds_val,
-            'max_col': min(max_train_col, max(max_val_col, max_test_col))
+            'max_val_col': max_val_col,
+            'max_test_col': max_test_col
         }
     print(splits)
     return splits

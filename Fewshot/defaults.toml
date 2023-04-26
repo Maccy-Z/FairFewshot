@@ -30,11 +30,10 @@ eps = 0.0003
 bs = 5
 num_rows = 5
 num_targets = 5
-ds_group = 2
+ds_group = 1
 binarise = true
 decrease_col_prob = 0.12
 split_file = "my_splits"
-num_col = -2
 
 [Settings]
 num_epochs = 51
