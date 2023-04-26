@@ -11,7 +11,8 @@ import os
 from dataset2vec import Dataset2Vec
 from d2v_dataset import Dataloader
 
-print(os.getcwd())
+np.random.seed(0)
+
 
 num_clusters = 6
 
@@ -55,10 +56,6 @@ for i, label in enumerate(labels):
 
 plt.show()
 
-
-
-
-exit()
 command = input("If you are happy with the clustering, type 'YES' clusters will be saved, deleting old clusters: \n")
 if command != "YES":
     print("Nothing done. Exiting")
@@ -69,9 +66,7 @@ path = f'./datasets/grouped_datasets/'
 for file_name in os.listdir(path):
     file_path = os.path.join(path, file_name)
     try:
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-        elif os.path.isdir(file_path):
+        if os.path.isdir(file_path):
             shutil.rmtree(file_path)
     except Exception as e:
         print(f"Failed to delete {file_path}. Reason: {e}")

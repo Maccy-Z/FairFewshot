@@ -203,7 +203,7 @@ class SplitDataloader:
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            decrease_col_prob=-1, split_fmt=None):
+            decrease_col_prob=-1):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -239,16 +239,26 @@ class SplitDataloader:
 
         self.device = device
 
-        if split_fmt =="total":
-            self._get_total_datasets()
-        else:
-            self._get_valid_datasets()
+        self._get_valid_datasets()
         if isinstance(num_cols, list):
             self._check_num_cols()
 
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
-        if isinstance(self.ds_group, int):
+        if isinstance(self.ds_group, tuple):
+            fold_no, split_no = self.ds_group
+            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+            if split_no == -1:
+                get_splits = range(6)
+            else:
+                get_splits = [split_no]
+
+            ds_names = []
+            for split in get_splits:
+                names = splits[str(split)][self.ds_split]
+                ds_names += names
+
+        elif isinstance(self.ds_group, int):
             if self.ds_group == -1:
                 # get all datasets
                 ds_names = os.listdir(ds_dir)
@@ -284,43 +294,6 @@ class SplitDataloader:
             else:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
-
-    def _get_total_datasets(self):
-        ds_dir = f'{DATADIR}/grouped_datasets/'
-        ds_to_get = None
-        if isinstance(self.ds_group, int):
-            splits = toml.load(f'{ds_dir}/splits')
-            if self.ds_group == -1:
-                get_splits = sorted([f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')])
-            else:
-                get_splits = [str(self.ds_group)]
-
-            ds_to_get = []
-            for split in get_splits:
-                ds_names = splits[str(split)][self.ds_split]
-                ds_to_get += ds_names
-
-        elif isinstance(self.ds_group, str):
-            ds_to_get = [self.ds_group]
-
-        elif isinstance(self.ds_group, list):
-            ds_to_get = self.ds_group
-
-        all_datasets = []
-        for name in ds_to_get:
-            ds = MyDataSet(name, num_rows=self.num_rows, num_targets=self.num_targets,
-                           binarise=self.binarise, device=self.device, split="all", )
-            all_datasets.append(ds)
-
-        min_ds = self.tot_rows * 2
-
-        self.all_datasets = [
-            d for d in all_datasets if len(d) >= min_ds
-        ]
-
-        self.max_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-
-
 
     def _check_num_cols(self):
         max_num_cols = max(self.num_cols)

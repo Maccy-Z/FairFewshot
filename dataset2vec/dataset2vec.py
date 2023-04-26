@@ -5,9 +5,6 @@ import time
 import numpy as np
 import random
 
-random.seed(0)
-torch.manual_seed(0)
-np.random.seed(0)
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -180,6 +177,10 @@ class ModelTrainer:
         self.model = torch.load("./dataset2vec/model")
 
 if __name__ == "__main__":
+    random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
+    
     d = torch.device("cpu")
 
     trainer = ModelTrainer(device=d)

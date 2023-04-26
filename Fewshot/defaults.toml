@@ -28,9 +28,9 @@ eps = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 10
+num_rows = 16
 num_targets = 5
-ds_group = -1
+ds_group = [0, -1]
 binarise = false
 decrease_col_prob = 0.12
 split_file = "my_split"

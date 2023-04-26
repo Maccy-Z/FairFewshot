@@ -183,7 +183,7 @@ class WeightGenerator(nn.Module):
         # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
         if self.learn_norm:
             if self.norm_weights:
-                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.25]))
+                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.05]))
             if self.norm_lin:
                 self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
 
@@ -441,14 +441,14 @@ def main(all_cfgs, device="cpu"):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="train", split_fmt="total"
+            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="train"
         )
-        print("Training data names:", dl.all_datasets)
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=ds_group, ds_split="test", split_fmt="total"
+            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
         )
-        print("Test data names:", val_dl.all_datasets)
+        print("Training data names:", dl)
+        print("\nTest data names:", val_dl)
 
     elif ds == "med_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"

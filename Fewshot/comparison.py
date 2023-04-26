@@ -251,6 +251,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
     while num_cols <= max_test_col:
+        print(num_cols)
         if agg:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows, num_targets=num_targets,
@@ -270,7 +271,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             for data_name in test_data_names:
                 if n_cols[data_name] >= num_cols:
                     test_dl = SplitDataloader(
-                        bs=num_samples * len(test_data_names), num_rows=num_rows, 
+                        bs=num_samples * len(test_data_names), num_rows=num_rows,
                         num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
                         ds_group=data_name
                     )
@@ -285,6 +286,25 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
                         results = pd.concat([results, result])
         num_cols *= 2
+
+    # Test on full dataset
+    if not agg:
+        for data_name in test_data_names:
+            test_dl = SplitDataloader(
+                bs=num_samples, num_rows=num_rows,
+                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+                ds_group=data_name
+            )
+            batch = get_batch(test_dl, num_rows)
+            for model in models:
+                result = pd.DataFrame({
+                    'data_name': data_name,
+                    'model': str(model),
+                    'num_cols': num_cols,
+                    'acc': model.get_accuracy(batch)
+                }, index=[0])
+
+                results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
     return results
@@ -301,18 +321,25 @@ def main(save_no):
     all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
+    ds_group = cfg["ds_group"]
 
     if ds == "med_split":
         split_file = "./datasets/grouped_datasets/med_splits"
         with open(split_file) as f:
             split = toml.load(f)
-        train_data_names = split[str(cfg["ds_group"])]["train"]
-        test_data_names = split[str(cfg["ds_group"])]["test"]
-    elif ds == "total":
-        split_file = './datasets/grouped_datasets/splits'
-        splits = toml.load(split_file)
+        train_data_names = split[str(ds_group)]["train"]
+        test_data_names = split[str(ds_group)]["test"]
 
-        get_splits = sorted([f for f in os.listdir("./datasets/grouped_datasets/") if os.path.isdir(f'./datasets/grouped_datasets/{f}')])
+        print("Train datases:", train_data_names)
+        print("Test datasets:", test_data_names)
+
+    elif ds == "total":
+        fold_no, split_no = ds_group
+        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+        if split_no == -1:
+            get_splits = range(6)
+        else:
+            get_splits = [split_no]
 
         test_data_names = []
         for split in get_splits:
@@ -323,12 +350,13 @@ def main(save_no):
         for split in get_splits:
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
+
     else:
         raise Exception("Invalid data split")
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 10
+    num_samples = 50
 
     models = [FLAT(save_dir),
               BasicModel("LR"), BasicModel("KNN"),  # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
@@ -345,6 +373,11 @@ def main(save_no):
     unseen_print = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values='acc')
     print((unseen_print * 100).round(2).to_string())
+    print("======================================================")
+    print("Test accuracy on unseen datasets (aggregated)")
+    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    print((df * 100).round(2).to_string())
 
     seen_results = get_results_by_dataset(
         train_data_names, models,
@@ -357,13 +390,6 @@ def main(save_no):
     df = seen_results.pivot(columns='model', index='num_cols', values='acc')
     df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
     print((df * 100).round(2).to_string())
-    print()
-    print("======================================================")
-    print("Test accuracy on unseen datasets (aggregated)")
-    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
-
 
     return unseen_results
 
@@ -376,6 +402,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=12)
+    col_accs = main(save_no=-1)
 
     # print(col_accs)
