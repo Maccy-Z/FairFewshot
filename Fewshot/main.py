@@ -450,11 +450,13 @@ def main(all_cfgs, device="cpu"):
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
 
-    elif ds == "med_split":
+    elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
         with open(split_file) as f:
             split = toml.load(f)
-        max_col = split[str(ds_group)]['max_col']
+        if not num_cols:
+            max_col = split[str(ds_group)]['max_col']
+            num_cols = [2, max_col]
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=[2, max_col],
@@ -468,10 +470,10 @@ def main(all_cfgs, device="cpu"):
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=[2, max_col],
             decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="test",
+            ds_group=ds_group, ds_split="val",
             split_file=split_file
         )
-        print("Testing data names:", val_dl.all_datasets)
+        print("Validation data names:", val_dl.all_datasets)
     else:
         raise Exception("Invalid dataset")
 
