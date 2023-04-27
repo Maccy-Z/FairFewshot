@@ -19,8 +19,8 @@ def main(f, num_batches, num_targets):
 
     for model in models:
         print(model)
-        for num_rows in [2, 5, 10, 15]:
-            for num_cols in [-3, 1, 2, 4, 8, 16, 32, 64]:
+        for num_rows in [5, 10, 15]:
+            for num_cols in [-3, 2, 4, 8, 16, 32]:
 
                 if num_cols==-3:
                     dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
@@ -40,7 +40,6 @@ def main(f, num_batches, num_targets):
             writer.writerow(row)
 
 
-
 if __name__ == "__main__":
     import numpy as np
     import random
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_batches = 100
+    num_batches = 250
     num_targets = 5
 
 
