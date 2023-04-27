@@ -125,20 +125,28 @@ class AdultDataLoader:
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
 def d2v_pairer(xs, ys):
     #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
+
     bs, num_rows, num_xs = xs.shape
-
+    bs, num_rows, num_ys = ys.shape
     xs = xs.view(bs * num_rows, num_xs)
-    ys = ys.view(bs * num_rows, 1)
+    ys = ys.view(bs * num_rows, num_ys)
 
-    pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
+
+    pair_flat = torch.empty(bs * num_rows, num_xs * num_ys, 2, device=xs.device)
     for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-        # Only allow 1D for ys
-        ys_k = ys_k.repeat(num_xs)
-        pairs = torch.stack([xs_k, ys_k], dim=-1)
+        if num_ys == 1:
+            # Only allow 1D for ys
+            ys_k = ys_k.repeat(num_xs)
+            pairs = torch.stack([xs_k, ys_k], dim=-1)
+        else:
+            pairs = []
+            for i in range(num_xs):
+                for j in range(num_ys):
+                    pairs.append(torch.tensor(np.array([xs_k[i], ys_k[j]])))
 
+            pairs = torch.stack(pairs)
         pair_flat[k] = pairs
-
-    pairs = pair_flat.view(bs, num_rows, num_xs, 2)
+    pairs = pair_flat.view(bs, num_rows, num_xs * num_ys, 2)
 
     return pairs
 
@@ -146,24 +154,9 @@ def d2v_pairer(xs, ys):
 if __name__ == "__main__":
     # Test if dataloader works.
     np.random.seed(0)
-    torch.manual_seed(0)
+    xs = torch.tensor(np.random.randint(10, size=(2, 3, 10)))
+    ys = torch.tensor(np.random.binomial(1, 0.5, size=(2, 3, 1)))
 
-    dl = AdultDataLoader(bs=2, num_rows=10, num_target=3, flip=False)
-    #
-    # for i in range(15):
-    #     num_unique = np.unique(dl.data[:, i])
-    #     print(i, len(num_unique))
+    pairs = d2v_pairer(xs, ys)
+    
 
-    means = []
-    dl = iter(dl)
-    for _ in range(1000):
-        x, y = next(dl)
-        # y_mean = torch.mean(y, dtype=float)
-        # means.append(y_mean)
-        #
-        # print(y)
-        print(x.shape)
-
-    means = torch.stack(means)
-    means = torch.mean(means)
-    print(means.item())
