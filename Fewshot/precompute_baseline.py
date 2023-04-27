@@ -46,8 +46,8 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_batches = 500
-    num_targets = 5
+    num_bs = 500
+    num_targs = 5
 
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
@@ -57,10 +57,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        main(f, num_batches=num_batches, num_targets=num_targets)
-
-
-
-
-
-
+        main(f, num_batches=num_bs, num_targets=num_targs)
