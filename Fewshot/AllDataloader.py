@@ -295,6 +295,9 @@ class SplitDataloader:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
 
+        ds_len = [ds.ds_cols for ds in self.all_datasets]
+        self.min_ds_cols = min(ds_len)
+
     def _check_num_cols(self):
         max_num_cols = max(self.num_cols)
         valid_datasets = [

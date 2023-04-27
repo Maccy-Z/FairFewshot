@@ -81,14 +81,14 @@ class TabnetModel(Model):
                 try:
                     self.model.fit(xs_meta, ys_meta,
                                    eval_set=[(xs_meta, ys_meta)], eval_name=["accuracy"],
-                                   batch_size=8, patience=10, drop_last=False)
+                                   batch_size=8, patience=15, drop_last=False)
                 except RuntimeError:
                     # Tabnet fails if multiple columns are exactly identical. Add a irrelevant amount of random noise to stop this.
                     xs_meta += np.random.normal(size=xs_meta.shape) * 1e-6
                     print(xs_meta)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_set=[(xs_meta, ys_meta)], eval_name=["accuracy"],
-                                   batch_size=8, patience=10, drop_last=False)
+                                   batch_size=8, patience=15, drop_last=False)
 
             sys.stdout = sys.__stdout__
 
@@ -360,14 +360,14 @@ def main(save_no):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 5  # cfg["num_rows"]
+    num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 200
+    num_samples = 5
 
-    models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
+    models = [# FLAT(save_dir),
+              # BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
-              # FTTrModel(),
+              FTTrModel(),
               ]
 
     unseen_results = get_results_by_dataset(
