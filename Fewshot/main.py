@@ -136,7 +136,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, cfg, out_sizes: list):
+    def __init__(self, cfg, out_sizes: list, num_classes: int):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -169,7 +169,7 @@ class WeightGenerator(nn.Module):
             self.add_module(f'weight_gen_{i}', model)
 
         # Weights for final linear classificaion layer
-        self.num_classes = 2
+        self.num_classes = num_classes
         self.gat_out_dim = self.out_sizes[-1][-2]
         lin_out_dim = self.gat_out_dim * self.num_classes
         self.w_gen_out = nn.Sequential(
@@ -322,7 +322,7 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, cfg_all, device="cpu"):
+    def __init__(self, cfg_all, device="cpu", num_classes=2):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
@@ -365,7 +365,7 @@ class ModelHolder(nn.Module):
             self.d2v_model = model
         else:
             self.d2v_model = SetSetModel(cfg=cfg)
-        self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
+        self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes, num_classes=num_classes)
         self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
@@ -432,6 +432,7 @@ def main(all_cfgs, device="cpu"):
     decrease_col_prob = cfg.get("decrease_col_prob")
     binarise = cfg["binarise"]
     split_file = cfg.get("split_file")
+    num_classes = cfg.get("num_classes", 2)
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -479,7 +480,7 @@ def main(all_cfgs, device="cpu"):
     lr = cfg["lr"]
     eps = cfg["eps"]
 
-    model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
+    model = ModelHolder(cfg_all=all_cfgs, device=device, num_classes=num_classes).to(device)
     # model = torch.compile(model)
 
     optim = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
@@ -516,8 +517,7 @@ def main(all_cfgs, device="cpu"):
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, num_classes)
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
             grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad}
@@ -558,7 +558,7 @@ def main(all_cfgs, device="cpu"):
 
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, num_classes)
                 loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
             # Accuracy recording
@@ -610,3 +610,5 @@ if __name__ == "__main__":
     print("")
     print("Training Completed")
 
+
+# %%
