@@ -22,13 +22,14 @@ def main(f, num_batches, num_targets):
         for num_rows in [5, 10, 15]:
             for num_cols in [-3, 2, 4, 8, 16, 32]:
 
-                if num_cols==-3:
-                    dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
-                else:
-                    try:
+                try:
+                    if num_cols == -3:
+                        dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
+                    else:
                         dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=[num_cols, num_cols])
-                    except IndexError:
-                        break
+                except IndexError:
+                    print(IndexError)
+                    break
                 batch = get_batch(dl, num_rows=num_rows)
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
