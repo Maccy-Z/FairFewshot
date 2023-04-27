@@ -284,20 +284,21 @@ class SplitDataloader:
                         binarise=self.binarise, 
                         device=self.device, split="all")
             for name in ds_names]
-        
-        min_ds = self.tot_rows
 
         valid_datasets = []
         for d in self.all_datasets:
-            if len(d) >= min_ds:
+            if len(d) >= self.tot_rows:
                 valid_datasets.append(d)
             else:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
 
+
+        if len(self.all_datasets) == 0:
+            raise IndexError(f"No datasets with enough rows. Required: {self.tot_rows}")
+
+
         ds_len = [ds.ds_cols for ds in self.all_datasets]
-
-
         self.min_ds_cols = min(ds_len)
 
     def _check_num_cols(self):
@@ -307,7 +308,7 @@ class SplitDataloader:
         if not valid_datasets:
             raise IndexError(
                 "Provided range of columns to sample exceeds the "
-                + "dimension of the largest dataset available")
+                + "dimension of the largest dataset available" + f' {max_num_cols}')
 
     def __iter__(self):
         """
