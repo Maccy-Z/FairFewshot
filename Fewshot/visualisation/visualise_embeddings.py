@@ -24,11 +24,12 @@ random.seed(0)
 sns.set_style('ticks')
 sns.set_palette('Set2')
 
-save_no = 1
+save_no = 21
 
 num_rows_dict, num_cols_dict = get_num_rows_cols()
 model, cfg_all = load_model(save_no)
 cfg = cfg_all["DL_params"]
+
 # %%
 # Embeddings
 # ----------
@@ -53,14 +54,14 @@ embed_meta_ls = []
 model_id_ls = []
 num_cols_ls = []
 
-num_rows = 30
 num_samples = 50
 
 for d in datanames:
     d = str(d)
     n_col = num_cols_dict[d]
+    num_rows = num_rows_dict[d] // 2
     dl = SplitDataloader(
-            bs=1, num_rows=num_rows_dict[d] // 2, num_targets=0, 
+            bs=1, num_rows=num_rows, num_targets=0, 
             num_cols=[n_col - 1, n_col], ds_group=[d],
     )
     for i in range(num_samples):
@@ -98,7 +99,13 @@ sns.scatterplot(
 # All seen datasets
 sns.scatterplot(
     plot_df[plot_df.model_id.isin(seen_data_names)], 
-      x='dim_1', y='dim_2', hue='model_id', legend=False)
+      x='dim_1', y='dim_2', hue='model_id', legend=True)
+
+# %%
+# All datasets
+sns.scatterplot(
+    plot_df[plot_df.model_id.isin(seen_data_names + unseen_data_names)], 
+      x='dim_1', y='dim_2', hue='model_id', legend=True)
 
 # %%
 # Average embeddings

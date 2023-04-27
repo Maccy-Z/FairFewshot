@@ -12,6 +12,8 @@ import sys, io, warnings
 from scipy import stats
 from abc import ABC, abstractmethod
 import pandas as pd
+import argparse
+from tqdm import tqdm
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -21,6 +23,7 @@ from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
+BASEDIR = '.'
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
@@ -206,7 +209,8 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, name="FLAT"):
+        self.name = name
         print(f'Loading model at {save_dir = }')
 
         state_dict = torch.load(f'{save_dir}/model.pt')
@@ -230,10 +234,13 @@ class FLAT(Model):
         return accuracy
 
     def __repr__(self):
-        return "FLAT"
+        return self.name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, by_dataset=True, by_cols=True):
+def get_results(
+        test_data_names, models, num_rows=10, num_targets=5, 
+        num_samples=3, by_dataset=True, by_cols=True
+    ):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -253,14 +260,16 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         num_cols = 2
         while num_cols <= max_test_col:
             if not by_dataset:
+                print(num_cols, 'all')
                 test_dl = SplitDataloader(
-                    bs=num_samples, num_rows=num_rows, num_targets=num_targets,
+                    bs=num_samples * len(test_data_names), 
+                    num_rows=num_rows, num_targets=num_targets,
                     num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
                 )
                 batch = get_batch(test_dl, num_rows)
                 for model in models:
                     result = pd.DataFrame({
-                        'data_name': "all seen",
+                        'data_name': 'all',
                         'model': str(model),
                         'num_cols': num_cols,
                         'acc': model.get_accuracy(batch)
@@ -271,53 +280,109 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 for data_name in test_data_names:
                     if n_cols[data_name] >= num_cols:
                         test_dl = SplitDataloader(
-                            bs=num_samples * len(test_data_names), num_rows=num_rows,
-                            num_targets=num_targets, num_cols=[num_cols - 1, num_cols], 
+                            bs=num_samples, num_rows=num_rows,
+                            num_targets=num_targets, 
+                            num_cols=[num_cols - 1, num_cols], 
                             ds_group=data_name
                         )
                         batch = get_batch(test_dl, num_rows)
+                        
                         for model in models:
+                            s = time.time()
+                            print(num_cols, data_name, model, end=' ')
                             acc = model.get_accuracy(batch)
+                            e = time.time()
+                            duration = e-s
                             result = pd.DataFrame({
                                 'data_name': data_name,
                                 'model': str(model),
-                                'num_cols': num_cols,
-                                'acc': acc
+                                'num_cols': str(num_cols).rjust(2, '0'),
+                                'acc': acc,
+                                'time': duration
                             }, index=[0])
-
+                            print(f'time={(e-s)/60:.2f}min')
+                            print(f'acc={acc*100:.2f}%')
                             results = pd.concat([results, result])
             num_cols *= 2
 
-    # Test on full dataset
-    elif not by_cols and by_dataset:
+    if by_dataset:
         for data_name in test_data_names:
+            num_cols = [n_cols[data_name] - 1, n_cols[data_name]]
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
-                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+                num_targets=num_targets, num_cols=num_cols,
                 ds_group=data_name
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
+                print('Full data', data_name, model, end=' ')
+                s = time.time()
+                acc = model.get_accuracy(batch)
+                e = time.time()
+                duration = e-s
                 result = pd.DataFrame({
                     'data_name': data_name,
                     'model': str(model),
-                    'num_cols': num_cols,
-                    'acc': model.get_accuracy(batch)
+                    'num_cols': f'total ({num_cols[1]})',
+                    'acc': acc,
+                    'time': duration,
                 }, index=[0])
-
+                print(f'time={(e-s)/60:.2f}min', end=' ')
+                print(f'acc={acc*100:.2f}%')
                 results = pd.concat([results, result])
     
-    else:
-        Exception("At least one of by_cols or by_dataset must be True")
+    if not by_dataset:
+        print ("Sampling total")
+        test_dl = SplitDataloader(
+            bs=1, num_rows=num_rows,
+            num_targets=num_targets, num_cols=-3,
+            ds_group=test_data_names
+        )
+        acc_dict = dict(zip([str(m) for m in models], [[] for i in range(len(models))]))
+        time_dict =  dict(zip([str(m) for m in models], [0 for i in range(len(models))]))
+        for i in tqdm(range(num_samples * len(test_data_names))):
+            batch = get_batch(test_dl, num_rows)
+            for model in models:
+                s = time.time()
+                acc = model.get_accuracy(batch)
+                e = time.time()
+                time_dict[str(model)] += e - s
+                acc_dict[str(model)].append(acc)
+        for model in models:
+            result = pd.DataFrame({
+                'data_name': 'all',
+                'model': str(model),
+                'num_cols': 'total',
+                'acc': np.mean(acc_dict[str(model)]),
+                'duration': time_dict[str(model)]
+            }, index=[0])
+            results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
 
     return results
 
+def compare_2flat_models(param, num_rows, num_targets, num_samples):
+    all_results = pd.DataFrame()
+    for dataname, save_no_ls in param.items():
+        save_dir_1 = f'{BASEDIR}/saves/save_{save_no_ls[0]}'
+        save_dir_2 = f'{BASEDIR}/saves/save_{save_no_ls[1]}'
+        models = [
+            FLAT(save_dir_1, "global FLAT"),
+            FLAT(save_dir_2, "local FLAT"),
+            BasicModel("LR"), 
+            BasicModel("KNN")
+        ]
+        results = get_results(
+            [dataname], models=models, num_rows=num_rows,
+            num_targets=num_targets, num_samples=num_samples, by_cols=True, 
+            by_dataset=True
+        )
+        all_results = pd.concat([all_results, results])
+    return all_results
 
-def main(save_no):
-    BASEDIR = '.'
-    dir_path = f'{BASEDIR}/saves'
+def compare_flat_vs_baselines(save_no, num_samples):
+    # dir_path = f'{BASEDIR}/saves'
     # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     # save_no = existing_saves[save_no]
@@ -362,44 +427,58 @@ def main(save_no):
 
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 50
 
-    models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("KNN"),  # , BasicModel("R_Forest"),  BasicModel("CatBoost"),
-              # TabnetModel(),
-              # FTTrModel(),
-              ]
+    models = [
+        FLAT(save_dir),
+        BasicModel("LR"), BasicModel("KNN"),  BasicModel("CatBoost"),  #BasicModel("R_Forest"),
+        TabnetModel(),
+        FTTrModel(),
+    ]
+    model_names = [str(m) for m in models]
 
-    unseen_results = get_results_by_dataset(
+    # unseen_results = get_results(
+    #     test_data_names, models,
+    #     num_rows=num_rows, num_targets=num_targets,
+    #     num_samples=num_samples, by_cols=True, by_dataset=True
+    # )
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets (by dataset)")
+    # unseen_print = unseen_results.pivot(
+    #     columns=['data_name', 'model'], index='num_cols', values='acc')
+    # print((unseen_print * 100).round(2).to_string())
+    # unseen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results.csv')
+    
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets (aggregated)")
+    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    # print((df * 100).round(2).to_string())
+
+    unseen_agg_results = get_results(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, by_cols=True, by_dataset=True
-    )
-    print("======================================================")
-    print("Test accuracy on unseen datasets (by dataset)")
-    unseen_print = unseen_results.pivot(
-        columns=['data_name', 'model'], index='num_cols', values='acc')
-    print((unseen_print * 100).round(2).to_string())
-    unseen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results.csv')
-    
-    print("======================================================")
-    print("Test accuracy on unseen datasets (aggregated)")
-    df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    print((df * 100).round(2).to_string())
-
-    seen_results = get_results_by_dataset(
-        train_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, by_cols=True, by_dataset=False
+        num_samples=num_samples, by_cols=False, by_dataset=True
     )
     print()
     print("======================================================")
-    print("Test accuracy on seen datasets (aggregated)")
-    df = seen_results.pivot(columns='model', index='num_cols', values='acc')
-    df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    print("Test accuracy on unseen datasets (full datasets)")
+    df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results.csv')
+    df["FLAT_diff"] = df["FLAT"] - df.loc[:, model_names].max(axis=1)
     print((df * 100).round(2).to_string())
-    seen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/seen_results.csv')
+
+    # seen_agg_results = get_results(
+    #     train_data_names, models,
+    #     num_rows=num_rows, num_targets=num_targets,
+    #     num_samples=num_samples, by_cols=False, by_dataset=True
+    # )
+    # print()
+    # print("======================================================")
+    # print("Test accuracy on seen datasets (full datasets)")
+    # df = seen_agg_results.pivot(columns='model', index='num_cols', values='acc')
+    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
+    # print((df * 100).round(2).to_string())
+    # seen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/seen_full_results.csv')
 
 
 
@@ -407,10 +486,25 @@ if __name__ == "__main__":
     random.seed(0)
     np.random.seed(0)
     torch.manual_seed(0)
-
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--save-no', type=int)   
+    args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    main(save_no=19)
+    compare_flat_vs_baselines(save_no=args.save_no, num_samples=1000)
 
     #col_accs = main(save_no=2)
 
     # print(col_accs)
+    # param = {
+    #     'fertility': [12, 20],
+    #     'lung-cancer': [18, 21],
+    #     'mammographic': [15, 22],
+    #     'heart-switzerland': [10, 23],
+    #     'echocardiogram': [15, 24],
+    #     'breast-cancer': [16, 25],
+    #     'heart-va': [17, 26],
+    #     'post-operative': [19, 27]
+    # }
+    # results = compare_2flat_models(param, num_rows=5, num_targets=5, num_samples=1000)
+    # results.to_csv(f'{BASEDIR}/results/global_local_comp.csv')
