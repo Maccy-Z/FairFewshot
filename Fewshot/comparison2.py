@@ -63,10 +63,12 @@ class Model(ABC):
 class TabnetModel(Model):
     def __init__(self):
         self.model = TabNetClassifier(device_name="cpu")
+        self.bs = 64
+        self.patience = 17
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta[0].flatten().numpy()
-        xs_meta = xs_meta[0].numpy()
+        ys_meta = ys_meta.flatten().numpy()
+        xs_meta = xs_meta.numpy()
 
         if ys_meta.min() == ys_meta.max():
             self.identical_batch = True
@@ -80,15 +82,15 @@ class TabnetModel(Model):
 
                 try:
                     self.model.fit(xs_meta, ys_meta,
-                                   eval_set=[(xs_meta, ys_meta)], eval_name=["accuracy"],
-                                   batch_size=8, patience=15, drop_last=False)
+                                   eval_name=["accuracy"], eval_set=[(xs_meta, ys_meta)],
+                                   batch_size=self.bs, patience=self.patience, drop_last=False)
                 except RuntimeError:
                     # Tabnet fails if multiple columns are exactly identical. Add a irrelevant amount of random noise to stop this.
                     xs_meta += np.random.normal(size=xs_meta.shape) * 1e-6
                     print(xs_meta)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_set=[(xs_meta, ys_meta)], eval_name=["accuracy"],
-                                   batch_size=8, patience=15, drop_last=False)
+                                   batch_size=self.bs, patience=self.patience, drop_last=False)
 
             sys.stdout = sys.__stdout__
 
@@ -98,7 +100,6 @@ class TabnetModel(Model):
         if self.identical_batch:
             predictions = np.ones_like(ys_target) * self.pred_val
         else:
-            xs_target = xs_target.detach()[0]
             with torch.no_grad():
                 predictions = self.model.predict(X=xs_target)
 
@@ -123,7 +124,7 @@ class FTTrModel(Model):
         self.model = FTTransformer(
             categories=(),  # tuple containing the number of unique values within each category
             num_continuous=xs_meta.shape[-1],  # number of continuous values
-            dim=16,  # dimension, paper set at 32
+            dim=24,  # dimension, paper set at 32
             dim_out=2,  # binary prediction, but could be anything
             depth=4,  # depth, paper recommended 6
             heads=2,  # heads, paper recommends 8
@@ -131,7 +132,7 @@ class FTTrModel(Model):
             # ff_dropout=0.1  # feed forward dropout
         )
 
-        optim = torch.optim.Adam(self.model.parameters(), lr=2e-3)
+        optim = torch.optim.Adam(self.model.parameters(), lr=2.25e-3)
 
         for _ in range(30):
             x_categ = torch.tensor([[]])
@@ -164,7 +165,7 @@ class BasicModel(Model):
             case "KNN":
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
-                self.model = CatBoostClassifier(iterations=6, depth=4, learning_rate=1,
+                self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=30)
@@ -249,7 +250,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
-    while num_cols <= max_test_col and num_cols <= 100:
+    while num_cols <= max_test_col and num_cols <= 60:
         print(num_cols)
         if agg:
             test_dl = SplitDataloader(
@@ -357,17 +358,21 @@ def main(save_no):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
+        print("Train datases:", train_data_names)
+        print("Test datasets:", test_data_names)
+
+
     else:
         raise Exception("Invalid data split")
 
     num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 5
+    num_samples = 50
 
-    models = [# FLAT(save_dir),
-              # BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
+    models = [FLAT(save_dir),
+              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
-              FTTrModel(),
+              # FTTrModel(),
               ]
 
     unseen_results = get_results_by_dataset(
@@ -375,7 +380,10 @@ def main(save_no):
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples
     )
-
+    #
+    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    # print(df.to_string(index=False))
+    # exit(2)
     # Results for each dataset
     detailed_results = unseen_results.copy()
 
@@ -456,13 +464,13 @@ def main(save_no):
 
 
 if __name__ == "__main__":
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-2)
+    col_accs = main(save_no=-1)
 
     # print(col_accs)

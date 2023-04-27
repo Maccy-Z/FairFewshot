@@ -10,8 +10,8 @@ def main(f, num_batches, num_targets):
 
     models = [
               # BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              # TabnetModel(),
-              FTTrModel(),
+              TabnetModel(),
+              #FTTrModel(),
               ]
 
 
@@ -21,7 +21,6 @@ def main(f, num_batches, num_targets):
         print(model)
         for num_rows in [2, 5, 10, 15]:
             for num_cols in [1, 2, 4, 8, 16, 32, 64]:
-                print("Next")
                 dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
                 if num_cols > dl.min_ds_cols:
                     break
@@ -29,7 +28,8 @@ def main(f, num_batches, num_targets):
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    print(model_accs)
+    for accs in model_accs:
+        print(accs[3])
 
     with open(f'{data_dir}/{f}/baselines.dat', 'w', newline='') as f:
         writer = csv.writer(f)
@@ -42,6 +42,12 @@ def main(f, num_batches, num_targets):
 
 
 if __name__ == "__main__":
+    import numpy as np
+    import random
+    np.random.seed(0)
+    random.seed(0)
+    torch.manual_seed(0)
+
     num_batches = 100
     num_targets = 5
 
