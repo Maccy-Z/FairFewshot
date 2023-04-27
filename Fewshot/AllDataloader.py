@@ -303,7 +303,7 @@ class SplitDataloader:
         valid_datasets = [
             d for d in self.all_datasets if d.ds_cols > max_num_cols]
         if not valid_datasets:
-            raise Exception(
+            raise IndexError(
                 "Provided range of columns to sample exceeds the "
                 + "dimension of the largest dataset available")
 

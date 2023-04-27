@@ -9,9 +9,9 @@ data_dir = './datasets/data'
 def main(f, num_batches, num_targets):
 
     models = [
-              # BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              TabnetModel(),
-              #FTTrModel(),
+              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+              # TabnetModel(),
+              # FTTrModel(),
               ]
 
 
@@ -20,16 +20,18 @@ def main(f, num_batches, num_targets):
     for model in models:
         print(model)
         for num_rows in [2, 5, 10, 15]:
-            for num_cols in [1, 2, 4, 8, 16, 32, 64]:
-                dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
-                if num_cols > dl.min_ds_cols:
-                    break
+            for num_cols in [-3, 1, 2, 4, 8, 16, 32, 64]:
+
+                if num_cols==-3:
+                    dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
+                else:
+                    try:
+                        dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=[num_cols, num_cols])
+                    except IndexError:
+                        break
                 batch = get_batch(dl, num_rows=num_rows)
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
-
-    for accs in model_accs:
-        print(accs[3])
 
     with open(f'{data_dir}/{f}/baselines.dat', 'w', newline='') as f:
         writer = csv.writer(f)
@@ -37,8 +39,6 @@ def main(f, num_batches, num_targets):
         for row in model_accs:
             writer.writerow(row)
 
-    exit(3)
-    print(dl)
 
 
 if __name__ == "__main__":
