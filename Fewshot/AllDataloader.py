@@ -1,4 +1,3 @@
-#%%
 import torch
 import numpy as np
 import pandas as pd
@@ -7,6 +6,7 @@ import random
 import toml
 from itertools import islice
 import matplotlib.pyplot as plt
+from collections import Counter
 
 DATADIR = '/Users/kasiakobalczyk/FairFewshot/datasets'
 
@@ -33,11 +33,18 @@ def one_vs_all(ys):
 
     return ys
 
+def normalize(xs):
+    m = xs.mean(0, keepdim=True)
+    s = xs.std(0, unbiased=False, keepdim=True)
+    xs -= m
+    xs /= (s + 10e-4)
+    return xs
+
 
 class MyDataSet:
     def __init__(
             self, ds_name, num_rows, num_targets, binarise, split, 
-            dtype=torch.float32, device="cpu"):
+            dtype=torch.float32, device="cpu", multiclass=False):
         # data_name = "adult"
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -47,6 +54,7 @@ class MyDataSet:
 
         self.device = device
         self.dtype = dtype
+        self.multiclass = multiclass
 
         self.train, self.valid, self.test = False, False, False
 
@@ -102,47 +110,58 @@ class MyDataSet:
         self.data = to_tensor(data, device=device)
         self.ds_cols = self.data.shape[-1]
         self.ds_rows = self.data.shape[0]
-
+        
         # Binarise labels:
-        if self.binarise:
-            self.data[:, -1] = one_vs_all(self.data[:, -1])
-            # Sort based on label
-            ones = (self.data[:, -1] == 1)
-            self.ones = self.data[ones]
-            self.zeros = self.data[torch.logical_not(ones)]
+        if not self.multiclass:
+            self.num_classes = 2
+            if self.binarise:
+                self.data[:, -1] = one_vs_all(self.data[:, -1])
+                # Sort based on label
+                ones = (self.data[:, -1] == 1)
+                self.ones = self.data[ones]
+                self.zeros = self.data[torch.logical_not(ones)]
 
-            self.num_1s = self.ones.shape[0]
-            self.num_0s = self.zeros.shape[0]
+                self.num_1s = self.ones.shape[0]
+                self.num_0s = self.zeros.shape[0]
 
-            if self.num_0s < self.tot_rows or self.num_1s < self.tot_rows:
-                print("WARN: Discarding dataset due to lack of labels", self.ds_name)
-                self.ds_rows = 0
+                if self.num_0s < self.tot_rows or self.num_1s < self.tot_rows:
+                    print("WARN: Discarding dataset due to lack of labels", self.ds_name)
+                    self.ds_rows = 0
+                
+            else:
+                # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
+                row_probs = np.ones(self.ds_rows)
+
+                col_data = self.data[:, -1]
+                unique_lab, unique_idx, counts = np.unique(
+                    col_data, return_counts=True, return_inverse=True)
+                if np.max(counts) / self.ds_rows > 0.5:
+                    max_prob = self.ds_rows / np.max(counts) - 1
+
+                    # Some cols have all entries identical.
+                    if max_prob == 0:
+                        pass
+                        # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
+                        # print(np.max(counts) / self.tot_rows)
+                    else:
+                        top_idx = (unique_idx == np.argmax(counts))
+                        row_probs[top_idx] = max_prob
+
+                row_probs = row_probs / np.sum(row_probs)
+
+                self.row_probs = row_probs.T
+        
         else:
+            self.num_classes = len(np.unique(labels))
+            df = pd.DataFrame(self.data)
+            df.rename(columns={df.columns[-1]: 'label'}, inplace = True)
+            cnt = Counter(df['label'].values)
+            weights = [df.shape[0] / c for c in cnt.values()]
+            cnt = dict(zip(cnt.keys(), weights))
+            df['weight'] = df.label.map(cnt)
+            self.df = df
 
-            # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
-            row_probs = np.ones(self.ds_rows)
-
-            col_data = self.data[:, -1]
-            unique_lab, unique_idx, counts = np.unique(
-                col_data, return_counts=True, return_inverse=True)
-            if np.max(counts) / self.ds_rows > 0.5:
-                max_prob = self.ds_rows / np.max(counts) - 1
-
-                # Some cols have all entries identical.
-                if max_prob == 0:
-                    pass
-                    # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
-                    # print(np.max(counts) / self.tot_rows)
-                else:
-                    top_idx = (unique_idx == np.argmax(counts))
-                    row_probs[top_idx] = max_prob
-
-            row_probs = row_probs / np.sum(row_probs)
-
-            self.row_probs = row_probs.T
-
-
-    def sample(self, num_cols):
+    def sample_binary(self, num_cols):
         targ_col = -1
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
         if self.binarise:
@@ -181,14 +200,23 @@ class MyDataSet:
         ys = select_data[:, targ_col]
 
         # Normalise xs
-        m = xs.mean(0, keepdim=True)
-        s = xs.std(0, unbiased=False, keepdim=True)
-        xs -= m
-        xs /= (s + 10e-4)
+        xs = normalize(xs)
+
         if not self.binarise:
             ys = one_vs_all(ys)
         return xs, ys
-
+    
+    def sample_multiclass(self, num_cols):
+        predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
+        sample_rows = self.df.sample(n=self.tot_rows, weights='weight', replace=False).values
+        meta_rows, targ_rows = sample_rows[:self.num_rows, :], sample_rows[self.num_rows:, :]
+        meta_rows = torch.tensor(meta_rows)
+        targ_rows = torch.tensor(targ_rows)
+        select_data = torch.cat([meta_rows, targ_rows])
+        xs = select_data[:, predict_cols]
+        ys = select_data[:, -2]
+        xs = normalize(xs)
+        return xs.long(), ys.long()
 
     def __repr__(self):
         return self.ds_name
@@ -196,13 +224,77 @@ class MyDataSet:
     def __len__(self):
         return self.ds_rows
 
+class DataLoader():
+    def __init__(
+            self, bs, num_rows, num_targets,
+            num_cols=-1, device="cpu",
+            decrease_col_prob=-1
+        ):
+        self.bs = bs
+        self.tot_rows = num_rows + num_targets
+        self.num_rows = num_rows
+        self.num_targets = num_targets
+        self.num_cols = num_cols
+        self.decrease_col_prob = decrease_col_prob
+        self.device = device
 
-class SplitDataloader:
+    def _get_valid_datasets(self):
+        self.all_datasets = []
+    
+    def _check_num_cols(self):
+        max_num_cols = max(self.num_cols)
+        valid_datasets = [
+            d for d in self.all_datasets if d.ds_cols > max_num_cols]
+        if not valid_datasets:
+            raise Exception(
+                "Provided range of columns to sample exceeds the "
+                + "dimension of the largest dataset available")
+
+    def sample_datasets(self):
+        # Sample columns uniformly
+        if self.num_cols == 0 or self.num_cols == -1 or isinstance(self.num_cols, list):
+            if isinstance(self.num_cols, int):
+                if self.num_cols == 0:
+                    max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
+
+                elif self.num_cols == -1:
+                    max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
+                num_cols_range = [2, max_num_cols]
+            
+            else:
+                num_cols_range = self.num_cols
+            if self.decrease_col_prob == -1:
+                num_cols = np.random.choice(
+                    list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
+            else:
+                num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
+                num_cols = max(num_cols_range[0], num_cols)
+                num_cols = min(num_cols, num_cols_range[1])
+            valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
+            print('valid data:', valid_datasets)
+            datasets = random.choices(valid_datasets, k=self.bs)
+
+        # Sample datasets uniformly
+        elif self.num_cols == -2:
+            datasets = random.choices(self.all_datasets, k=self.bs)
+            max_num_cols = min([d.ds_cols for d in datasets]) - 1
+            num_cols = np.random.randint(2, max_num_cols)
+
+        elif self.num_cols == -3:
+            datasets = random.choices(self.all_datasets, k=self.bs)
+            num_cols = min([d.ds_cols for d in datasets]) - 1
+        else:
+            raise Exception("Invalid num_cols")
+    
+        return datasets, num_cols
+    
+
+class SplitDataLoader(DataLoader):
     def __init__(
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            decrease_col_prob=-1):
+            decrease_col_prob=-1, num_classes=2):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -224,23 +316,20 @@ class SplitDataloader:
         :param ds_split: If ds_group is int >= 0, the test or train split.
         :param split_fmt: format of data to load.
         """
-
-        self.bs = bs
-        self.tot_rows = num_rows + num_targets
-        self.num_rows = num_rows
-        self.num_targets = num_targets
         self.binarise = binarise
-        self.num_cols = num_cols
         self.ds_group = ds_group
         self.ds_split = ds_split
         self.split_file = split_file
-        self.decrease_col_prob = decrease_col_prob
-
-        self.device = device
-
+        self.num_classes = num_classes
+        self.multiclass = self.num_classes > 2
+        super().__init__(
+            bs=bs, num_rows=num_rows, num_targets=num_targets, 
+            num_cols=num_cols, device=device, 
+            decrease_col_prob=decrease_col_prob
+        )
         self._get_valid_datasets()
         if isinstance(num_cols, list):
-            self._check_num_cols()
+            super()._check_num_cols()
 
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
@@ -278,76 +367,41 @@ class SplitDataloader:
             raise Exception("Invalid ds_group")
 
         self.all_datasets = [
-            MyDataSet(name, num_rows=self.num_rows, 
-                        num_targets=self.num_targets,
-                        binarise=self.binarise, 
-                        device=self.device, split="all")
+            MyDataSet(
+                name, num_rows=self.num_rows, 
+                num_targets=self.num_targets,
+                binarise=self.binarise, multiclass=self.multiclass,
+                device=self.device, split="all")
             for name in ds_names]
         
         min_ds = self.tot_rows
 
         valid_datasets = []
         for d in self.all_datasets:
-            if len(d) >= min_ds:
-                valid_datasets.append(d)
-            else:
+            if len(d) < min_ds:
                 print(f"WARN: Discarding {d}, due to not enough rows")
+            elif self.num_classes > 2 and d.num_classes != self.num_classes:
+                print(f"WARN: Discarding {d}, due to wrong number of classes enough rows")
+            else:
+                valid_datasets.append(d)
         self.all_datasets = valid_datasets
 
-    def _check_num_cols(self):
-        max_num_cols = max(self.num_cols)
-        valid_datasets = [
-            d for d in self.all_datasets if d.ds_cols > max_num_cols]
-        if not valid_datasets:
-            raise Exception(
-                "Provided range of columns to sample exceeds the "
-                + "dimension of the largest dataset available")
 
     def __iter__(self):
         """
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            # Sample columns uniformly
-            if self.num_cols == 0 or self.num_cols == -1 or isinstance(self.num_cols, list):
-                if isinstance(self.num_cols, int):
-                    if self.num_cols == 0:
-                        max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
-
-                    elif self.num_cols == -1:
-                        max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-                    num_cols_range = [2, max_num_cols]
-
-                else:
-                    num_cols_range = self.num_cols
-                
-                if self.decrease_col_prob == -1:
-                    num_cols = np.random.choice(
-                        list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
-                else:
-                    num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
-                    num_cols = max(num_cols_range[0], num_cols)
-                    num_cols = min(num_cols, num_cols_range[1])
-                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
-                datasets = random.choices(valid_datasets, k=self.bs)
-
-            # Sample datasets uniformly
-            elif self.num_cols == -2:
-                datasets = random.choices(self.all_datasets, k=self.bs)
-                max_num_cols = min([d.ds_cols for d in datasets]) - 1
-                num_cols = np.random.randint(2, max_num_cols)
-
-            elif self.num_cols == -3:
-                datasets = random.choices(self.all_datasets, k=self.bs)
-                num_cols = min([d.ds_cols for d in datasets]) - 1
-            else:
-                raise Exception("Invalid num_cols")
-
+            datasets, num_cols = super().sample_datasets()
             datanames = [str(d) for d in datasets]
-            
-            xs, ys = list(zip(*[
-                ds.sample(num_cols=num_cols)
-                for ds in datasets]))
+            if self.num_classes == 2:
+                xs, ys = list(zip(*[
+                    ds.sample_binary(num_cols=num_cols)
+                    for ds in datasets]))
+            else:
+                xs, ys = list(zip(*[
+                    ds.sample_multiclass(num_cols=num_cols)
+                    for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
             yield xs, ys, datanames
@@ -361,16 +415,23 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(
-        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=-1,
-        num_cols=-3, ds_group=0, ds_split="train")
-    print(dl.all_datasets)
-    num_cols = []
-    for xs, ys, datanames in islice(dl, 10):
-        print(xs.shape)
-        num_cols.append(xs.shape[2])
+    # dl = SplitDataLoader(
+    #     bs=2, num_rows=5, binarise=True, num_targets=5, decrease_col_prob=-1,
+    #     num_cols=-2, ds_group=0, ds_split="train")
+    # print(dl.all_datasets)
+    # num_cols = []
+    # for xs, ys, datanames in islice(dl, 10):
+    #     print(xs.shape)
+    #     num_cols.append(xs.shape[2])
 
-    fig, ax = plt.subplots()
-    ax.hist(num_cols)
-    fig.show()
-# %%
+    # fig, ax = plt.subplots()
+    # ax.hist(num_cols)
+    # fig.show()
+
+    dl = SplitDataLoader(
+        bs=3, num_rows=5, num_targets=5, num_classes=3, 
+        ds_group=['vertebral-column-3clases', 'teaching', 'molec-biol-splice'], 
+        num_cols=-2)
+
+    for xs, ys, ds_names in islice(dl, 5):
+        print(ys)

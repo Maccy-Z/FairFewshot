@@ -1,0 +1,63 @@
+[0]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "contrac", "energy-y1", "hayes-roth", "iris", "lenses", "lung-cancer", "molec-biol-splice", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "seeds", "teaching", "thyroid", "waveform-noise", "wine",]
+val = []
+test = [ "energy-y2", "vertebral-column-3clases", "waveform",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 21
+
+[1]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "contrac", "energy-y1", "energy-y2", "hayes-roth", "iris", "lung-cancer", "molec-biol-splice", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "post-operative", "seeds", "thyroid", "vertebral-column-3clases", "waveform", "waveform-noise", "wine",]
+val = []
+test = [ "lenses", "pittsburg-bridges-SPAN", "teaching",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 7
+
+[2]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "contrac", "energy-y2", "hayes-roth", "lenses", "lung-cancer", "molec-biol-splice", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "seeds", "teaching", "thyroid", "vertebral-column-3clases", "waveform", "waveform-noise", "wine",]
+val = []
+test = [ "energy-y1", "iris", "oocytes_merluccius_states_2f",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 25
+
+[3]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "energy-y1", "energy-y2", "hayes-roth", "iris", "lenses", "lung-cancer", "molec-biol-splice", "oocytes_merluccius_states_2f", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "seeds", "teaching", "thyroid", "vertebral-column-3clases", "waveform", "waveform-noise",]
+val = []
+test = [ "contrac", "oocytes_trisopterus_states_5b", "wine",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 32
+
+[4]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "contrac", "energy-y1", "energy-y2", "hayes-roth", "iris", "lenses", "molec-biol-splice", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-SPAN", "seeds", "teaching", "thyroid", "vertebral-column-3clases", "waveform", "waveform-noise", "wine",]
+val = []
+test = [ "lung-cancer", "pittsburg-bridges-REL-L", "post-operative",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 56
+
+[5]
+train = [ "cardiotocography-3clases", "contrac", "energy-y1", "energy-y2", "hayes-roth", "iris", "lenses", "lung-cancer", "molec-biol-splice", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "seeds", "teaching", "vertebral-column-3clases", "waveform", "waveform-noise", "wine",]
+val = []
+test = [ "abalone", "balance-scale", "thyroid",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 21
+
+[6]
+train = [ "abalone", "balance-scale", "cardiotocography-3clases", "contrac", "energy-y1", "energy-y2", "iris", "lenses", "lung-cancer", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-MATERIAL", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "teaching", "thyroid", "vertebral-column-3clases", "waveform", "waveform-noise", "wine",]
+val = []
+test = [ "hayes-roth", "molec-biol-splice", "seeds",]
+max_train_col = 56
+max_val_col = 0
+max_test_col = 60
+
+[7]
+train = [ "abalone", "balance-scale", "contrac", "energy-y1", "energy-y2", "hayes-roth", "iris", "lenses", "lung-cancer", "molec-biol-splice", "oocytes_merluccius_states_2f", "oocytes_trisopterus_states_5b", "pittsburg-bridges-REL-L", "pittsburg-bridges-SPAN", "post-operative", "seeds", "teaching", "thyroid", "vertebral-column-3clases", "waveform", "wine",]
+val = []
+test = [ "cardiotocography-3clases", "pittsburg-bridges-MATERIAL", "waveform-noise",]
+max_train_col = 60
+max_val_col = 0
+max_test_col = 40

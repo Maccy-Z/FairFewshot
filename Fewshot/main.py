@@ -9,7 +9,7 @@ from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import SplitDataloader
+from AllDataloader import SplitDataLoader
 
 BASEDIR = '/Users/kasiakobalczyk/FairFewshot'
 
@@ -442,11 +442,11 @@ def main(all_cfgs, device="cpu"):
     val_duration = cfg["val_duration"]
 
     if ds == "total":
-        dl = SplitDataloader(
+        dl = SplitDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="train"
         )
-        val_dl = SplitDataloader(
+        val_dl = SplitDataLoader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
         )
@@ -456,23 +456,24 @@ def main(all_cfgs, device="cpu"):
     elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
         print(num_cols)
-        dl = SplitDataloader(
+        dl = SplitDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=num_cols['train'],
             decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
-            split_file=split_file
+            split_file=split_file, num_classes=num_classes
         )
         print("Training data names:", dl.all_datasets)
 
-        val_dl = SplitDataloader(
+        val_dl = SplitDataLoader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 
             ds_group=ds_group, ds_split="test",
-            split_file=split_file
+            split_file=split_file, num_classes=num_classes
         )
         print("Validation data names:", val_dl.all_datasets)
+
     else:
         raise Exception("Invalid dataset")
 
@@ -582,7 +583,7 @@ def main(all_cfgs, device="cpu"):
             # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
         print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
-
+        print(save_pred_labs[-1])
         # Save stats
         if save_holder is None:
             save_holder = SaveHolder(".")
