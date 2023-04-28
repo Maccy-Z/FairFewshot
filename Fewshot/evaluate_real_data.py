@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader
+from AllDataloader import SplitDataLoader
 from config import get_config
 import os
 import toml
@@ -96,7 +96,7 @@ def main(save_no, ds_group=-1, print_result=True):
     col_accs = {}
     for num_cols in range(1, 20, 2):
         accs = {name: [] for name in ["fewshot"] + baseline_model_names}
-        val_dl = SplitDataloader(bs=1, num_rows=num_rows, num_targets=5,
+        val_dl = SplitDataLoader(bs=1, num_rows=num_rows, num_targets=5,
                                  num_cols=-2, ds_group=ds_group, ds_split="test")
 
         for j in range(2000):

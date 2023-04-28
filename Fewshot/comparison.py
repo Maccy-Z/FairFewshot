@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
+from AllDataloader import SplitDataLoader, MyDataSet
 from config import get_config
 
 import os
@@ -261,7 +261,7 @@ def get_results(
         while num_cols <= max_test_col:
             if not by_dataset:
                 print(num_cols, 'all')
-                test_dl = SplitDataloader(
+                test_dl = SplitDataLoader(
                     bs=num_samples * len(test_data_names), 
                     num_rows=num_rows, num_targets=num_targets,
                     num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
@@ -279,7 +279,7 @@ def get_results(
             else:
                 for data_name in test_data_names:
                     if n_cols[data_name] >= num_cols:
-                        test_dl = SplitDataloader(
+                        test_dl = SplitDataLoader(
                             bs=num_samples, num_rows=num_rows,
                             num_targets=num_targets, 
                             num_cols=[num_cols - 1, num_cols], 
@@ -308,7 +308,7 @@ def get_results(
     if by_dataset:
         for data_name in test_data_names:
             num_cols = [n_cols[data_name] - 1, n_cols[data_name]]
-            test_dl = SplitDataloader(
+            test_dl = SplitDataLoader(
                 bs=num_samples, num_rows=num_rows,
                 num_targets=num_targets, num_cols=num_cols,
                 ds_group=data_name
@@ -333,7 +333,7 @@ def get_results(
     
     if not by_dataset:
         print ("Sampling total")
-        test_dl = SplitDataloader(
+        test_dl = SplitDataLoader(
             bs=1, num_rows=num_rows,
             num_targets=num_targets, num_cols=-3,
             ds_group=test_data_names
@@ -421,6 +421,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
         for split in get_splits:
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
+    
 
     else:
         raise Exception("Invalid data split")
@@ -431,8 +432,8 @@ def compare_flat_vs_baselines(save_no, num_samples):
     models = [
         FLAT(save_dir),
         BasicModel("LR"), BasicModel("KNN"),  BasicModel("CatBoost"),  #BasicModel("R_Forest"),
-        TabnetModel(),
-        FTTrModel(),
+        #TabnetModel(),
+        #FTTrModel(),
     ]
     model_names = [str(m) for m in models]
 
@@ -487,11 +488,13 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--save-no', type=int)   
-    args, unknown = parser.parse_known_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--save-no', type=int)   
+    # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    compare_flat_vs_baselines(save_no=args.save_no, num_samples=1000)
+
+    for n in list(range(30, 38)):
+        compare_flat_vs_baselines(save_no=n, num_samples=1000)
 
     #col_accs = main(save_no=2)
 
