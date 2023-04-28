@@ -209,13 +209,17 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, save_dir, name="FLAT"):
+    def __init__(self, save_dir, num_classes=2, name="FLAT"):
         self.name = name
         print(f'Loading model at {save_dir = }')
 
         state_dict = torch.load(f'{save_dir}/model.pt')
-        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
+        self.model = ModelHolder(
+            cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'), 
+            num_classes=num_classes
+        )
         self.model.load_state_dict(state_dict['model_state_dict'])
+        self.num_classes = num_classes
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
@@ -228,7 +232,7 @@ class FLAT(Model):
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
-        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
+        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, self.num_classes), dim=1)
         accuracy = (ys_pred_target_labels == ys_target).sum().item() / len(ys_target)
 
         return accuracy
@@ -239,7 +243,7 @@ class FLAT(Model):
 
 def get_results(
         test_data_names, models, num_rows=10, num_targets=5, 
-        num_samples=3, by_dataset=True, by_cols=True
+        num_samples=3, by_dataset=True, by_cols=True, num_classes=2
     ):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -263,8 +267,9 @@ def get_results(
                 print(num_cols, 'all')
                 test_dl = SplitDataLoader(
                     bs=num_samples * len(test_data_names), 
-                    num_rows=num_rows, num_targets=num_targets,
-                    num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
+                    num_rows=num_rows, num_targets=num_targets, 
+                    num_cols=[num_cols - 1, num_cols], ds_group=test_data_names,
+                    num_classes=num_classes
                 )
                 batch = get_batch(test_dl, num_rows)
                 for model in models:
@@ -311,7 +316,7 @@ def get_results(
             test_dl = SplitDataLoader(
                 bs=num_samples, num_rows=num_rows,
                 num_targets=num_targets, num_cols=num_cols,
-                ds_group=data_name
+                ds_group=data_name, num_classes=num_classes
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -392,8 +397,9 @@ def compare_flat_vs_baselines(save_no, num_samples):
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
+    num_classes = cfg.get("num_classes", 2)
 
-    if ds == "my_split":
+    if ds == "my_split" or "multiclass":
         split_file = cfg["split_file"]
         split_file = f'./datasets/grouped_datasets/{split_file}'
         with open(split_file) as f:
@@ -430,7 +436,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     num_targets = cfg["num_targets"]
 
     models = [
-        FLAT(save_dir),
+        FLAT(save_dir, num_classes=num_classes),
         BasicModel("LR"), BasicModel("KNN"),  BasicModel("CatBoost"),  #BasicModel("R_Forest"),
         #TabnetModel(),
         #FTTrModel(),
@@ -438,7 +444,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     model_names = [str(m) for m in models]
 
     # unseen_results = get_results(
-    #     test_data_names, models,
+    #     test_data_names, models, num_classes=num_classes,
     #     num_rows=num_rows, num_targets=num_targets,
     #     num_samples=num_samples, by_cols=True, by_dataset=True
     # )
@@ -456,7 +462,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     # print((df * 100).round(2).to_string())
 
     unseen_agg_results = get_results(
-        test_data_names, models,
+        test_data_names, models, num_classes=num_classes,
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples, by_cols=False, by_dataset=True
     )
@@ -469,7 +475,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     print((df * 100).round(2).to_string())
 
     # seen_agg_results = get_results(
-    #     train_data_names, models,
+    #     train_data_names, models, num_classes=num_classes,
     #     num_rows=num_rows, num_targets=num_targets,
     #     num_samples=num_samples, by_cols=False, by_dataset=True
     # )
