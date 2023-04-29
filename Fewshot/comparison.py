@@ -209,7 +209,7 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, save_dir, num_classes=2, name="FLAT"):
+    def __init__(self, save_dir, num_classes=2, one_hot=False, name="FLAT"):
         self.name = name
         print(f'Loading model at {save_dir = }')
 
@@ -220,10 +220,14 @@ class FLAT(Model):
         )
         self.model.load_state_dict(state_dict['model_state_dict'])
         self.num_classes = num_classes
+        self.one_hot = one_hot
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
-        pairs_meta = d2v_pairer(xs_meta, ys_meta)
+        pairs_meta = d2v_pairer(
+            xs_meta, ys_meta, one_hot=self.one_hot, 
+            num_classes=self.num_classes
+        )
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
 
@@ -398,6 +402,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
     num_classes = cfg.get("num_classes", 2)
+    one_hot = all_cfg["Settings"].get("one_hot", False)
 
     if ds == "my_split" or "multiclass":
         split_file = cfg["split_file"]
@@ -436,7 +441,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     num_targets = cfg["num_targets"]
 
     models = [
-        FLAT(save_dir, num_classes=num_classes),
+        FLAT(save_dir, num_classes=num_classes, one_hot=one_hot),
         BasicModel("LR"), BasicModel("KNN"),  BasicModel("CatBoost"),  #BasicModel("R_Forest"),
         #TabnetModel(),
         #FTTrModel(),
@@ -499,7 +504,7 @@ if __name__ == "__main__":
     # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
 
-    for n in list(range(30, 38)):
+    for n in list(range(50, 58)):
         compare_flat_vs_baselines(save_no=n, num_samples=1000)
 
     #col_accs = main(save_no=2)

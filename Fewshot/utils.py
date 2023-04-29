@@ -24,7 +24,8 @@ def load_model(save_no):
     state_dict = torch.load(f'{save_dir}/model.pt')
     cfg_all = get_config(cfg_file=f'{save_dir}/defaults.toml')
     cfg = cfg_all["DL_params"]
-    model = ModelHolder(cfg_all=cfg_all)
+    num_classes = cfg.get("num_classes", 2)
+    model = ModelHolder(cfg_all=cfg_all, num_classes=num_classes)
     model.load_state_dict(state_dict['model_state_dict'])
     return model, cfg_all
     

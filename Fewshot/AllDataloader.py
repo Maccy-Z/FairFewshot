@@ -271,7 +271,6 @@ class DataLoader():
                 num_cols = max(num_cols_range[0], num_cols)
                 num_cols = min(num_cols, num_cols_range[1])
             valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
-            print('valid data:', valid_datasets)
             datasets = random.choices(valid_datasets, k=self.bs)
 
         # Sample datasets uniformly

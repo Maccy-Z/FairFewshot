@@ -437,6 +437,7 @@ def main(all_cfgs, device="cpu"):
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
+    one_hot = cfg.get("one_hot", False)
 
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
@@ -512,7 +513,7 @@ def main(all_cfgs, device="cpu"):
             ys_target = ys_target.view(-1)
 
             # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
+            pairs_meta = d2v_pairer(xs_meta, ys_meta, one_hot=one_hot, num_classes=num_classes)
             # First pass with the meta-set, train d2v and get embedding.
 
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
@@ -555,7 +556,7 @@ def main(all_cfgs, device="cpu"):
             ys_target = ys_target.view(-1)
 
             # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
+            pairs_meta = d2v_pairer(xs_meta, ys_meta, one_hot=one_hot, num_classes=num_classes)
 
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)

@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot/Fewshot')
 from main import *
-from AllDataloader import SplitDataloader
+from AllDataloader import SplitDataLoader
 from utils import get_batch, load_model, get_num_rows_cols
 
 np.random.seed(0)
@@ -24,7 +24,7 @@ random.seed(0)
 sns.set_style('ticks')
 sns.set_palette('Set2')
 
-save_no = 21
+save_no = 41
 
 num_rows_dict, num_cols_dict = get_num_rows_cols()
 model, cfg_all = load_model(save_no)
@@ -35,12 +35,12 @@ cfg = cfg_all["DL_params"]
 # ----------
 split_file = cfg["split_file"]
 split_file = f'/Users/kasiakobalczyk/FairFewshot/datasets/grouped_datasets/{split_file}'
-train_dl = SplitDataloader(bs=0, num_rows=0, num_targets=0, binarise=cfg["binarise"],
+train_dl = SplitDataLoader(bs=0, num_rows=0, num_targets=0, binarise=cfg["binarise"],
                     ds_group=cfg["ds_group"], ds_split="train", 
-                    split_file=split_file)
-test_dl = SplitDataloader(bs=0, num_rows=0, num_targets=0, binarise=cfg["binarise"],
+                    num_classes=cfg["num_classes"], split_file=split_file)
+test_dl = SplitDataLoader(bs=0, num_rows=0, num_targets=0, binarise=cfg["binarise"],
                     ds_group=cfg["ds_group"], ds_split="test", 
-                    split_file=split_file)
+                    num_classes=cfg["num_classes"], split_file=split_file)
 
 seen_datasets = train_dl.all_datasets
 unseen_datasets = test_dl.all_datasets
@@ -60,9 +60,10 @@ for d in datanames:
     d = str(d)
     n_col = num_cols_dict[d]
     num_rows = num_rows_dict[d] // 2
-    dl = SplitDataloader(
+    dl = SplitDataLoader(
             bs=1, num_rows=num_rows, num_targets=0, 
             num_cols=[n_col - 1, n_col], ds_group=[d],
+            num_classes=cfg["num_classes"],
     )
     for i in range(num_samples):
         model_id, xs_meta, xs_target, ys_meta, ys_target = get_batch(dl, num_rows)

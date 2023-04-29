@@ -46,6 +46,7 @@ for i, save_no in enumerate(list(range(10, 20))):
     results['split'] = i
     all_results = pd.concat([all_results, results])
 all_results.reset_index(drop=True, inplace=True)
+
  # %%
 all_total_results = all_results[all_results.num_cols.str.startswith('t')]
 all_col_results = all_results[~all_results.num_cols.str.startswith('t')]
@@ -53,16 +54,20 @@ all_total_results['num_cols'] = 'total'
 
 #%%
 all_col_results['num_cols'] = all_col_results['num_cols'].astype(int)
-view_col_results = all_col_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-view_col_results['FLAT_diff'] = view_col_results['FLAT'] - view_col_results[['KNN', 'LR']].max(axis=1)
-view_col_results * 100
+view_col_results = all_col_results.pivot(index = ['num_cols', 'data_name'], columns = 'model', values = 'acc')
+view_col_results['FLAT_diff'] = view_col_results['FLAT'] - view_col_results.loc[:, ['KNN', 'LR']].max(axis=1) 
+view_col_results.reset_index(inplace=True)
+view_col_results.groupby('num_cols').mean() * 100
+
 # %%
-view_total_results = all_total_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-view_total_results['FLAT_diff'] = view_total_results['FLAT'] - view_total_results[['KNN', 'LR']].max(axis=1)
-view_total_results * 100
+view_total_results = all_total_results.pivot(index = 'data_name', columns = 'model', values = 'acc')
+view_total_results['FLAT_diff'] = view_total_results['FLAT'] - view_total_results.loc[:, ['KNN', 'LR']].max(axis=1) 
+view_total_results.mean() * 100
+
+
 # %%
 all_results = pd.DataFrame()
-for i, save_no in enumerate(list(range(10, 15))):
+for i, save_no in enumerate(list(range(40, 48))):
     results = pd.read_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results.csv', index_col=0)
     results['split'] = i
     all_results = pd.concat([all_results, results])
@@ -72,10 +77,7 @@ base_models.remove('FLAT')
 all_results.reset_index(drop=True, inplace=True)
 all_results['num_cols'] = 'total'
 all_results['time'] = -all_results['time']
-view_results = all_results.groupby(['data_name', 'model'])['acc'].mean().unstack()
-view_results ['FLAT_diff'] = view_results ['FLAT'] - view_results[base_models].max(axis=1)
-view_results = view_results * 100
-view_results.sort_values('FLAT_diff')
-# %%
-view_results.mean(axis=0)
+view_results = all_results.pivot(index = ['split','data_name'], columns = 'model', values = 'acc')
+view_results['FLAT_diff'] = view_results['FLAT'] - view_results.loc[:, base_models].max(axis=1) 
+view_results.sort_index() * 100
 # %%

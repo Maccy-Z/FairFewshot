@@ -20,7 +20,7 @@ def write_toml():
                              "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": True,          # Load pretrained datset2vec
+                             "load_d2v": False,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_3",  # Which D2V to load from
 
@@ -56,14 +56,18 @@ def write_toml():
                                "num_classes": 3
                                },
 
-                 "Settings": {"num_epochs": 31,      # Number of train epochs
+                 "Settings": {"num_epochs": 51,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "my_split",
+                              "one_hot": True
                               },
                  }
 
-    save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] + 1
+    if  save_dict["Settings"].get("one_hot"):
+        save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] * save_dict["DL_params"]["num_classes"] + 1
+    else:
+        save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] + 1
     with open("./Fewshot/defaults.toml", "w") as f:
         toml.dump(save_dict, f)
 

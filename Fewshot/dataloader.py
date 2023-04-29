@@ -124,44 +124,45 @@ class AdultDataLoader:
 
 
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
-def d2v_pairer(xs, ys):
+def d2v_pairer(xs, ys, one_hot=False, num_classes=2):
     #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
+    if one_hot:
+        ys = torch.nn.functional.one_hot(ys, num_classes=num_classes)
+        bs, num_rows, num_xs = xs.shape
+        bs, num_rows, num_ys = ys.shape
+        xs = xs.view(bs * num_rows, num_xs)
+        ys = ys.view(bs * num_rows, num_ys)
 
-    # bs, num_rows, num_xs = xs.shape
-    # bs, num_rows, num_ys = ys.shape
-    # xs = xs.view(bs * num_rows, num_xs)
-    # ys = ys.view(bs * num_rows, num_ys)
+        pair_flat = torch.empty(bs * num_rows, num_xs * num_ys, 2, device=xs.device)
+        for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
+            if num_ys == 1:
+                # Only allow 1D for ys
+                ys_k = ys_k.repeat(num_xs)
+                pairs = torch.stack([xs_k, ys_k], dim=-1)
+            else:
+                pairs = []
+                for i in range(num_xs):
+                    for j in range(num_ys):
+                        pairs.append(torch.tensor(np.array([xs_k[i], ys_k[j]])))
 
+                pairs = torch.stack(pairs)
+            pair_flat[k] = pairs
+        pairs = pair_flat.view(bs, num_rows, num_xs * num_ys, 2)
+    else:
+        bs, num_rows, num_xs = xs.shape
 
-    # pair_flat = torch.empty(bs * num_rows, num_xs * num_ys, 2, device=xs.device)
-    # for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-    #     if num_ys == 1:
-    #         # Only allow 1D for ys
-    #         ys_k = ys_k.repeat(num_xs)
-    #         pairs = torch.stack([xs_k, ys_k], dim=-1)
-    #     else:
-    #         pairs = []
-    #         for i in range(num_xs):
-    #             for j in range(num_ys):
-    #                 pairs.append(torch.tensor(np.array([xs_k[i], ys_k[j]])))
+        xs = xs.view(bs * num_rows, num_xs)
+        ys = ys.view(bs * num_rows, 1)
 
-    #         pairs = torch.stack(pairs)
-    #     pair_flat[k] = pairs
-    # pairs = pair_flat.view(bs, num_rows, num_xs * num_ys, 2)
-    bs, num_rows, num_xs = xs.shape
+        pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
+        for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
+            # Only allow 1D for ys
+            ys_k = ys_k.repeat(num_xs)
+            pairs = torch.stack([xs_k, ys_k], dim=-1)
 
-    xs = xs.view(bs * num_rows, num_xs)
-    ys = ys.view(bs * num_rows, 1)
+            pair_flat[k] = pairs
 
-    pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
-    for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-        # Only allow 1D for ys
-        ys_k = ys_k.repeat(num_xs)
-        pairs = torch.stack([xs_k, ys_k], dim=-1)
-
-        pair_flat[k] = pairs
-
-    pairs = pair_flat.view(bs, num_rows, num_xs, 2)
+        pairs = pair_flat.view(bs, num_rows, num_xs, 2)
 
     return pairs
 
@@ -169,9 +170,13 @@ def d2v_pairer(xs, ys):
 if __name__ == "__main__":
     # Test if dataloader works.
     np.random.seed(0)
-    xs = torch.tensor(np.random.randint(10, size=(2, 3, 10)))
-    ys = torch.tensor(np.random.binomial(1, 0.5, size=(2, 3, 1)))
+    xs = torch.tensor(np.random.randint(10, size=(3, 10, 2)))
+    ys1 = torch.tensor(np.random.binomial(1, 0.5, size=(3, 10)))
+    ys2 = torch.tensor(np.random.binomial(1, 0.5, size=(3, 10)))
+    ys = ys1 + ys2
 
-    pairs = d2v_pairer(xs, ys)
-    
+    pairs = d2v_pairer(xs, ys, one_hot=True, num_classes=3)
+    print(pairs.shape)
+    pairs = d2v_pairer(xs, ys, one_hot=False, num_classes=3)
+    print(pairs.shape)
 
