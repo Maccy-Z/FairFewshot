@@ -187,7 +187,7 @@ class MyDataSet:
         xs /= (s + 10e-4)
         if not self.binarise:
             ys = one_vs_all(ys)
-        return xs, ys
+        return xs, ys.long()
 
 
     def __repr__(self):

@@ -239,7 +239,7 @@ class FLAT(Model):
 
 def get_results(
         test_data_names, models, num_rows=10, num_targets=5, 
-        num_samples=3, by_dataset=True, by_cols=True
+        num_samples=3, by_dataset=True, by_cols=True, binarise=True
     ):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -262,7 +262,7 @@ def get_results(
             if not by_dataset:
                 print(num_cols, 'all')
                 test_dl = SplitDataloader(
-                    bs=num_samples * len(test_data_names), 
+                    bs=num_samples * len(test_data_names), binarise=binarise,
                     num_rows=num_rows, num_targets=num_targets,
                     num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
                 )
@@ -283,7 +283,7 @@ def get_results(
                             bs=num_samples, num_rows=num_rows,
                             num_targets=num_targets, 
                             num_cols=[num_cols - 1, num_cols], 
-                            ds_group=data_name
+                            ds_group=data_name, binarise=binarise
                         )
                         batch = get_batch(test_dl, num_rows)
                         
@@ -300,7 +300,7 @@ def get_results(
                                 'acc': acc,
                                 'time': duration
                             }, index=[0])
-                            print(f'time={(e-s)/60:.2f}min')
+                            print(f'time={(duration)/60:.2f}min', end=' ')
                             print(f'acc={acc*100:.2f}%')
                             results = pd.concat([results, result])
             num_cols *= 2
@@ -311,7 +311,7 @@ def get_results(
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
                 num_targets=num_targets, num_cols=num_cols,
-                ds_group=data_name
+                ds_group=data_name, binarise=binarise
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -319,7 +319,7 @@ def get_results(
                 s = time.time()
                 acc = model.get_accuracy(batch)
                 e = time.time()
-                duration = e-s
+                duration = e - s
                 result = pd.DataFrame({
                     'data_name': data_name,
                     'model': str(model),
@@ -336,7 +336,7 @@ def get_results(
         test_dl = SplitDataloader(
             bs=1, num_rows=num_rows,
             num_targets=num_targets, num_cols=-3,
-            ds_group=test_data_names
+            ds_group=test_data_names, binarise=binarise
         )
         acc_dict = dict(zip([str(m) for m in models], [[] for i in range(len(models))]))
         time_dict =  dict(zip([str(m) for m in models], [0 for i in range(len(models))]))
@@ -362,7 +362,7 @@ def get_results(
 
     return results
 
-def compare_2flat_models(param, num_rows, num_targets, num_samples):
+def compare_2flat_models(param, num_rows, num_targets, num_samples, binarise=True):
     all_results = pd.DataFrame()
     for dataname, save_no_ls in param.items():
         save_dir_1 = f'{BASEDIR}/saves/save_{save_no_ls[0]}'
@@ -374,7 +374,7 @@ def compare_2flat_models(param, num_rows, num_targets, num_samples):
             BasicModel("KNN")
         ]
         results = get_results(
-            [dataname], models=models, num_rows=num_rows,
+            [dataname], models=models, num_rows=num_rows, binarise=binarise,
             num_targets=num_targets, num_samples=num_samples, by_cols=True, 
             by_dataset=True
         )
@@ -435,9 +435,10 @@ def compare_flat_vs_baselines(save_no, num_samples):
         FTTrModel(),
     ]
     model_names = [str(m) for m in models]
-
+    base_model_names = model_names.copy()
+    base_model_names.remove("FLAT")
     # unseen_results = get_results(
-    #     test_data_names, models,
+    #     test_data_names, models, binarise=True,
     #     num_rows=num_rows, num_targets=num_targets,
     #     num_samples=num_samples, by_cols=True, by_dataset=True
     # )
@@ -446,7 +447,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     # unseen_print = unseen_results.pivot(
     #     columns=['data_name', 'model'], index='num_cols', values='acc')
     # print((unseen_print * 100).round(2).to_string())
-    # unseen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results.csv')
+    # unseen_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results_binary.csv')
     
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
@@ -455,7 +456,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     # print((df * 100).round(2).to_string())
 
     unseen_agg_results = get_results(
-        test_data_names, models,
+        test_data_names, models, binarise=True,
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples, by_cols=False, by_dataset=True
     )
@@ -463,13 +464,13 @@ def compare_flat_vs_baselines(save_no, num_samples):
     print("======================================================")
     print("Test accuracy on unseen datasets (full datasets)")
     df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
-    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results.csv')
-    df["FLAT_diff"] = df["FLAT"] - df.loc[:, model_names].max(axis=1)
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_binary.csv')
+    df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
     print((df * 100).round(2).to_string())
 
     # seen_agg_results = get_results(
     #     train_data_names, models,
-    #     num_rows=num_rows, num_targets=num_targets,
+    #     num_rows=num_rows, num_targets=num_targets, binarise=True,
     #     num_samples=num_samples, by_cols=False, by_dataset=True
     # )
     # print()
@@ -487,11 +488,12 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--save-no', type=int)   
-    args, unknown = parser.parse_known_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--save-no', type=int)   
+    # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    compare_flat_vs_baselines(save_no=args.save_no, num_samples=1000)
+    for i in range(10, 20):
+        compare_flat_vs_baselines(save_no=i, num_samples=1000)
 
     #col_accs = main(save_no=2)
 
