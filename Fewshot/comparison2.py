@@ -420,15 +420,12 @@ def main(save_no, num_rows):
         # print("Train datases:", train_data_names)
         # print("Test datasets:", test_data_names)
 
-
     else:
         raise Exception("Invalid data split")
 
     # num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
     num_samples = 100
-
-    # test_data_names = ["breast-cancer-wisc"]
 
     models = [FLAT(save_dir),
               BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
