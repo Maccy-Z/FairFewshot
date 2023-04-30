@@ -1,3 +1,5 @@
+import copy
+
 import torch
 from main import *
 from dataloader import d2v_pairer
@@ -21,6 +23,9 @@ from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
+import sys
+sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+from STUNT_interface import STUNT_utils, MLPProto
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
@@ -45,6 +50,7 @@ class Model(ABC):
 
             accs.append(a)
 
+
         accs = np.concatenate(accs)
 
         mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
@@ -58,6 +64,58 @@ class Model(ABC):
     @abstractmethod
     def get_acc(self, xs_target, ys_target) -> np.array:
         pass
+
+
+class STUNT(STUNT_utils, Model):
+    model: torch.nn.Module
+
+    def __init__(self):
+        self.lr = 0.0001
+        self.model_size = (256, 256) # num_cols, out_dim, hid_dim
+        self.steps =0
+        self.shot = 4
+        self.tasks_per_batch = 4
+        self.test_num_way = 2
+        self.query = 1
+        self.kmeans_iter = 5
+
+
+    def fit(self, xs_meta, ys_meta):
+        ys_meta = ys_meta.flatten()
+        # Reset the model
+        self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
+        self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        with warnings.catch_warnings():
+            # warnings.simplefilter("ignore")
+            for _ in range(self.steps):
+                try:
+                    train_batch = self.get_batch(xs_meta.clone())
+                    self.protonet_step(train_batch)
+                except AttributeError as e:
+                    pass
+
+        with torch.no_grad():
+            meta_embed = self.model(xs_meta)
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
+
+
+    def get_acc(self, xs_target, ys_target):
+        self.model.eval()
+        with torch.no_grad():
+            support_target = self.model(xs_target)
+
+        self.prototypes = self.prototypes[0]
+        support_target = support_target.unsqueeze(1)
+
+
+        sq_distances = torch.sum((self.prototypes
+                                  - support_target) ** 2, dim=-1)
+
+        # print(sq_distances.shape)
+        _, preds = torch.min(sq_distances, dim=-1)
+
+        # print(preds.numpy(), ys_target.numpy())
+        return (preds == ys_target).numpy()
 
 
 class TabnetModel(Model):
@@ -163,7 +221,7 @@ class BasicModel(Model):
             case "SVC":
                 self.model = SVC()
             case "KNN":
-                self.model = KNN(n_neighbors=2, p=1, weights="distance")
+                self.model = KNN(n_neighbors=3, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
@@ -317,13 +375,14 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(save_no):
+def main(save_no, num_rows):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     save_no = existing_saves[save_no]
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
+
 
     all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
@@ -358,21 +417,25 @@ def main(save_no):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
+        # print("Train datases:", train_data_names)
+        # print("Test datasets:", test_data_names)
 
 
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 10  # cfg["num_rows"]
+    # num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 50
+    num_samples = 100
+
+    # test_data_names = ["breast-cancer-wisc"]
 
     models = [FLAT(save_dir),
-              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
+              BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
+              # STUNT(),
+              # BasicModel("KNN")
               ]
 
     unseen_results = get_results_by_dataset(
@@ -380,7 +443,6 @@ def main(save_no):
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples
     )
-    #
     # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
     # print(df.to_string(index=False))
     # exit(2)
@@ -394,9 +456,9 @@ def main(save_no):
     detailed_results = detailed_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
 
-    print("======================================================")
-    print("Test accuracy on unseen datasets")
-    print(detailed_results.to_string())
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets")
+    # print(detailed_results.to_string())
 
     # Aggreate results
     agg_results = unseen_results.copy()
@@ -436,41 +498,23 @@ def main(save_no):
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (aggregated)")
-    print(agg_results.to_string())
+    print(agg_results["FLAT_diff"].to_string(index=False))
 
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets (aggregated)")
-
-    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    # new_column_order = ["FLAT"] + [col for col in df.columns if col != "FLAT"]
-    # df = df.reindex(columns=new_column_order)
-
-    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    # print((df * 100).round(2).to_string())
-
-    # seen_results = get_results_by_dataset(
-    #     train_data_names, models,
-    #     num_rows=num_rows, num_targets=num_targets,
-    #     num_samples=num_samples, agg=True
-    # )
-    # print()
-    # print("======================================================")
-    # print("Test accuracy on seen datasets (aggregated)")
-    # df = seen_results.pivot(columns='model', index='num_cols', values='acc')
-    # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
-    # print((df * 100).round(2).to_string())
 
     return unseen_results
 
 
 if __name__ == "__main__":
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
 
-    # save_number = int(input("Enter save number:\n"))
-    # main(save_no=save_number)
+    for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
+        random.seed(0)
+        np.random.seed(0)
+        torch.manual_seed(0)
 
-    col_accs = main(save_no=-1)
+        # save_number = int(input("Enter save number:\n"))
+        # main(save_no=save_number)
+        print()
+        print(i, j)
+        col_accs = main(save_no=i, num_rows=j)
 
-    # print(col_accs)
+        # print(col_accs)

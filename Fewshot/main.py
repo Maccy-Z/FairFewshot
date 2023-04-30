@@ -441,7 +441,7 @@ def main(all_cfgs, device="cpu"):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="train"
+            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
@@ -482,7 +482,7 @@ def main(all_cfgs, device="cpu"):
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
     # model = torch.compile(model)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps)
+    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=1e-4)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -575,11 +575,6 @@ def main(all_cfgs, device="cpu"):
         for name, abs_grad in save_grads.items():
             save_grads[name] = torch.div(abs_grad, val_interval)
 
-            # Print some useful stats from validation
-            # save_ys_targ = torch.cat(save_ys_targ)
-            # save_pred_labs = torch.cat(save_pred_labs)[:20]
-            # print("Targets:    ", save_ys_targ[:20])
-            # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
         print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
@@ -593,7 +588,8 @@ def main(all_cfgs, device="cpu"):
 
 
 if __name__ == "__main__":
-
+    import random
+    from comparison2 import main as comparison_main
     # random.seed(0)
     # np.random.seed(0)
     # torch.manual_seed(0)
@@ -601,7 +597,7 @@ if __name__ == "__main__":
     tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(1):
+    for test_no in range(3):
 
         print("---------------------------------")
         print("Starting test number", test_no)
@@ -609,4 +605,17 @@ if __name__ == "__main__":
 
     print("")
     print("Training Completed")
+
+    for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
+        random.seed(0)
+        np.random.seed(0)
+        torch.manual_seed(0)
+
+        # save_number = int(input("Enter save number:\n"))
+        # main(save_no=save_number)
+        print()
+        print(i, j)
+        col_accs = comparison_main(save_no=i, num_rows=j)
+
+        # print(col_accs)
 

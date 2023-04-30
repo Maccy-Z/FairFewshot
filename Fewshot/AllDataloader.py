@@ -351,7 +351,7 @@ class SplitDataloader:
                 raise Exception("Invalid num_cols")
 
             datanames = [str(d) for d in datasets]
-            
+
             xs, ys = list(zip(*[
                 ds.sample(num_cols=num_cols)
                 for ds in datasets]))
