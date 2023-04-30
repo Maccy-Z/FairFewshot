@@ -23,7 +23,7 @@ learn_norm = true
 gat_in_dim = 16
 
 [Optim]
-lr = 0.0005
+lr = 0.0006
 eps = 0.0003
 
 [DL_params]
@@ -36,7 +36,7 @@ decrease_col_prob = 0.12
 split_file = "my_split"
 
 [Settings]
-num_epochs = 26
+num_epochs = 41
 val_duration = 100
 val_interval = 2000
 dataset = "total"

@@ -29,9 +29,16 @@ class SaveHolder:
 
         self.grads = []
 
-    def save_model(self, model: torch.nn.Module, optim):
+    def save_model(self, model: torch.nn.Module, optim, epoch=0):
+        # latest model
         torch.save({"model_state_dict": model.state_dict(),
                     "optim_state_dict": optim.state_dict()}, f'{self.save_dir}/model.pt')
+        # Archive model
+        if epoch % 10 == 0:
+            torch.save({"model_state_dict": model.state_dict(),
+                        "optim_state_dict": optim.state_dict()}, f'{self.save_dir}/model_{epoch}.pt')
+
+
 
     def save_history(self, hist_dict: dict):
         with open(f'{self.save_dir}/history.pkl', 'wb') as f:

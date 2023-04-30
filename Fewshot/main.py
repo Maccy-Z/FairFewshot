@@ -10,6 +10,8 @@ from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
+from torch.optim.lr_scheduler import StepLR
+
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -81,7 +83,7 @@ class SetSetModel(nn.Module):
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
         if pos_enc_bias == "zero":
-            print(f'Positional encoding bias init to 0')
+            # print(f'Positional encoding bias init to 0')
             self.p_out.bias.data.fill_(0)
 
     def forward_layers(self, x):
@@ -201,7 +203,7 @@ class WeightGenerator(nn.Module):
         # Save indices of weights
         weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
         if self.gen_layers == 1:
-            print("Only 1 gen layer, Not using gen_hid_dim")
+            # print("Only 1 gen layer, Not using gen_hid_dim")
             module = nn.Sequential(nn.Linear(self.gen_in_dim, tot_params))
         else:
             module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
@@ -483,6 +485,7 @@ def main(all_cfgs, device="cpu"):
     # model = torch.compile(model)
 
     optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=1e-4)
+    optim_sched = StepLR(optim, step_size=10, gamma=0.3)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -582,9 +585,11 @@ def main(all_cfgs, device="cpu"):
         if save_holder is None:
             save_holder = SaveHolder(".")
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
-        save_holder.save_model(model, optim)
+        save_holder.save_model(model, optim, epoch=epoch)
         save_holder.save_history(history)
         save_holder.save_grads(save_grads)
+
+        optim_sched.step()
 
 
 if __name__ == "__main__":
@@ -606,16 +611,17 @@ if __name__ == "__main__":
     print("")
     print("Training Completed")
 
-    for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
-        random.seed(0)
-        np.random.seed(0)
-        torch.manual_seed(0)
+    for ep in [10, 20, 30, 40]:
+        for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
+            random.seed(0)
+            np.random.seed(0)
+            torch.manual_seed(0)
 
-        # save_number = int(input("Enter save number:\n"))
-        # main(save_no=save_number)
-        print()
-        print(i, j)
-        col_accs = comparison_main(save_no=i, num_rows=j)
+            # save_number = int(input("Enter save number:\n"))
+            # main(save_no=save_number)
+            print()
+            print(i, j)
+            col_accs = comparison_main(save_no=i, num_rows=j)
 
         # print(col_accs)
 

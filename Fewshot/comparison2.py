@@ -265,10 +265,13 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, save_ep=None):
         print(f'Loading model at {save_dir = }')
 
-        state_dict = torch.load(f'{save_dir}/model.pt')
+        if save_ep is None:
+            state_dict = torch.load(f'{save_dir}/model.pt')
+        else:
+            state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
@@ -308,47 +311,47 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
     num_cols = 2
-    while num_cols <= max_test_col and num_cols <= 60:
-        print(num_cols)
-        if agg:
-            test_dl = SplitDataloader(
-                bs=num_samples * len(test_data_names), num_rows=num_rows, num_targets=num_targets,
-                num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
-            )
-            batch = get_batch(test_dl, num_rows)
-            for model in models:
-                mean_acc, std_acc = model.get_accuracy(batch)
-                result = pd.DataFrame({
-                    'data_name': "all seen",
-                    'model': str(model),
-                    'num_cols': num_cols,
-                    'acc': mean_acc,
-                    'std': std_acc
-                }, index=[0])
-
-                results = pd.concat([results, result])
-        else:
-            for data_name in test_data_names:
-                if n_cols[data_name] >= num_cols:
-                    test_dl = SplitDataloader(
-                        bs=num_samples, num_rows=num_rows,
-                        num_targets=num_targets, num_cols=[num_cols, num_cols],
-                        ds_group=data_name
-                    )
-                    batch = get_batch(test_dl, num_rows)
-                    for model in models:
-                        mean_acc, std_acc = model.get_accuracy(batch)
-
-                        result = pd.DataFrame({
-                            'data_name': data_name,
-                            'model': str(model),
-                            'num_cols': num_cols,
-                            'acc': mean_acc,
-                            'std': std_acc
-                        }, index=[0])
-
-                        results = pd.concat([results, result])
-        num_cols *= 2
+    # while num_cols <= max_test_col and num_cols <= 60:
+    #     print(num_cols)
+    #     if agg:
+    #         test_dl = SplitDataloader(
+    #             bs=num_samples * len(test_data_names), num_rows=num_rows, num_targets=num_targets,
+    #             num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
+    #         )
+    #         batch = get_batch(test_dl, num_rows)
+    #         for model in models:
+    #             mean_acc, std_acc = model.get_accuracy(batch)
+    #             result = pd.DataFrame({
+    #                 'data_name': "all seen",
+    #                 'model': str(model),
+    #                 'num_cols': num_cols,
+    #                 'acc': mean_acc,
+    #                 'std': std_acc
+    #             }, index=[0])
+    #
+    #             results = pd.concat([results, result])
+    #     else:
+    #         for data_name in test_data_names:
+    #             if n_cols[data_name] >= num_cols:
+    #                 test_dl = SplitDataloader(
+    #                     bs=num_samples, num_rows=num_rows,
+    #                     num_targets=num_targets, num_cols=[num_cols, num_cols],
+    #                     ds_group=data_name
+    #                 )
+    #                 batch = get_batch(test_dl, num_rows)
+    #                 for model in models:
+    #                     mean_acc, std_acc = model.get_accuracy(batch)
+    #
+    #                     result = pd.DataFrame({
+    #                         'data_name': data_name,
+    #                         'model': str(model),
+    #                         'num_cols': num_cols,
+    #                         'acc': mean_acc,
+    #                         'std': std_acc
+    #                     }, index=[0])
+    #
+    #                     results = pd.concat([results, result])
+    #     num_cols *= 2
 
     # Test on full dataset
     if not agg:
@@ -375,7 +378,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(save_no, num_rows):
+def main(save_no, num_rows, save_ep):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
@@ -425,9 +428,9 @@ def main(save_no, num_rows):
 
     # num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 100
+    num_samples = 200
 
-    models = [FLAT(save_dir),
+    models = [FLAT(save_dir, save_ep=save_ep),
               BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
@@ -467,7 +470,6 @@ def main(save_no, num_rows):
     # Difference between FLAT and best model
     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 1:].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
@@ -492,9 +494,9 @@ def main(save_no, num_rows):
 
         agg_results[model_name] = mean_stds
 
-    print()
-    print("======================================================")
-    print("Test accuracy on unseen datasets (aggregated)")
+    # print()
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets (aggregated)")
     print(agg_results["FLAT_diff"].to_string(index=False))
 
 
@@ -503,15 +505,15 @@ def main(save_no, num_rows):
 
 if __name__ == "__main__":
 
-    for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
-        random.seed(0)
-        np.random.seed(0)
-        torch.manual_seed(0)
+    for ep in [10, 20, 30, 40]:
+        print("======================================================")
+        print("Epoch number", ep)
+        for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
+            random.seed(0)
+            np.random.seed(0)
+            torch.manual_seed(0)
 
-        # save_number = int(input("Enter save number:\n"))
-        # main(save_no=save_number)
-        print()
-        print(i, j)
-        col_accs = main(save_no=i, num_rows=j)
+            print()
+            print(i, j)
+            col_accs = main(save_no=i, num_rows=j, save_ep=ep)
 
-        # print(col_accs)
