@@ -423,6 +423,20 @@ def main(save_no, num_rows, save_ep):
         # print("Train datases:", train_data_names)
         # print("Test datasets:", test_data_names)
 
+    elif ds == "custom":
+        test_data_names = ['acute-inflammation', 'acute-nephritis', 'arrhythmia',
+            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
+            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
+            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
+            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
+            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
+            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
+            'statlog-heart', 'thyroid', 'vertebral-column-2clases']
+
+        train_data_names = []
+
+        print("Using Custom Dataset")
+
     else:
         raise Exception("Invalid data split")
 
@@ -455,7 +469,7 @@ def main(save_no, num_rows, save_ep):
 
     detailed_results = detailed_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
-
+    #
     # print("======================================================")
     # print("Test accuracy on unseen datasets")
     # print(detailed_results.to_string())
@@ -508,7 +522,7 @@ if __name__ == "__main__":
     for ep in [10, 20, 30, 40]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1, -2, -3, -1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10, 15, 15, 15]):
+        for i, j in zip([-1, -2, -3], [15, 15, 15]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
