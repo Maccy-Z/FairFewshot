@@ -4,7 +4,7 @@ set_out_dim = 64
 d2v_layers = [ 3, 2, 3,]
 pos_depth = 2
 pos_enc_dim = 15
-load_d2v = true
+load_d2v = false
 freeze_d2v = false
 model_load = "model_3"
 weight_hid_dim = 64
@@ -27,16 +27,16 @@ lr = 0.0005
 eps = 0.0003
 
 [DL_params]
-bs = 1
-num_rows = 10
+bs = 3
+num_rows = 5
 num_targets = 10
-ds_group = 7
+ds_group = 9
 binarise = true
-split_file = "med_splits"
+split_file = "med_splits_2"
 
 [Settings]
-num_epochs = 21
-val_duration = 100
+num_epochs = 31
+val_duration = 0
 val_interval = 2000
 dataset = "my_split"
 

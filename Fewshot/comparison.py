@@ -425,14 +425,14 @@ def compare_flat_vs_baselines(save_no, num_samples):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = cfg["num_rows"]
-    num_targets = cfg["num_targets"]
-
+    num_rows = 10
+    num_targets = 10
+    print ("num_rows:", num_rows, "num_targets:", num_targets)
     models = [
         FLAT(save_dir),
         BasicModel("LR"), BasicModel("KNN"),  BasicModel("CatBoost"),  #BasicModel("R_Forest"),
-        TabnetModel(),
-        FTTrModel(),
+        #TabnetModel(),
+        #FTTrModel(),
     ]
     model_names = [str(m) for m in models]
     base_model_names = model_names.copy()
@@ -463,10 +463,13 @@ def compare_flat_vs_baselines(save_no, num_samples):
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (full datasets)")
-    df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
-    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_binary.csv')
-    df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
-    print((df * 100).round(2).to_string())
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_10shot.csv')
+    try:
+        df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
+        df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
+        print((df * 100).round(2).to_string())
+    except:
+        pass
 
     # seen_agg_results = get_results(
     #     train_data_names, models,
@@ -476,10 +479,11 @@ def compare_flat_vs_baselines(save_no, num_samples):
     # print()
     # print("======================================================")
     # print("Test accuracy on seen datasets (full datasets)")
+    # seen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/seen_full_results.csv')
     # df = seen_agg_results.pivot(columns='model', index='num_cols', values='acc')
     # df["FLAT_diff"] = df["FLAT"] - df.iloc[:, 1:].max(axis=1)
     # print((df * 100).round(2).to_string())
-    # seen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/seen_full_results.csv')
+    # 
 
 
 
@@ -492,7 +496,7 @@ if __name__ == "__main__":
     # parser.add_argument('--save-no', type=int)   
     # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    for i in range(10, 20):
+    for i in range(70, 80):
         compare_flat_vs_baselines(save_no=i, num_samples=1000)
 
     #col_accs = main(save_no=2)

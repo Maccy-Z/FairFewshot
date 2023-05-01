@@ -5,7 +5,7 @@ import toml
 import os
 import sys
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-from Fewshot.AllDataloader import MyDataSet
+from Fewshot.AllDataloader import MyDataSet, SplitDataloader
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -13,7 +13,7 @@ import pandas as pd
 random.seed(123)
 np.random.seed(123)
 
-def get_datasets(ds_type):
+def get_datasets(ds_type, num_rows, num_targets, binarise=True):
     if ds_type == 'all':
         all_data_names = os.listdir('./datasets/data')
         all_data_names.remove('info.json')
@@ -31,6 +31,12 @@ def get_datasets(ds_type):
             'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
             'statlog-heart', 'thyroid', 'vertebral-column-2clases'
         ]
+    dl = SplitDataloader(
+        bs=1, num_rows=num_rows, num_targets=num_targets, 
+        ds_group=all_data_names, binarise=binarise
+    )
+    all_datasets = [d for d in dl.all_datasets]
+    all_data_names = [d.ds_name for d in all_datasets]
     return all_data_names
 
 def get_ds_df(all_data_names):
@@ -75,10 +81,10 @@ def split_datasets(all_data_names, get_val=False, n_splits=10, stratify=True):
     return splits
 
 if __name__ == "__main__":
-    all_data_names = get_datasets("medical")
-    all_data_names = ['fertility', 'lung-cancer', 'breast-cancer', 'mammographic', 'echocardiogram', 'heart-va', 'post-operative', 'heart-switzerland']
-    splits = split_datasets(all_data_names, n_splits=8, stratify=False)
+    all_data_names = get_datasets("medical", num_rows=10, num_targets=10)
+    #all_data_names = ['fertility', 'lung-cancer', 'breast-cancer', 'mammographic', 'echocardiogram', 'heart-va', 'post-operative', 'heart-switzerland']
+    splits = split_datasets(all_data_names, n_splits=10, stratify=False)
 
-    with open("./datasets/grouped_datasets/small_split", "w") as fp:
+    with open("./datasets/grouped_datasets/med_split_2", "w") as fp:
       toml.dump(splits, fp) 
 

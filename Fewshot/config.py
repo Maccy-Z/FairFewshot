@@ -3,6 +3,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ds-group', type=int)   
+parser.add_argument('--num-rows', type=int)   
 args, unknown = parser.parse_known_args()
 
 def get_config(cfg_file=None):
@@ -20,7 +21,7 @@ def write_toml():
                              "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": True,          # Load pretrained datset2vec
+                             "load_d2v": False,          # Load pretrained datset2vec
                              "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_3",  # Which D2V to load from
 
@@ -46,17 +47,17 @@ def write_toml():
                  "Optim": {"lr": 5e-4,
                            "eps": 3e-4},
 
-                 "DL_params": {"bs": 1,
-                               "num_rows": 10,
+                 "DL_params": {"bs": 3,
+                               "num_rows": args.num_rows,
                                "num_targets": 10,
                                "ds_group": args.ds_group,   # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
-                               "split_file" : 'med_splits',
+                               "split_file" : 'med_splits_2',
                                "num_cols" : {'train': -2, 'val': -2}
                                },
 
-                 "Settings": {"num_epochs": 21,      # Number of train epochs
-                              "val_duration": 100,      # Number of batches of validation
+                 "Settings": {"num_epochs": 31,      # Number of train epochs
+                              "val_duration": 0,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
                               "dataset": "my_split",
                               },

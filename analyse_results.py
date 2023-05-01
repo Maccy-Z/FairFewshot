@@ -41,7 +41,7 @@ compared_results.groupby(['num_cols', 'model'])[['acc']].mean().unstack()
 # %%
 
 all_results = pd.DataFrame()
-for i, save_no in enumerate(list(range(10, 20))):
+for i, save_no in enumerate(list(range(70, 80))):
     results = pd.read_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_results.csv', index_col=0)
     results['split'] = i
     all_results = pd.concat([all_results, results])
@@ -62,8 +62,8 @@ view_total_results['FLAT_diff'] = view_total_results['FLAT'] - view_total_result
 view_total_results * 100
 # %%
 all_results = pd.DataFrame()
-for i, save_no in enumerate(list(range(10, 20))):
-    results = pd.read_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_binary.csv', index_col=0)
+for i, save_no in enumerate(list(range(70, 80))):
+    results = pd.read_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results.csv', index_col=0)
     results['split'] = i
     all_results = pd.concat([all_results, results])
 models = list(all_results.model.unique())
@@ -74,7 +74,7 @@ all_results['num_cols'] = 'total'
 all_results['time'] = -all_results['time']
 view_results = all_results.pivot(index = ['split','data_name'], columns = 'model', values = 'acc')
 view_results['FLAT_diff'] = view_results['FLAT'] - view_results.loc[:, base_models].max(axis=1) 
-view_results.sort_index() * 100
+#view_results.sort_index() * 100
 #%%
-view_results.mean(axis=0) * 100
+(view_results.mean(axis=0) * 100).sort_values()
 # %%
