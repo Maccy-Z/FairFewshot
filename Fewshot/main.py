@@ -499,12 +499,12 @@ def main(all_cfgs, device="cpu"):
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
     eps = cfg["eps"]
+    decay = cfg["decay"]
 
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
-    # model = torch.compile(model)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
-    optim_sched = StepLR(optim, step_size=20, gamma=0.5)
+    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
+    # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -608,7 +608,7 @@ def main(all_cfgs, device="cpu"):
         save_holder.save_history(history)
         save_holder.save_grads(save_grads)
 
-        optim_sched.step()
+        # optim_sched.step()
 
 
 if __name__ == "__main__":
