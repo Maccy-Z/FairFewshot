@@ -1,5 +1,6 @@
 __pycache__/
 __pycache__
+saves/
 catboost_info/
 results/
 *.pdf
