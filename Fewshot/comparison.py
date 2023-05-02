@@ -387,7 +387,7 @@ def compare_2flat_models(param, num_rows, num_targets, num_samples, binarise=Tru
         all_results = pd.concat([all_results, results])
     return all_results
 
-def compare_flat_vs_baselines(save_no, num_samples):
+def compare_flat_vs_baselines(save_no, num_samples, num_rows):
     # dir_path = f'{BASEDIR}/saves'
     # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -432,7 +432,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 6
+    num_rows = num_rows
     num_targets = 10
     print ("num_rows:", num_rows, "num_targets:", num_targets)
     models = [
@@ -470,7 +470,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (full datasets)")
-    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_3shots.csv')
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_{num_rows}shots.csv')
     try:
         df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
         df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
@@ -503,8 +503,9 @@ if __name__ == "__main__":
     # parser.add_argument('--save-no', type=int)   
     # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    for i in range(0, 10):
-        compare_flat_vs_baselines(save_no=i, num_samples=1000)
+    for n in [1, 3, 5, 10]:
+        for i in range(0, 10):
+            compare_flat_vs_baselines(save_no=i, num_samples=1000, num_rows=n)
 
     #col_accs = main(save_no=2)
 
