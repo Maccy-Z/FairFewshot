@@ -570,7 +570,7 @@ if __name__ == "__main__":
     for ep in [30]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-3], [10]):
+        for i, j in zip([-1], [10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
