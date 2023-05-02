@@ -629,30 +629,34 @@ if __name__ == "__main__":
     # tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(3):
+    # for test_no in range(3):
 
-        print("---------------------------------")
-        print("Starting test number", test_no)
-        main(all_cfgs=get_config(), device=dev)
+    #     print("---------------------------------")
+    #     print("Starting test number", test_no)
 
+    main(all_cfgs=get_config(), device=dev)
     print("")
 
-    print(tag)
+    #print(tag)
     print("Training Completed")
 
-    for ep in [10, 20, 30, 40]:
+    num_test_rows = [1, 3, 5, 10]
+    save_no_ls = [-1]
+
+    for ep in [None]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10]):
-            random.seed(0)
-            np.random.seed(0)
-            torch.manual_seed(0)
+        for i in save_no_ls:
+            for j in num_test_rows:
+                random.seed(0)
+                np.random.seed(0)
+                torch.manual_seed(0)
 
-            # save_number = int(input("Enter save number:\n"))
-            # main(save_no=save_number)
-            print()
-            print(i, j)
-            col_accs = comparison_main(save_no=i, num_rows=j, save_ep=ep)
+                # save_number = int(input("Enter save number:\n"))
+                # main(save_no=save_number)
+                print()
+                print(i, j)
+                comparison_main(save_no=i, num_rows=j, save_ep=ep)
 
         # print(col_accs)
 

@@ -29,17 +29,18 @@ decay = 0.0001
 
 [DL_params]
 bs = 3
-num_rows = 6
-num_targets = 6
-ds_group = 9
+num_rows = 5
+num_targets = 5
+ds_group = 0
 binarise = true
-fixed_targets = true
+fixed_targets = false
+normalise = true
 split_file = "med_splits_2"
 
 [Settings]
-num_epochs = 31
-val_duration = 100
-val_interval = 2000
+num_epochs = 1
+val_duration = 1
+val_interval = 1
 dataset = "my_split"
 
 [DL_params.num_cols]

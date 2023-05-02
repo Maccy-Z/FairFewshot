@@ -3,7 +3,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ds-group', type=int)   
-#parser.add_argument('--num-rows', type=int)   
+parser.add_argument('--num-rows', type=int)   
+parser.add_argument('--num-targets', type=int)   
 args, unknown = parser.parse_known_args()
 
 def get_config(cfg_file=None):
@@ -49,12 +50,12 @@ def write_toml():
                            "decay": 1e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 5,
-                               "num_targets": 5,
+                               "num_rows": args.num_rows,
+                               "num_targets": args.num_targets,
                                "ds_group": args.ds_group,   # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
                                "fixed_targets": False,
-                               "normalise": False,
+                               "normalise": True,
                                "split_file" : 'med_splits_2',
                                "num_cols" : {'train': -2, 'val': -2}
                                },
@@ -62,7 +63,7 @@ def write_toml():
                  "Settings": {"num_epochs": 31,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
-                              "dataset": "total",
+                              "dataset": "my_split",
                               },
                  }
 

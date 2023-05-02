@@ -63,7 +63,7 @@ view_total_results * 100
 # %%
 all_results = pd.DataFrame()
 for i, save_no in enumerate(list(range(0, 10))):
-    results = pd.read_csv(f'{BASEDIR}/saves/saves_3shot/save_{save_no}/unseen_full_results_5shots.csv', index_col=0)
+    results = pd.read_csv(f'{BASEDIR}/saves/saves_5shot_unnormalized/save_{save_no}/unseen_full_results_10shots.csv', index_col=0)
     results['split'] = i
     all_results = pd.concat([all_results, results])
 models = list(all_results.model.unique())

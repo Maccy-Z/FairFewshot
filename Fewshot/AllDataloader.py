@@ -197,15 +197,19 @@ class MyDataSet:
         return xs, ys.long()
 
     def _normalise(self, xs):
-        xs_meta= xs[:self.num_rows, :]
-        xs_target= xs[self.num_rows:, :]
-        m = xs_meta.mean(0, keepdim=True)
-        s = xs_meta.std(0, unbiased=False, keepdim=True)
-        xs_meta -= m
-        xs_target -= m
-        xs_meta /= (s + 10e-4)
-        xs_target /= (s + 10e-4)
-        xs = torch.cat([xs_meta, xs_target])
+        # xs_meta= xs[:self.num_rows, :]
+        # xs_target= xs[self.num_rows:, :]
+        # m = xs_meta.mean(0, keepdim=True)
+        # s = xs_meta.std(0, unbiased=False, keepdim=True)
+        # xs_meta -= m
+        # xs_target -= m
+        # xs_meta /= (s + 10e-4)
+        # xs_target /= (s + 10e-4)
+        # xs = torch.cat([xs_meta, xs_target])
+        m = xs.mean(0, keepdim=True)
+        s = xs.std(0, unbiased=False, keepdim=True)
+        xs -= m
+        xs /= (s + 10e-4)
         return xs
 
     def __repr__(self):
