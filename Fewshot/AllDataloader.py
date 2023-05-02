@@ -37,7 +37,7 @@ def one_vs_all(ys):
 class MyDataSet:
     def __init__(
             self, ds_name, num_rows, num_targets, binarise, split, 
-            dtype=torch.float32, device="cpu"):
+            fixed_targets=False, dtype=torch.float32, device="cpu",):
         # data_name = "adult"
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -47,6 +47,7 @@ class MyDataSet:
 
         self.device = device
         self.dtype = dtype
+        self.fixed_targets = fixed_targets
 
         self.train, self.valid, self.test = False, False, False
 
@@ -117,8 +118,8 @@ class MyDataSet:
             if self.num_0s < self.tot_rows or self.num_1s < self.tot_rows:
                 print("WARN: Discarding dataset due to lack of labels", self.ds_name)
                 self.ds_rows = 0
-        else:
 
+        else:
             # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
             row_probs = np.ones(self.ds_rows)
 
@@ -141,6 +142,9 @@ class MyDataSet:
 
             self.row_probs = row_probs.T
 
+        if self.fixed_targets:
+            if num_rows % 2 != 0 or num_targets % 2 != 0:
+                Exception(ValueError("num_rows and num_targets must be an even numeber when fixed_targets=True"))
 
     def sample(self, num_cols):
         targ_col = -1
@@ -148,8 +152,12 @@ class MyDataSet:
         if self.binarise:
             # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
             # TODO: This also allows for fixing number of meta / target easily.
-            meta_1s = np.random.binomial(self.num_rows, 0.5)
-            target_1s = np.random.binomial(self.num_targets, 0.5)
+            if not self.fixed_targets:
+                meta_1s = np.random.binomial(self.num_rows, 0.5)
+                target_1s = np.random.binomial(self.num_targets, 0.5)
+            else:
+                meta_1s = self.num_rows // 2
+                target_1s = self.num_targets // 2
 
             meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
 
@@ -171,7 +179,7 @@ class MyDataSet:
             # Join meta and target. Split apart later.
             select_data = torch.cat([meta_rows, targ_rows])
 
-        else:
+        elif not self.fixed_targets:
             rows = np.random.choice(
                 self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
             select_data = self.data[rows]
@@ -202,7 +210,7 @@ class SplitDataloader:
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            decrease_col_prob=-1):
+            fixed_targets=False, decrease_col_prob=-1):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -235,6 +243,7 @@ class SplitDataloader:
         self.ds_split = ds_split
         self.split_file = split_file
         self.decrease_col_prob = decrease_col_prob
+        self.fixed_targets = fixed_targets
 
         self.device = device
 
@@ -281,6 +290,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows, 
                         num_targets=self.num_targets,
                         binarise=self.binarise, 
+                        fixed_targets = self.fixed_targets,
                         device=self.device, split="all")
             for name in ds_names]
         
@@ -362,15 +372,11 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=-1,
-        num_cols=-3, ds_group=0, ds_split="train")
-    print(dl.all_datasets)
-    num_cols = []
-    for xs, ys, datanames in islice(dl, 10):
-        print(xs.shape)
-        num_cols.append(xs.shape[2])
+        bs=2, num_rows=10, binarise=True, num_targets=10, decrease_col_prob=-1,
+        num_cols=-3, ds_group=0, ds_split="train", fixed_targets=True,
+        split_file='./datasets/grouped_datasets/med_splits_2')
 
-    fig, ax = plt.subplots()
-    ax.hist(num_cols)
-    fig.show()
+    for xs, ys, datanames in islice(dl, 10):
+        print(ys)
+
 # %%
