@@ -5,7 +5,7 @@ from main import *
 from dataloader import d2v_pairer
 from AllDataloader import SplitDataloader, MyDataSet
 from config import get_config
-
+import time
 import os
 import toml
 import numpy as np
@@ -411,6 +411,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 ds_group=data_name, binarise=binarise
             )
             batch = get_batch(test_dl, num_rows)
+
             for model in models:
                 mean_acc, std_acc = model.get_accuracy(batch)
                 result = pd.DataFrame({
@@ -490,7 +491,7 @@ def main(save_no, num_rows, save_ep):
         raise Exception("Invalid data split")
 
     # num_rows = 10  # cfg["num_rows"]
-    num_targets = cfg["num_targets"]
+    num_targets = 1 # cfg["num_targets"]
     binarise = cfg["binarise"]
     num_samples = 200
 
@@ -570,7 +571,7 @@ def main(save_no, num_rows, save_ep):
 
 if __name__ == "__main__":
 
-    for ep in [50]:
+    for ep in [30]:
         print("======================================================")
         print("Epoch number", ep)
         for i, j in zip([-1, -2], [10, 10]):

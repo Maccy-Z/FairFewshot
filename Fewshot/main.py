@@ -342,6 +342,7 @@ class ModelHolder(nn.Module):
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
+            exit(2)
             model_load = cfg["model_load"]
             load = torch.load(f"./dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
@@ -632,10 +633,10 @@ if __name__ == "__main__":
     print(tag)
     print("Training Completed")
 
-    for ep in [20, 40, 50]:
+    for ep in [20, 30]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1, -2, -1, -2], [5, 5, 10, 10]):
+        for i, j in zip([-1, -2], [10, 10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
