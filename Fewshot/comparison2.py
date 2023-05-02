@@ -219,7 +219,7 @@ class BasicModel(Model):
             case "SVC":
                 self.model = SVC()
             case "KNN":
-                self.model = KNN(n_neighbors=2, p=1, weights="distance")
+                self.model = KNN(n_neighbors=3, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
