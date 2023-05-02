@@ -470,7 +470,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (full datasets)")
-    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_3shots.csv')
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_5shots.csv')
     try:
         df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
         df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
