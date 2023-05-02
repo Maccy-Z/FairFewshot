@@ -28,9 +28,9 @@ eps = 0.0003
 
 [DL_params]
 bs = 3
-num_rows = 10
-num_targets = 10
-ds_group = 3
+num_rows = 6
+num_targets = 6
+ds_group = 9
 binarise = true
 fixed_targets = true
 split_file = "med_splits_2"

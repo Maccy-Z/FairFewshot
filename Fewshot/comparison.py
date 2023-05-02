@@ -239,7 +239,8 @@ class FLAT(Model):
 
 def get_results(
         test_data_names, models, num_rows=10, num_targets=5, 
-        num_samples=3, by_dataset=True, by_cols=True, binarise=True
+        num_samples=3, by_dataset=True, by_cols=True, binarise=True,
+        fixed_targets=False
     ):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -262,7 +263,9 @@ def get_results(
             if not by_dataset:
                 print(num_cols, 'all')
                 test_dl = SplitDataloader(
-                    bs=num_samples * len(test_data_names), binarise=binarise,
+                    bs=num_samples * len(test_data_names), 
+                    binarise=binarise,
+                    fixed_targets=fixed_targets,
                     num_rows=num_rows, num_targets=num_targets,
                     num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
                 )
@@ -283,7 +286,8 @@ def get_results(
                             bs=num_samples, num_rows=num_rows,
                             num_targets=num_targets, 
                             num_cols=[num_cols - 1, num_cols], 
-                            ds_group=data_name, binarise=binarise
+                            ds_group=data_name, binarise=binarise,
+                            fixed_targets=fixed_targets
                         )
                         batch = get_batch(test_dl, num_rows)
                         
@@ -311,7 +315,8 @@ def get_results(
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
                 num_targets=num_targets, num_cols=num_cols,
-                ds_group=data_name, binarise=binarise
+                ds_group=data_name, binarise=binarise,
+                fixed_targets=fixed_targets
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -336,7 +341,8 @@ def get_results(
         test_dl = SplitDataloader(
             bs=1, num_rows=num_rows,
             num_targets=num_targets, num_cols=-3,
-            ds_group=test_data_names, binarise=binarise
+            ds_group=test_data_names, binarise=binarise,
+            fixed_targets=fixed_targets
         )
         acc_dict = dict(zip([str(m) for m in models], [[] for i in range(len(models))]))
         time_dict =  dict(zip([str(m) for m in models], [0 for i in range(len(models))]))
@@ -390,6 +396,7 @@ def compare_flat_vs_baselines(save_no, num_samples):
 
     all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
+    fixed_targets = cfg["fixed_targets"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
 
@@ -425,8 +432,8 @@ def compare_flat_vs_baselines(save_no, num_samples):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 10
-    num_targets = 10
+    num_rows = 6
+    num_targets = 6
     print ("num_rows:", num_rows, "num_targets:", num_targets)
     models = [
         FLAT(save_dir),
@@ -456,14 +463,14 @@ def compare_flat_vs_baselines(save_no, num_samples):
     # print((df * 100).round(2).to_string())
 
     unseen_agg_results = get_results(
-        test_data_names, models, binarise=True,
+        test_data_names, models, binarise=True, fixed_targets=fixed_targets,
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples, by_cols=False, by_dataset=True
     )
     print()
     print("======================================================")
     print("Test accuracy on unseen datasets (full datasets)")
-    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_10shot.csv')
+    unseen_agg_results.to_csv(f'{BASEDIR}/saves/save_{save_no}/unseen_full_results_3shots.csv')
     try:
         df = unseen_agg_results.pivot(columns='model', index='num_cols', values='acc')
         df["FLAT_diff"] = df["FLAT"] - df.loc[:, base_model_names].max(axis=1)
