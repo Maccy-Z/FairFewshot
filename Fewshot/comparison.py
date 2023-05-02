@@ -323,8 +323,9 @@ def main(save_no):
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
 
-    if ds == "med_split":
-        split_file = "./datasets/grouped_datasets/med_splits"
+    if ds == "my_split":
+        split_file = cfg["split_file"]
+        split_file = f'./datasets/grouped_datasets/{split_file}'
         with open(split_file) as f:
             split = toml.load(f)
         train_data_names = split[str(ds_group)]["train"]
@@ -402,6 +403,6 @@ if __name__ == "__main__":
     # save_number = int(input("Enter save number:\n"))
     # main(save_no=save_number)
 
-    col_accs = main(save_no=-1)
+    col_accs = main(save_no=6)
 
     # print(col_accs)
