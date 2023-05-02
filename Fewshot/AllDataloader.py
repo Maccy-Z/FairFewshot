@@ -39,7 +39,6 @@ class MyDataSet:
     def __init__(
             self, ds_name, num_rows, num_targets, binarise, split, 
             dtype=torch.float32, device="cpu"):
-        # data_name = "adult"
         self.ds_name = ds_name
         self.num_rows = num_rows
         self.num_targets = num_targets

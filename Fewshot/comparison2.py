@@ -312,18 +312,18 @@ class FLAT_MAML(Model):
 
         embed_meta.requires_grad = True
         pos_enc.requires_grad = True
-        optim_pos = torch.optim.Adam([pos_enc], lr=0.005)
-        # optim_embed = torch.optim.SGD([embed_meta, ], lr=75, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
+        #optim_pos = torch.optim.Adam([pos_enc], lr=0.005)
+        # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
         optim_embed = torch.optim.Adam([embed_meta], lr=0.05)
-        for _ in range(10):
+        for _ in range(5):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
             loss.backward()
-            optim_pos.step()
+            #optim_pos.step()
             optim_embed.step()
             optim_embed.zero_grad()
-            optim_pos.zero_grad()
+            #optim_pos.zero_grad()
 
         self.embed_meta = embed_meta
         self.pos_enc = pos_enc
@@ -570,7 +570,7 @@ if __name__ == "__main__":
     for ep in [30]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1], [10]):
+        for i, j in zip([-3], [10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
