@@ -432,8 +432,8 @@ def compare_flat_vs_baselines(save_no, num_samples):
     else:
         raise Exception("Invalid data split")
 
-    num_rows = 6
-    num_targets = 6
+    num_rows = 10
+    num_targets = 10
     print ("num_rows:", num_rows, "num_targets:", num_targets)
     models = [
         FLAT(save_dir),
