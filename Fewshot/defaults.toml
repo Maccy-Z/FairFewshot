@@ -1,7 +1,7 @@
 [NN_dims]
 set_h_dim = 64
 set_out_dim = 64
-d2v_layers = [ 3, 2, 3,]
+d2v_layers = [ 4, 2, 4,]
 pos_depth = 2
 pos_enc_dim = 15
 load_d2v = false
@@ -25,13 +25,15 @@ gat_in_dim = 16
 [Optim]
 lr = 0.0005
 eps = 0.0003
+decay = 0.0001
 
 [DL_params]
 bs = 5
 num_rows = 5
 num_targets = 5
-ds_group = 1
-binarise = true
+ds_group = [ 1, -1,]
+binarise = false
+
 decrease_col_prob = 0.12
 split_file = "my_splits"
 

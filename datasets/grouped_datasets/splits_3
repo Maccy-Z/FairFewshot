@@ -1,0 +1,23 @@
+[0]
+train = [ "adult", "blood", "breast-cancer", "cardiotocography-3clases", "fertility", "horse-colic", "ilpd-indian-liver", "monks-2", "monks-3", "musk-1", "musk-2", "oocytes_trisopterus_nucleus_2f", "oocytes_trisopterus_states_5b", "page-blocks", "pittsburg-bridges-REL-L", "pittsburg-bridges-T-OR-D", "pittsburg-bridges-TYPE", "statlog-heart", "statlog-shuttle", "titanic", "wall-following",]
+test = [ "breast-cancer-wisc", "echocardiogram", "monks-1", "mushroom", "oocytes_merluccius_nucleus_4d", "ozone", "post-operative",]
+
+[1]
+train = [ "audiology-std", "flags", "heart-va", "led-display", "primary-tumor", "semeion", "teaching", "zoo",]
+test = [ "dermatology", "ecoli",]
+
+[2]
+train = [ "abalone", "balance-scale", "energy-y1", "energy-y2", "glass", "hayes-roth", "iris", "mammographic", "molec-biol-promoter", "molec-biol-splice", "nursery", "pittsburg-bridges-SPAN", "seeds", "waveform",]
+test = [ "statlog-vehicle", "tic-tac-toe", "vertebral-column-3clases", "waveform-noise",]
+
+[3]
+train = [ "breast-tissue", "conn-bench-vowel-deterding", "contrac", "heart-switzerland", "letter", "libras", "optical", "pendigits", "plant-margin", "plant-shape", "plant-texture", "soybean", "statlog-image", "statlog-landsat", "steel-plates",]
+test = [ "cardiotocography-10clases", "chess-krvk", "image-segmentation", "synthetic-control",]
+
+[4]
+train = [ "acute-nephritis", "annealing", "arrhythmia", "bank", "chess-krvkp", "congressional-voting", "connect-4", "credit-approval", "heart-cleveland", "heart-hungarian", "hepatitis", "hill-valley", "miniboone", "spambase", "statlog-australian-credit", "thyroid", "yeast",]
+test = [ "acute-inflammation", "cylinder-bands", "lymphography", "spect", "statlog-german-credit",]
+
+[5]
+train = [ "breast-cancer-wisc-diag", "breast-cancer-wisc-prog", "car", "conn-bench-sonar-mines-rocks", "ionosphere", "low-res-spect", "magic", "oocytes_merluccius_states_2f", "parkinsons", "planning", "ringnorm", "spectf", "twonorm", "vertebral-column-2clases", "wine",]
+test = [ "haberman-survival", "pima", "pittsburg-bridges-MATERIAL", "wine-quality-red", "wine-quality-white",]
