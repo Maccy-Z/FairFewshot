@@ -316,7 +316,7 @@ class FLAT_MAML(Model):
         optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
         # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
         optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
-        for _ in range(6):
+        for _ in range(5):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
@@ -343,7 +343,7 @@ class FLAT_MAML(Model):
     def __repr__(self):
         return "FLAT"
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
+def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -407,8 +407,8 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         for data_name in test_data_names:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
-                num_targets=1, num_cols=[n_cols[data_name], n_cols[data_name]],
-                ds_group=data_name, binarise=True
+                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+                ds_group=data_name, binarise=binarise
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -491,9 +491,10 @@ def main(save_no, num_rows, save_ep):
 
     # num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 100
+    binarise = cfg["binarise"]
+    num_samples = 200
 
-    models = [FLAT_MAML(save_dir, save_ep=save_ep),
+    models = [FLAT(save_dir, save_ep=save_ep),
               BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
@@ -504,7 +505,7 @@ def main(save_no, num_rows, save_ep):
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples
+        num_samples=num_samples, binarise=binarise
     )
     # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
     # print(df.to_string(index=False))
@@ -560,8 +561,8 @@ def main(save_no, num_rows, save_ep):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    # print(agg_results["FLAT_diff"].to_string(index=False))
-    print(agg_results.to_string(index=False))
+    print(agg_results["FLAT_diff"].to_string(index=False))
+    # print(agg_results.to_string(index=False))
 
 
     return unseen_results
