@@ -433,6 +433,7 @@ def main(all_cfgs, device="cpu"):
     binarise = cfg["binarise"]
     fixed_targets = cfg["fixed_targets"]
     split_file = cfg.get("split_file")
+    normalise = cfg["normalise"]
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -459,6 +460,7 @@ def main(all_cfgs, device="cpu"):
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, 
+            normalise=normalise,
             fixed_targets=fixed_targets,
             num_cols=num_cols['train'],
             decrease_col_prob=decrease_col_prob,
@@ -470,6 +472,7 @@ def main(all_cfgs, device="cpu"):
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise, 
+            normalise=normalise,
             fixed_targets=fixed_targets,
             num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 

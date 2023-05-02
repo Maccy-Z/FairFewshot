@@ -36,7 +36,7 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, binarise, split, 
+            self, ds_name, num_rows, num_targets, binarise, split, normalise=True,
             fixed_targets=False, dtype=torch.float32, device="cpu",):
         # data_name = "adult"
         self.ds_name = ds_name
@@ -44,6 +44,7 @@ class MyDataSet:
         self.num_targets = num_targets
         self.tot_rows = num_rows + num_targets
         self.binarise = binarise
+        self.normalise = normalise
 
         self.device = device
         self.dtype = dtype
@@ -189,7 +190,8 @@ class MyDataSet:
         ys = select_data[:, targ_col]
 
         # Normalise xs
-        xs = self._normalise(xs)
+        if self.normalise:
+            xs = self._normalise(xs)
         if not self.binarise:
             ys = one_vs_all(ys)
         return xs, ys.long()
