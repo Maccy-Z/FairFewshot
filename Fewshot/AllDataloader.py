@@ -217,7 +217,7 @@ class MyDataSet:
 
 class SplitDataloader:
     def __init__(
-            self, bs, num_rows, num_targets, binarise=False,
+            self, bs, num_rows, num_targets, binarise=False, normalise=True,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
             fixed_targets=False, decrease_col_prob=-1):
@@ -254,7 +254,7 @@ class SplitDataloader:
         self.split_file = split_file
         self.decrease_col_prob = decrease_col_prob
         self.fixed_targets = fixed_targets
-
+        self.normalise = normalise
         self.device = device
 
         self._get_valid_datasets()
@@ -300,6 +300,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows, 
                         num_targets=self.num_targets,
                         binarise=self.binarise, 
+                        normalise=self.normalise,
                         fixed_targets = self.fixed_targets,
                         device=self.device, split="all")
             for name in ds_names]
