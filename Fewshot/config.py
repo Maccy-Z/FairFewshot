@@ -48,8 +48,8 @@ def write_toml():
                            "eps": 3e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 6,
-                               "num_targets": 6,
+                               "num_rows": 20,
+                               "num_targets": 20,
                                "ds_group": args.ds_group,   # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
                                "fixed_targets": True,
