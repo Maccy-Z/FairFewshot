@@ -453,14 +453,23 @@ def main(all_cfgs, device="cpu"):
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
 
-    elif ds == "med_split":
+    elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
         with open(split_file) as f:
             split = toml.load(f)
-        max_col = split[str(ds_group)]['max_col']
+        if not num_cols:
+            num_cols = {
+                'train': [2, split[str(ds_group)]['max_test_col']],
+                'val' : [2, split[str(ds_group)]['max_val_col']],
+            }
+        else:
+            num_cols = {
+                'train': num_cols,
+                'val' : num_cols,
+            }
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=[2, max_col],
+            binarise=binarise, num_cols=num_cols['train'],
             decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
             split_file=split_file
@@ -469,9 +478,9 @@ def main(all_cfgs, device="cpu"):
 
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=[2, max_col],
+            binarise=binarise, num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="test",
+            ds_group=ds_group, ds_split="val",
             split_file=split_file
         )
         print("Testing data names:", val_dl.all_datasets)
@@ -619,7 +628,7 @@ if __name__ == "__main__":
     # np.random.seed(0)
     # torch.manual_seed(0)
 
-    tag = input("Description: ")
+    # tag = input("Description: ")
 
     dev = torch.device("cpu")
     for test_no in range(2):
