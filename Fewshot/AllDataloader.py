@@ -189,14 +189,22 @@ class MyDataSet:
         ys = select_data[:, targ_col]
 
         # Normalise xs
-        m = xs.mean(0, keepdim=True)
-        s = xs.std(0, unbiased=False, keepdim=True)
-        xs -= m
-        xs /= (s + 10e-4)
+        xs = self._normalise(xs)
         if not self.binarise:
             ys = one_vs_all(ys)
         return xs, ys.long()
 
+    def _normalise(self, xs):
+        xs_meta= xs[:self.num_rows, :]
+        xs_target= xs[self.num_rows:, :]
+        m = xs_meta.mean(0, keepdim=True)
+        s = xs_meta.std(0, unbiased=False, keepdim=True)
+        xs_meta -= m
+        xs_target -= m
+        xs_meta /= (s + 10e-4)
+        xs_target /= (s + 10e-4)
+        xs = torch.cat([xs_meta, xs_target])
+        return xs
 
     def __repr__(self):
         return self.ds_name
@@ -372,11 +380,15 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=2, num_rows=10, binarise=True, num_targets=10, decrease_col_prob=-1,
-        num_cols=-3, ds_group=0, ds_split="train", fixed_targets=True,
+        bs=1, num_rows=10, binarise=True, num_targets=10, decrease_col_prob=-1,
+        num_cols=-3, ds_group=0, ds_split="train", fixed_targets=False,
         split_file='./datasets/grouped_datasets/med_splits_2')
 
-    for xs, ys, datanames in islice(dl, 10):
-        print(ys)
+    for xs, ys, datanames in islice(dl, 1):
+        num_rows = 10
+        xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+        print(xs_meta.shape)
+        print(xs_meta.mean(axis=1))
+        print(xs_target.mean(axis=1))
 
 # %%
