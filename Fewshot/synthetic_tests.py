@@ -37,7 +37,7 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 139
+    save_no = 269
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 

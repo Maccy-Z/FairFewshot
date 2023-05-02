@@ -277,6 +277,7 @@ class FLAT(Model):
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
+
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
@@ -312,18 +313,18 @@ class FLAT_MAML(Model):
 
         embed_meta.requires_grad = True
         pos_enc.requires_grad = True
-        #optim_pos = torch.optim.Adam([pos_enc], lr=0.005)
-        # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
-        optim_embed = torch.optim.Adam([embed_meta], lr=0.05)
-        for _ in range(5):
+        optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
+        # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
+        optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
+        for _ in range(6):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
-            loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
+            loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
             loss.backward()
-            #optim_pos.step()
+            optim_pos.step()
             optim_embed.step()
             optim_embed.zero_grad()
-            #optim_pos.zero_grad()
+            optim_pos.zero_grad()
 
         self.embed_meta = embed_meta
         self.pos_enc = pos_enc
@@ -341,6 +342,7 @@ class FLAT_MAML(Model):
 
     def __repr__(self):
         return "FLAT"
+
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -405,8 +407,8 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         for data_name in test_data_names:
             test_dl = SplitDataloader(
                 bs=num_samples, num_rows=num_rows,
-                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-                ds_group=data_name
+                num_targets=1, num_cols=[n_cols[data_name], n_cols[data_name]],
+                ds_group=data_name, binarise=True
             )
             batch = get_batch(test_dl, num_rows)
             for model in models:
@@ -492,7 +494,7 @@ def main(save_no, num_rows, save_ep):
     num_samples = 100
 
     models = [FLAT_MAML(save_dir, save_ep=save_ep),
-              # BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
+              BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
@@ -567,10 +569,10 @@ def main(save_no, num_rows, save_ep):
 
 if __name__ == "__main__":
 
-    for ep in [30]:
+    for ep in [50]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1], [10]):
+        for i, j in zip([-1, -2], [10, 10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
