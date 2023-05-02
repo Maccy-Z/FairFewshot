@@ -18,7 +18,7 @@ def get_config(cfg_file=None):
 def write_toml():
     save_dict = {"NN_dims": {"set_h_dim": 64,           # D2v hidden dimension
                              "set_out_dim": 64,         # D2v output dimension
-                             "d2v_layers": [3, 2, 3],   # layers of d2v. first 3 are d2v dims, last positional encoder
+                             "d2v_layers": [4, 2, 4],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
                              "load_d2v": False,          # Load pretrained datset2vec
@@ -45,7 +45,8 @@ def write_toml():
                              },
 
                  "Optim": {"lr": 5e-4,
-                           "eps": 3e-4},
+                           "eps": 3e-4,
+                           "decay": 1e-4},
 
                  "DL_params": {"bs": 3,
                                "num_rows": 5,
@@ -61,7 +62,7 @@ def write_toml():
                  "Settings": {"num_epochs": 31,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
-                              "dataset": "my_split",
+                              "dataset": "total",
                               },
                  }
 

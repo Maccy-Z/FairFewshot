@@ -10,6 +10,8 @@ from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
+from torch.optim.lr_scheduler import StepLR
+
 
 BASEDIR = '/Users/kasiakobalczyk/FairFewshot'
 
@@ -83,7 +85,7 @@ class SetSetModel(nn.Module):
             self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
         if pos_enc_bias == "zero":
-            print(f'Positional encoding bias init to 0')
+            # print(f'Positional encoding bias init to 0')
             self.p_out.bias.data.fill_(0)
 
     def forward_layers(self, x):
@@ -203,7 +205,7 @@ class WeightGenerator(nn.Module):
         # Save indices of weights
         weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
         if self.gen_layers == 1:
-            print("Only 1 gen layer, Not using gen_hid_dim")
+            # print("Only 1 gen layer, Not using gen_hid_dim")
             module = nn.Sequential(nn.Linear(self.gen_in_dim, tot_params))
         else:
             module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
@@ -445,7 +447,7 @@ def main(all_cfgs, device="cpu"):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="train"
+            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
@@ -479,18 +481,38 @@ def main(all_cfgs, device="cpu"):
             ds_group=ds_group, ds_split="test",
             split_file=split_file
         )
-        print("Validation data names:", val_dl.all_datasets)
+        print("Testing data names:", val_dl.all_datasets)
+    elif ds == "custom":
+        dl = SplitDataloader(
+            bs=bs, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=-2, ds_group=['abalone', 'adult', 'annealing', 'audiology-std', 'balance-scale', 'balloons', 'bank', 'car', 'cardiotocography-10clases', 'chess-krvk', 'chess-krvkp', 'congressional-voting', 'conn-bench-sonar-mines-rocks', 'conn-bench-vowel-deterding', 'connect-4', 'contrac', 'credit-approval', 'cylinder-bands', 'ecoli', 'energy-y1', 'energy-y2', 'flags', 'glass', 'haberman-survival', 'hayes-roth', 'hill-valley', 'image-segmentation', 'ionosphere', 'iris', 'led-display', 'lenses', 'letter', 'libras', 'low-res-spect', 'magic', 'miniboone', 'molec-biol-promoter', 'molec-biol-splice', 'monks-1', 'monks-2', 'monks-3', 'mushroom', 'musk-1', 'musk-2', 'nursery', 'oocytes_merluccius_nucleus_4d', 'oocytes_merluccius_states_2f', 'oocytes_trisopterus_nucleus_2f', 'oocytes_trisopterus_states_5b', 'optical', 'ozone', 'page-blocks', 'pendigits', 'pima', 'pittsburg-bridges-MATERIAL', 'pittsburg-bridges-REL-L', 'pittsburg-bridges-SPAN', 'pittsburg-bridges-T-OR-D', 'pittsburg-bridges-TYPE', 'planning', 'plant-margin', 'plant-shape', 'plant-texture', 'ringnorm', 'seeds', 'semeion', 'soybean', 'spambase', 'statlog-australian-credit', 'statlog-german-credit', 'statlog-image', 'statlog-landsat', 'statlog-shuttle', 'statlog-vehicle', 'steel-plates', 'synthetic-control', 'teaching', 'tic-tac-toe', 'titanic', 'trains', 'twonorm', 'vertebral-column-3clases', 'wall-following', 'waveform', 'waveform-noise', 'wine', 'wine-quality-red', 'wine-quality-white', 'yeast', 'zoo'], ds_split="train"
+        )
+        val_dl = SplitDataloader(
+            bs=1, num_rows=num_rows, num_targets=num_targets,
+            binarise=binarise, num_cols=-3, ds_group=['acute-inflammation', 'acute-nephritis', 'arrhythmia',
+            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
+            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
+            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
+            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
+            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
+            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
+            'statlog-heart', 'thyroid', 'vertebral-column-2clases'], ds_split="test"
+        )
+        print("Training data names:", dl)
+        print("\nTest data names:", val_dl)
+
     else:
         raise Exception("Invalid dataset")
 
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
     eps = cfg["eps"]
+    decay = cfg["decay"]
 
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
-    # model = torch.compile(model)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
+    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
+    # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
@@ -583,11 +605,6 @@ def main(all_cfgs, device="cpu"):
         for name, abs_grad in save_grads.items():
             save_grads[name] = torch.div(abs_grad, val_interval)
 
-            # Print some useful stats from validation
-            # save_ys_targ = torch.cat(save_ys_targ)
-            # save_pred_labs = torch.cat(save_pred_labs)[:20]
-            # print("Targets:    ", save_ys_targ[:20])
-            # print("Predictions:", save_pred_labs[:20])
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
         print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
 
@@ -595,13 +612,16 @@ def main(all_cfgs, device="cpu"):
         if save_holder is None:
             save_holder = SaveHolder(".")
         history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
-        save_holder.save_model(model, optim)
+        save_holder.save_model(model, optim, epoch=epoch)
         save_holder.save_history(history)
         save_holder.save_grads(save_grads)
 
+        # optim_sched.step()
+
 
 if __name__ == "__main__":
-
+    import random
+    from comparison2 import main as comparison_main
     # random.seed(0)
     # np.random.seed(0)
     # torch.manual_seed(0)
@@ -609,12 +629,30 @@ if __name__ == "__main__":
     # tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(1):
+    for test_no in range(3):
 
         print("---------------------------------")
         print("Starting test number", test_no)
         main(all_cfgs=get_config(), device=dev)
 
     print("")
+
+    print(tag)
     print("Training Completed")
+
+    for ep in [10, 20, 30, 40]:
+        print("======================================================")
+        print("Epoch number", ep)
+        for i, j in zip([-1, -2, -3, -1, -2, -3], [5, 5, 5, 10, 10, 10]):
+            random.seed(0)
+            np.random.seed(0)
+            torch.manual_seed(0)
+
+            # save_number = int(input("Enter save number:\n"))
+            # main(save_no=save_number)
+            print()
+            print(i, j)
+            col_accs = comparison_main(save_no=i, num_rows=j, save_ep=ep)
+
+        # print(col_accs)
 

@@ -1,0 +1,23 @@
+[0]
+train = [ "breast-cancer", "breast-cancer-wisc", "cardiotocography-3clases", "echocardiogram", "fertility", "horse-colic", "ilpd-indian-liver", "monks-1", "monks-2", "mushroom", "musk-1", "musk-2", "oocytes_merluccius_nucleus_4d", "oocytes_trisopterus_nucleus_2f", "ozone", "pittsburg-bridges-REL-L", "pittsburg-bridges-T-OR-D", "post-operative", "statlog-heart", "titanic", "wall-following",]
+test = [ "adult", "blood", "monks-3", "oocytes_trisopterus_states_5b", "page-blocks", "pittsburg-bridges-TYPE", "statlog-shuttle",]
+
+[1]
+train = [ "audiology-std", "dermatology", "ecoli", "flags", "heart-va", "semeion", "teaching",]
+test = [ "led-display", "primary-tumor", "zoo",]
+
+[2]
+train = [ "balance-scale", "glass", "hayes-roth", "iris", "molec-biol-promoter", "molec-biol-splice", "nursery", "pittsburg-bridges-SPAN", "statlog-vehicle", "tic-tac-toe", "vertebral-column-3clases", "waveform", "waveform-noise",]
+test = [ "abalone", "energy-y1", "energy-y2", "mammographic", "seeds",]
+
+[3]
+train = [ "cardiotocography-10clases", "chess-krvk", "conn-bench-vowel-deterding", "contrac", "heart-switzerland", "image-segmentation", "optical", "pendigits", "plant-margin", "plant-shape", "soybean", "statlog-landsat", "steel-plates", "synthetic-control",]
+test = [ "breast-tissue", "letter", "libras", "plant-texture", "statlog-image",]
+
+[4]
+train = [ "acute-inflammation", "annealing", "arrhythmia", "bank", "chess-krvkp", "connect-4", "credit-approval", "cylinder-bands", "heart-hungarian", "hill-valley", "lymphography", "spambase", "spect", "statlog-australian-credit", "statlog-german-credit", "yeast",]
+test = [ "acute-nephritis", "congressional-voting", "heart-cleveland", "hepatitis", "miniboone", "thyroid",]
+
+[5]
+train = [ "breast-cancer-wisc-diag", "breast-cancer-wisc-prog", "conn-bench-sonar-mines-rocks", "haberman-survival", "low-res-spect", "oocytes_merluccius_states_2f", "parkinsons", "pima", "pittsburg-bridges-MATERIAL", "spectf", "twonorm", "vertebral-column-2clases", "wine", "wine-quality-red", "wine-quality-white",]
+test = [ "car", "ionosphere", "magic", "planning", "ringnorm",]

@@ -59,6 +59,8 @@ def get_predictions(xs_meta, xs_target, ys_meta, model):
         optim_embed.zero_grad()
         optim_pos.zero_grad()
 
+
+
     with torch.no_grad():
         ys_pred_target = model.forward_target(xs_target, embed_meta, pos_enc)
 
