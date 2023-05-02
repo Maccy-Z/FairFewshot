@@ -293,7 +293,54 @@ class FLAT(Model):
     def __repr__(self):
         return "FLAT"
 
+class FLAT_MAML(Model):
+    def __init__(self, save_dir, save_ep=None):
+        print(f'Loading model at {save_dir = }')
 
+        if save_ep is None:
+            state_dict = torch.load(f'{save_dir}/model.pt')
+        else:
+            state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
+        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
+        self.model.load_state_dict(state_dict['model_state_dict'])
+
+    def fit(self, xs_meta, ys_meta):
+        xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
+        pairs_meta = d2v_pairer(xs_meta, ys_meta)
+        with torch.no_grad():
+            embed_meta, pos_enc = self.model.forward_meta(pairs_meta)
+
+        embed_meta.requires_grad = True
+        pos_enc.requires_grad = True
+        optim_pos = torch.optim.Adam([pos_enc], lr=0.005)
+        # optim_embed = torch.optim.SGD([embed_meta, ], lr=75, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
+        optim_embed = torch.optim.Adam([embed_meta], lr=0.05)
+        for _ in range(10):
+            # Make predictions on meta set and calc loss
+            preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
+            loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
+            loss.backward()
+            optim_pos.step()
+            optim_embed.step()
+            optim_embed.zero_grad()
+            optim_pos.zero_grad()
+
+        self.embed_meta = embed_meta
+        self.pos_enc = pos_enc
+
+        # print(self.embed_meta)
+
+    def get_acc(self, xs_target, ys_target) -> np.array:
+        xs_target = xs_target.unsqueeze(0)
+        with torch.no_grad():
+            ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
+
+        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
+
+        return (ys_pred_target_labels == ys_target).numpy()
+
+    def __repr__(self):
+        return "FLAT"
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -442,10 +489,10 @@ def main(save_no, num_rows, save_ep):
 
     # num_rows = 10  # cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    num_samples = 200
+    num_samples = 100
 
-    models = [FLAT(save_dir, save_ep=save_ep),
-              BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
+    models = [FLAT_MAML(save_dir, save_ep=save_ep),
+              # BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
@@ -511,7 +558,8 @@ def main(save_no, num_rows, save_ep):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    print(agg_results["FLAT_diff"].to_string(index=False))
+    # print(agg_results["FLAT_diff"].to_string(index=False))
+    print(agg_results.to_string(index=False))
 
 
     return unseen_results
@@ -519,10 +567,10 @@ def main(save_no, num_rows, save_ep):
 
 if __name__ == "__main__":
 
-    for ep in [10, 20, 30, 40]:
+    for ep in [30]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1, -2, -3], [15, 15, 15]):
+        for i, j in zip([-1], [10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
@@ -531,3 +579,6 @@ if __name__ == "__main__":
             print(i, j)
             col_accs = main(save_no=i, num_rows=j, save_ep=ep)
 
+# FLAT MAML 72.75±0.34
+
+# FLAT 72.75±0.35
