@@ -503,7 +503,7 @@ if __name__ == "__main__":
     # parser.add_argument('--save-no', type=int)   
     # args, unknown = parser.parse_known_args()
     # save_number = int(input("Enter save number:\n"))
-    for i in range(70, 80):
+    for i in range(0, 10):
         compare_flat_vs_baselines(save_no=i, num_samples=1000)
 
     #col_accs = main(save_no=2)
