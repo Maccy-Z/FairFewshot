@@ -634,14 +634,14 @@ if __name__ == "__main__":
     #     print("---------------------------------")
     #     print("Starting test number", test_no)
 
-    main(all_cfgs=get_config(), device=dev)
-    print("")
+    #main(all_cfgs=get_config(), device=dev)
+    #print("")
 
     #print(tag)
-    print("Training Completed")
+    #print("Training Completed")
 
-    num_test_rows = [1, 3, 5, 10]
-    save_no_ls = [-1]
+    num_test_rows = [5, 10]
+    save_no_ls = list(range(-9, 0))
 
     for ep in [None]:
         print("======================================================")
