@@ -622,9 +622,9 @@ def main(all_cfgs, device="cpu"):
 if __name__ == "__main__":
     import random
     from comparison2 import main as comparison_main
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
     # tag = input("Description: ")
 
@@ -634,29 +634,29 @@ if __name__ == "__main__":
     #     print("---------------------------------")
     #     print("Starting test number", test_no)
 
-    #main(all_cfgs=get_config(), device=dev)
-    #print("")
+    main(all_cfgs=get_config(), device=dev)
+    print("")
 
     #print(tag)
-    #print("Training Completed")
+    print("Training Completed")
 
-    num_test_rows = [1, 3, 5, 10]
-    save_no_ls = [-1]
+    # num_test_rows = [1, 3, 5, 10]
+    # save_no_ls = [-1]
 
-    for ep in [None]:
-        print("======================================================")
-        print("Epoch number", ep)
-        for i, j in ([9, 5], [0, 5], [0, 10]):
-            #for j in num_test_rows:
-            random.seed(0)
-            np.random.seed(0)
-            torch.manual_seed(0)
+    # for ep in [None]:
+    #     print("======================================================")
+    #     print("Epoch number", ep)
+    #     for i in save_no_ls:
+    #         for j in num_test_rows:
+    #             random.seed(0)
+    #             np.random.seed(0)
+    #             torch.manual_seed(0)
 
-            # save_number = int(input("Enter save number:\n"))
-            # main(save_no=save_number)
-            print()
-            print(i, j)
-            comparison_main(save_no=i, num_rows=j, save_ep=ep)
+    #             # save_number = int(input("Enter save number:\n"))
+    #             # main(save_no=save_number)
+    #             print()
+    #             print(i, j)
+    #             comparison_main(save_no=i, num_rows=j, save_ep=ep)
 
         # print(col_accs)
 
