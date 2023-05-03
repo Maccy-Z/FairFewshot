@@ -503,13 +503,13 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
 
     # Move FLAT and FALT MAML to first 2 columns
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    new_column_order = ["FLAT", "FLAT_MAML"] + [col for col in agg_results.columns if col != "FLAT" and col != "FLAT_MAML"]
+    new_column_order = ["FLAT", "FLAT_MAML"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_MAML")]
     agg_results = agg_results.reindex(columns=new_column_order)
     
     # Difference between FLAT and the best baseline
     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
     agg_results["FLAT_MAML_diff"] = (agg_results["FLAT_MAML"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
     agg_results["FLAT_MAML_diff"] = agg_results["FLAT_MAML_diff"].apply(lambda x: f'{x:.2f}')
     
     # Get errors using appropriate formulas.
@@ -543,17 +543,23 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
 
 
 if __name__ == "__main__":
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
+
+    num_test_rows = [1, 3, 5, 10]
+    save_no_ls = list(range(-10, 0))
 
     for ep in [None]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1], [10]):
-            random.seed(0)
-            np.random.seed(0)
-            torch.manual_seed(0)
-
-            print()
-            print(i, j)
-            col_accs = main(save_no=i, num_rows=j, save_ep=ep)
+        for i in save_no_ls:
+            for j in num_test_rows:
+                random.seed(0)
+                np.random.seed(0)
+                torch.manual_seed(0)
+                print()
+                print(i, j)
+                main(save_no=i, num_rows=j, save_ep=ep)
 
 
