@@ -646,17 +646,17 @@ if __name__ == "__main__":
     for ep in [None]:
         print("======================================================")
         print("Epoch number", ep)
-        for i in save_no_ls:
-            for j in num_test_rows:
-                random.seed(0)
-                np.random.seed(0)
-                torch.manual_seed(0)
+        for i, j in ([9, 5], [0, 5], [0, 10]):
+            #for j in num_test_rows:
+            random.seed(0)
+            np.random.seed(0)
+            torch.manual_seed(0)
 
-                # save_number = int(input("Enter save number:\n"))
-                # main(save_no=save_number)
-                print()
-                print(i, j)
-                comparison_main(save_no=i, num_rows=j, save_ep=ep)
+            # save_number = int(input("Enter save number:\n"))
+            # main(save_no=save_number)
+            print()
+            print(i, j)
+            comparison_main(save_no=i, num_rows=j, save_ep=ep)
 
         # print(col_accs)
 
