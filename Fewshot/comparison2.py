@@ -508,7 +508,7 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
     
     # Difference between FLAT and the best baseline
     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_MAML_diff"] = (agg_results["FLAT_MAML"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    agg_results["FLAT_MAML_diff"] = (agg_results["FLAT_MAML"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
     agg_results["FLAT_MAML_diff"] = agg_results["FLAT_MAML_diff"].apply(lambda x: f'{x:.2f}')
     
