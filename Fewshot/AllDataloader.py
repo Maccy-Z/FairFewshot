@@ -373,7 +373,7 @@ if __name__ == "__main__":
     print(dl.all_datasets)
     num_cols = []
     for xs, ys, datanames in islice(dl, 10):
-        print(xs.shape)
+        # print(xs.shape)
         num_cols.append(xs.shape[2])
 
     fig, ax = plt.subplots()
