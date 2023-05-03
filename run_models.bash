@@ -1,4 +1,4 @@
-python Fewshot/config.py --ds-group $i --num-rows 5 --num-targets 5
+# python Fewshot/config.py --ds-group 0 --num-rows 5 --num-targets 5
 python Fewshot/main.py
 
 # for i in {0..9}
