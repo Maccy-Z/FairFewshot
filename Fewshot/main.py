@@ -640,8 +640,8 @@ if __name__ == "__main__":
     #print(tag)
     #print("Training Completed")
 
-    num_test_rows = [5, 10]
-    save_no_ls = [0, 9]
+    num_test_rows = [1, 3, 5, 10]
+    save_no_ls = [-1]
 
     for ep in [None]:
         print("======================================================")

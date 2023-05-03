@@ -501,13 +501,17 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
     # Aggreate results
     agg_results = unseen_results.copy()
 
-    # Move flat to first column
+    # Move FLAT and FALT MAML to first 2 columns
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    new_column_order = ["FLAT"] + [col for col in agg_results.columns if col != "FLAT"]
+    new_column_order = ["FLAT", "FLAT_MAML"] + [col for col in agg_results.columns if col != "FLAT" and col != "FLAT_MAML"]
     agg_results = agg_results.reindex(columns=new_column_order)
-    # Difference between FLAT and best model
-    agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 1:].max(axis=1)) * 100
+    
+    # Difference between FLAT and the best baseline
+    agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
+    agg_results["FLAT_MAML_diff"] = (agg_results["FLAT_MAML"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    agg_results["FLAT_MAML_diff"] = agg_results["FLAT_MAML_diff"].apply(lambda x: f'{x:.2f}')
+    
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
