@@ -547,8 +547,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    num_test_rows = [1, 3, 5, 10]
-    save_no_ls = list(range(-10, 0))
+    num_test_rows = [5, 10]
+    save_no_ls = [0, 1, 2]
 
     for ep in [None]:
         print("======================================================")

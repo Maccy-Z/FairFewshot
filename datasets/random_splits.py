@@ -81,10 +81,10 @@ def split_datasets(all_data_names, get_val=False, n_splits=10, stratify=True):
     return splits
 
 if __name__ == "__main__":
-    all_data_names = get_datasets("medical", num_rows=10, num_targets=10)
+    all_data_names = get_datasets("medical", num_rows=10, num_targets=15)
     #all_data_names = ['fertility', 'lung-cancer', 'breast-cancer', 'mammographic', 'echocardiogram', 'heart-va', 'post-operative', 'heart-switzerland']
     splits = split_datasets(all_data_names, n_splits=10, stratify=False)
 
-    with open("./datasets/grouped_datasets/med_split_2", "w") as fp:
+    with open("./datasets/grouped_datasets/med_split_3", "w") as fp:
       toml.dump(splits, fp) 
 

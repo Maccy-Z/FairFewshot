@@ -61,20 +61,31 @@ view_total_results = all_total_results.groupby(['num_cols', 'model'])['acc'].mea
 view_total_results['FLAT_diff'] = view_total_results['FLAT'] - view_total_results[['KNN', 'LR']].max(axis=1)
 view_total_results * 100
 # %%
+
+num_rows = 10
+num_targets = 10
 all_results = pd.DataFrame()
-for i, save_no in enumerate(list(range(0, 10))):
-    results = pd.read_csv(f'{BASEDIR}/saves/saves_5shot_unnormalized/save_{save_no}/unseen_full_results_10shots.csv', index_col=0)
-    results['split'] = i
-    all_results = pd.concat([all_results, results])
+for i, save_no in enumerate(list(range(10, 20))):
+    for j in [1, 3, 5, 10]:
+        results = pd.read_csv(
+            f'{BASEDIR}/saves/all_new_saves/new_saves_{num_rows}_{num_targets}/save_{save_no}/unseen_results_{j}_row.csv', index_col=0)
+        results['split'] = i
+        results['n_row'] = j
+        all_results = pd.concat([all_results, results])
+
+
 models = list(all_results.model.unique())
 base_models = models.copy()
+base_models.remove('FLAT_MAML')
 base_models.remove('FLAT')
 all_results.reset_index(drop=True, inplace=True)
 all_results['num_cols'] = 'total'
-all_results['time'] = -all_results['time']
-view_results = all_results.pivot(index = ['split','data_name'], columns = 'model', values = 'acc')
-view_results['FLAT_diff'] = view_results['FLAT'] - view_results.loc[:, base_models].max(axis=1) 
-#view_results.sort_index() * 100
-#%%
-(view_results.mean(axis=0) * 100).sort_values()
+view_results = all_results.pivot(index = ['split', 'n_row', 'data_name'], columns = ['model'], values = 'acc')
+view_results['FLAT_diff'] = view_results['FLAT'] - view_results.loc[:, base_models].max(axis=1)
+view_results['FLAT_MAML_diff'] = view_results['FLAT_MAML'] - view_results.loc[:, base_models].max(axis=1) 
+view_results.reset_index(inplace=True)
+# %%
+print('num_rows:', num_rows, 'num_targets:', num_targets)
+(view_results.groupby('n_row')[
+    models + ['FLAT_diff', 'FLAT_MAML_diff']].mean() * 100).round(2)
 # %%
