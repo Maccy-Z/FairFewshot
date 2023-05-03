@@ -641,7 +641,7 @@ if __name__ == "__main__":
     #print("Training Completed")
 
     num_test_rows = [5, 10]
-    save_no_ls = list(range(-9, 0))
+    save_no_ls = [0, 9]
 
     for ep in [None]:
         print("======================================================")
