@@ -1,4 +1,6 @@
 # Tests on 2D simple synthetic data
+import sys
+sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
 import torch
 from main import ModelHolder
 from dataloader import d2v_pairer
@@ -11,18 +13,18 @@ from config import get_config
 def ys_fn(point):
     x, y, = point
 
-    label = (x ** 2 + y ** 2) > 0.8
-    #label = x + y < 0.5
+    label = (x ** 2 + y ** 2) < 100
+    label = x + y > 0.5
     return label
 
 
 def gen_synthetic():
     # Train/meta data
-    # xx, yy = torch.meshgrid(torch.linspace(-1, 1, 2),
-    #                         torch.linspace(-1, 1, 1))
-    # xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
-    # xs_meta += 0.1 * torch.randn_like(xs_meta)
-    xs_meta = torch.tensor([[0., 0.]])
+    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 2),
+                            torch.linspace(-1, 1, 2))
+    xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
+    xs_meta += 0.1 * torch.randn_like(xs_meta)
+    # xs_meta = torch.tensor([[0., 0.]])
 
     ys_meta = torch.stack([ys_fn(point) for point in xs_meta]).long()
     xs_meta = xs_meta.view(1, -1, 2)
@@ -64,13 +66,10 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
 
 def main():
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic()
-    print(xs_meta.shape, ys_meta.shape)
-
-    # Our model
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
-    plt.subplot(1, 3, 1)
-    print(ys_meta)
+    # Our model
+
     plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
     plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     plt.legend()
@@ -95,7 +94,7 @@ def main():
     # plt.title("SVC predictions")
 
     fig = plt.gcf()
-    fig.set_size_inches(15, 5)
+    fig.set_size_inches(15, 15)
     plt.show()
 
 
