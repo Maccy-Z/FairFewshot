@@ -294,6 +294,7 @@ class FLAT(Model):
     def __repr__(self):
         return "FLAT"
 
+
 class FLAT_MAML(Model):
     def __init__(self, save_dir, save_ep=None):
         print(f'Loading model at {save_dir = }')
@@ -412,7 +413,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                     ds_group=data_name, binarise=binarise
                 )
             except IndexError:
-                break
+                continue
             batch = get_batch(test_dl, num_rows)
 
             for model in models:
@@ -437,10 +438,15 @@ def main(save_no, num_rows, save_ep):
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     save_no = existing_saves[save_no]
-    save_dir = f'{BASEDIR}/saves/save_{save_no}'
+    load_dir = f'{BASEDIR}/saves/save_{save_no}'
 
+    result_dir = f'{BASEDIR}/Results/'
+    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    existing_results = sorted([int(f) for f in files])
+    result_no = existing_results[-1] + 1
+    result_dir = f'{result_dir}/{result_no}'
 
-    all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
+    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
@@ -496,24 +502,21 @@ def main(save_no, num_rows, save_ep):
     # num_rows = 1  # cfg["num_rows"]
     num_targets = 5  # cfg["num_targets"]
     binarise = cfg["binarise"]
-    num_samples = 200
+    num_samples = 1
 
-    models = [FLAT(save_dir, save_ep=save_ep), FLAT_MAML(save_dir, save_ep=save_ep),
-              BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
+    models = [FLAT(load_dir), # FLAT_MAML(load_dir, save_ep=save_ep),
+              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
               # BasicModel("KNN")
               ]
-
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
         num_samples=num_samples, binarise=binarise
     )
-    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    # print(df.to_string(index=False))
-    # exit(2)
+
     # Results for each dataset
     detailed_results = unseen_results.copy()
 
@@ -523,10 +526,10 @@ def main(save_no, num_rows, save_ep):
 
     detailed_results = detailed_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
-    #
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets")
-    # print(detailed_results.to_string())
+
+    print("======================================================")
+    print("Test accuracy on unseen datasets")
+    print(detailed_results.to_string())
 
     # Aggreate results
     agg_results = unseen_results.copy()
@@ -579,7 +582,7 @@ if __name__ == "__main__":
     for ep in [30]:
         print("======================================================")
         print("Epoch number", ep)
-        for i, j in zip([-1, -2], [10, 10]):
+        for i, j in zip([-1, -2, -3, -4, -5, -6], [10, 10, 10, 10, 10, 10]):
             random.seed(0)
             np.random.seed(0)
             torch.manual_seed(0)
