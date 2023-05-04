@@ -1,9 +1,30 @@
 import torch
 from comparison2 import TabnetModel, FTTrModel, BasicModel, get_batch
 from AllDataloader import SplitDataloader
+import pickle
 import os
 import csv
 data_dir = './datasets/data'
+
+
+# Get batch and save to disk. All columns.
+def save_batch(ds_name, num_batches, num_targets):
+    if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
+        os.makedirs(f"{data_dir}/{ds_name}/batches")
+
+    for num_rows in [5, 10, 15]:
+        try:
+            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=True)
+            batch = get_batch(dl, num_rows=num_rows)
+
+            # Save format: num_rows, num_targets, num_cols
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}", "wb") as f:
+                pickle.dump(batch, f)
+
+
+        except IndexError as e:
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}", "wb") as f:
+                pickle.dump(None, f)
 
 
 def main(f, num_batches, num_targets):
@@ -20,7 +41,7 @@ def main(f, num_batches, num_targets):
     for model in models:
         print(model)
         for num_rows in [5, 10, 15]:
-            for num_cols in [-3, 2, 4, 8, 16, 32]:
+            for num_cols in [-3,]:
                 try:
                     if num_cols == -3:
                         dl = SplitDataloader(ds_group=f, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3)
@@ -46,15 +67,24 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 500
+    num_bs = 200
     num_targs = 5
 
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
 
-
     for f in files:
-        print("---------------------")
         print(f)
+        save_batch(f, num_bs, num_targs)
 
-        main(f, num_batches=num_bs, num_targets=num_targs)
+    # for f in files:
+    #     try:
+    #         load_batch(f, 15, num_targets=5, num_cols=-3)
+    #     except IndexError as e:
+    #         print(e)
+
+    # for f in files:
+    #     print("---------------------")
+    #     print(f)
+    #
+    #     main(f, num_batches=num_bs, num_targets=num_targs)

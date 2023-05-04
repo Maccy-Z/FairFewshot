@@ -48,7 +48,7 @@ def write_toml():
                            "decay": 1e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 16,
+                               "num_rows": 10,
                                "num_targets": 15,
                                "ds_group": [1, -1],          # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : False,

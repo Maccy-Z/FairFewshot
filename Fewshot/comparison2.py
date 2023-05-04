@@ -1,19 +1,15 @@
-import copy
-
 import torch
 from main import *
 from dataloader import d2v_pairer
 from AllDataloader import SplitDataloader, MyDataSet
 from config import get_config
-import time
-import os
-import toml
+import time, os, toml, random, pickle, warnings
 import numpy as np
-import random
-import sys, io, warnings
 from scipy import stats
 from abc import ABC, abstractmethod
 import pandas as pd
+from collections import defaultdict
+
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -27,6 +23,9 @@ import sys
 sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
+BASEDIR = '.'
+
+
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -36,6 +35,14 @@ def get_batch(dl, num_rows):
     # ys_target = ys_target.view(-1)
 
     return xs_meta, xs_target, ys_meta, ys_target
+
+def load_batch(ds_name, num_rows, num_targets, num_cols):
+    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+        batch = pickle.load(f)
+
+    if batch is None:
+        raise IndexError(f"Batch not found for file {ds_name}")
+    return batch
 
 
 class Model(ABC):
@@ -221,7 +228,7 @@ class BasicModel(Model):
             case "SVC":
                 self.model = SVC()
             case "KNN":
-                self.model = KNN(n_neighbors=3, p=1, weights="distance")
+                self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
@@ -265,7 +272,8 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, save_dir, save_ep=None):
+    def __init__(self, load_no, save_ep=None):
+        save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -274,6 +282,9 @@ class FLAT(Model):
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
+
+        print(save_dir)
+
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
@@ -294,8 +305,10 @@ class FLAT(Model):
     def __repr__(self):
         return "FLAT"
 
+
 class FLAT_MAML(Model):
-    def __init__(self, save_dir, save_ep=None):
+    def __init__(self, load_no, save_ep=None):
+        save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -343,6 +356,7 @@ class FLAT_MAML(Model):
     def __repr__(self):
         return "FLAT_maml"
 
+
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -355,92 +369,98 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     ]
 
     n_cols = [d.ds_cols - 1 for d in datasets]
-    max_test_col = max([d.ds_cols - 1 for d in datasets])
-    n_cols = dict(zip(test_data_names, n_cols))
 
-    results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc'])
+    results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
     num_cols = 2
     # while num_cols <= max_test_col and num_cols <= 60:
     #     print(num_cols)
-    #     if agg:
-    #         test_dl = SplitDataloader(
-    #             bs=num_samples * len(test_data_names), num_rows=num_rows, num_targets=num_targets,
-    #             num_cols=[num_cols - 1, num_cols], ds_group=test_data_names
-    #         )
-    #         batch = get_batch(test_dl, num_rows)
-    #         for model in models:
-    #             mean_acc, std_acc = model.get_accuracy(batch)
-    #             result = pd.DataFrame({
-    #                 'data_name': "all seen",
-    #                 'model': str(model),
-    #                 'num_cols': num_cols,
-    #                 'acc': mean_acc,
-    #                 'std': std_acc
-    #             }, index=[0])
-    #
-    #             results = pd.concat([results, result])
-    #     else:
-    #         for data_name in test_data_names:
-    #             if n_cols[data_name] >= num_cols:
-    #                 test_dl = SplitDataloader(
-    #                     bs=num_samples, num_rows=num_rows,
-    #                     num_targets=num_targets, num_cols=[num_cols, num_cols],
-    #                     ds_group=data_name
-    #                 )
-    #                 batch = get_batch(test_dl, num_rows)
-    #                 for model in models:
-    #                     mean_acc, std_acc = model.get_accuracy(batch)
-    #
-    #                     result = pd.DataFrame({
-    #                         'data_name': data_name,
-    #                         'model': str(model),
-    #                         'num_cols': num_cols,
-    #                         'acc': mean_acc,
-    #                         'std': std_acc
-    #                     }, index=[0])
-    #
-    #                     results = pd.concat([results, result])
+#         for data_name in test_data_names:
+#             if n_cols[data_name] >= num_cols:
+#                 test_dl = SplitDataloader(
+#                     bs=num_samples, num_rows=num_rows,
+#                     num_targets=num_targets, num_cols=[num_cols, num_cols],
+#                     ds_group=data_name
+#                 )
+#                 batch = get_batch(test_dl, num_rows)
+#                 for model in models:
+#                     mean_acc, std_acc = model.get_accuracy(batch)
+#
+#                     result = pd.DataFrame({
+#                         'data_name': data_name,
+#                         'model': str(model),
+#                         'num_cols': num_cols,
+#                         'acc': mean_acc,
+#                         'std': std_acc
+#                     }, index=[0])
+#
+#                     results = pd.concat([results, result])
     #     num_cols *= 2
 
     # Test on full dataset
-    if not agg:
-        for data_name in test_data_names:
-            try:
-                test_dl = SplitDataloader(
-                    bs=num_samples, num_rows=num_rows,
-                    num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-                    ds_group=data_name, binarise=binarise
-                )
-            except IndexError:
-                continue
-            batch = get_batch(test_dl, num_rows)
+    for data_name in test_data_names:
+        # print(data_name)
+        # try:
+        #     test_dl = SplitDataloader(
+        #         bs=num_samples, num_rows=num_rows,
+        #         num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+        #         ds_group=data_name, binarise=binarise
+        #     )
+        # except IndexError as e:
+        #     print(e)
+        #     continue
+        # batch = get_batch(test_dl, num_rows)
 
-            for model in models:
-                mean_acc, std_acc = model.get_accuracy(batch)
-                result = pd.DataFrame({
-                    'data_name': data_name,
-                    'model': str(model),
-                    'num_cols': -1,
-                    'acc': mean_acc,
-                    'std': std_acc
-                }, index=[0])
+        batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
 
-                results = pd.concat([results, result])
+        model_acc_std = defaultdict(list)
+        for model in models:
+            mean_acc, std_acc = model.get_accuracy(batch)
+
+            model_acc_std[str(model)].append([mean_acc, std_acc])
+
+        for model_name, acc_stds in model_acc_std.items():
+            acc_stds = np.array(acc_stds)
+            # For baselines, variance is sample variance.
+            if len(acc_stds) == 1:
+                mean_acc, std_acc = acc_stds[0, 0], acc_stds[0, 1]
+                # mean_acc, std_acc= np.mean(means), np.sqrt(np.sum(std ** 2)) / std.shape[0]
+
+            # Average over all FLAT and FLAT_MAML models.
+            # For FLAT, variance is variance between models
+            else:
+                means, std = acc_stds[:, 0], acc_stds[:, 1]
+                mean_acc = np.mean(means)
+                std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
+
+            result = pd.DataFrame({
+                        'data_name': data_name,
+                        'model': str(model_name),
+                        'num_cols': -1,
+                        'acc': mean_acc,
+                        'std': std_acc
+                        }, index=[0])
+            results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
     return results
 
 
-def main(save_no, num_rows, save_ep):
-    BASEDIR = '.'
+def main(load_no, num_rows, save_ep=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    save_no = existing_saves[save_no]
-    save_dir = f'{BASEDIR}/saves/save_{save_no}'
+    load_no = [existing_saves[num] for num in load_no]
+    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
 
-    all_cfg = toml.load(os.path.join(save_dir, 'defaults.toml'))
+    result_dir = f'{BASEDIR}/Results'
+    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    existing_results = sorted([int(f) for f in files])
+    result_no = existing_results[-1] + 1
+    result_dir = f'{result_dir}/{result_no}'
+    os.mkdir(result_dir)
+
+    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
@@ -496,37 +516,37 @@ def main(save_no, num_rows, save_ep):
     # num_rows = 1  # cfg["num_rows"]
     num_targets = 5  # cfg["num_targets"]
     binarise = cfg["binarise"]
-    num_samples = 200
 
-    models = [FLAT(save_dir, save_ep=save_ep), FLAT_MAML(save_dir, save_ep=save_ep),
-              BasicModel("LR"), BasicModel("CatBoost"),  # BasicModel("R_Forest"),  BasicModel("KNN"),
+    models = [FLAT(num) for num in load_no] + \
+             [FLAT_MAML(num) for num in load_no] + \
+              [
+              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
-              # BasicModel("KNN")
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, binarise=binarise
+        num_rows=num_rows, num_targets=num_targets, binarise=binarise
     )
-    # df = unseen_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    # print(df.to_string(index=False))
-    # exit(2)
+
+
     # Results for each dataset
     detailed_results = unseen_results.copy()
 
     mean, std = detailed_results["acc"], detailed_results["std"]
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
-    detailed_results['acc'] = mean_std
+    detailed_results['acc_std'] = mean_std
 
-    detailed_results = detailed_results.pivot(
-        columns=['data_name', 'model'], index='num_cols', values=['acc'])
-    #
+    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
     # print("======================================================")
     # print("Test accuracy on unseen datasets")
-    # print(detailed_results.to_string())
+    # print(results.to_string())
+
+    det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
+    det_results = det_results.to_string()
+
 
     # Aggreate results
     agg_results = unseen_results.copy()
@@ -568,28 +588,29 @@ def main(save_no, num_rows, save_ep):
     print(agg_results["FLAT_diff"].to_string(index=False))
     # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
+    agg_results = agg_results.to_string()
 
 
+    with open(f'{result_dir}/aggregated', "w") as f:
+        for line in agg_results:
+            f.write(line)
+
+    with open(f'{result_dir}/detailed', "w") as f:
+        for line in det_results:
+            f.write(line)
+
+    with open(f'{result_dir}/raw.pkl', "wb") as f:
+        pickle.dump(unseen_results, f)
+
+    exit(3)
 
     return unseen_results
 
 
 if __name__ == "__main__":
 
-    for ep in [30]:
-        print("======================================================")
-        print("Epoch number", ep)
-        for i, j in zip([-1, -2], [10, 10]):
-            random.seed(0)
-            np.random.seed(0)
-            torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
-            # save_number = int(input("Enter save number:\n"))
-            # main(save_no=save_number)
-            print()
-            print(i, j)
-            col_accs = main(save_no=i, num_rows=j, save_ep=ep)
-
-# FLAT MAML 72.75±0.34
-
-# FLAT 72.75±0.35
+    col_accs = main(load_no=[-1,], num_rows=10)
