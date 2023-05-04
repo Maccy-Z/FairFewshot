@@ -183,7 +183,7 @@ class FTTrModel(Model):
         self.null_categ = torch.tensor([[]])
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten().float()
+        ys_meta = ys_meta.flatten().long()
         xs_meta = xs_meta
         # Reset the model
         self.model = FTTransformer(
