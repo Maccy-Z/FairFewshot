@@ -63,10 +63,6 @@ def main(f, num_targets):
         for row in model_accs:
             writer.writerow(row)
 
-    print(model_accs)
-    exit(2)
-
-
 if __name__ == "__main__":
     import numpy as np
     import random
@@ -77,15 +73,7 @@ if __name__ == "__main__":
     num_bs = 200
     num_targs = 5
 
-
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
-
-
-    # for f in files:
-    #     try:
-    #         load_batch(f, 15, num_targets=5, num_cols=-3)
-    #     except IndexError as e:
-    #         print(e)
 
     for f in files:
         print("---------------------")
