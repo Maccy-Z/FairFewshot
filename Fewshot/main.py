@@ -344,6 +344,7 @@ class ModelHolder(nn.Module):
         if load_d2v:
             print()
             print("Loading model. Possibly overriding some config options")
+            exit(2)
             model_load = cfg["model_load"]
             load = torch.load(f"{BASEDIR}/dataset2vec/{model_load}")
             state, params = load["state_dict"], load["params"]
@@ -626,37 +627,32 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    # tag = input("Description: ")
+    tag = input("Description: ")
 
     dev = torch.device("cpu")
-    # for test_no in range(3):
+    for test_no in range(6):
+        print("---------------------------------")
+        print("Starting test number", test_no)
 
-    #     print("---------------------------------")
-    #     print("Starting test number", test_no)
+        main(all_cfgs=get_config(), device=dev)
+        print("")
 
-    main(all_cfgs=get_config(), device=dev)
-    print("")
+        #print(tag)
+        print("Training Completed")
 
-    #print(tag)
-    print("Training Completed")
+        for ep in [30]:
+            print("======================================================")
+            print("Epoch number", ep)
+            for i, j in zip([-1, -2, -3, -4, -5, -6], [10, 10, 10, 10, 10, 10]):
+                random.seed(0)
+                np.random.seed(0)
+                torch.manual_seed(0)
 
-    # num_test_rows = [1, 3, 5, 10]
-    # save_no_ls = [-1]
-
-    # for ep in [None]:
-    #     print("======================================================")
-    #     print("Epoch number", ep)
-    #     for i in save_no_ls:
-    #         for j in num_test_rows:
-    #             random.seed(0)
-    #             np.random.seed(0)
-    #             torch.manual_seed(0)
-
-    #             # save_number = int(input("Enter save number:\n"))
-    #             # main(save_no=save_number)
-    #             print()
-    #             print(i, j)
-    #             comparison_main(save_no=i, num_rows=j, save_ep=ep)
+                # save_number = int(input("Enter save number:\n"))
+                # main(save_no=save_number)
+                print()
+                print(i, j)
+                col_accs = comparison_main(save_no=i, num_rows=j, save_ep=ep)
 
         # print(col_accs)
 

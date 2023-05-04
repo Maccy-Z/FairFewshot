@@ -1,4 +1,6 @@
 # Tests on 2D simple synthetic data
+import sys
+sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
 import torch
 from main import ModelHolder
 from dataloader import d2v_pairer
@@ -11,24 +13,26 @@ from config import get_config
 def ys_fn(point):
     x, y, = point
 
-    label = (x ** 2 + y ** 2) > 0.8
-    #label = x + y < 0.5
+    label = (x ** 2 + y ** 2) < 100
+    label = x + y > 0.5
     return label
 
 
 def gen_synthetic():
     # Train/meta data
-    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 6),
-                            torch.linspace(-1, 1, 6))
+    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 2),
+                            torch.linspace(-1, 1, 2))
     xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
     xs_meta += 0.1 * torch.randn_like(xs_meta)
+    # xs_meta = torch.tensor([[0., 0.]])
+
     ys_meta = torch.stack([ys_fn(point) for point in xs_meta]).long()
     xs_meta = xs_meta.view(1, -1, 2)
     ys_meta = ys_meta.view(1, -1)
 
     # Test/target data
-    xx, yy = torch.meshgrid(torch.linspace(-1.5, 1.5, 100),
-                            torch.linspace(-1.5, 1.5, 100))
+    xx, yy = torch.meshgrid(torch.linspace(-2, 2, 100),
+                            torch.linspace(-2, 2, 100))
 
     xs_target = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
     # ys_target = [ys_fn(point) for point in xs_target]
@@ -37,7 +41,7 @@ def gen_synthetic():
 
 
 def model_predictions(xs_meta, ys_meta, xs_target):
-    save_no = 139
+    save_no = 288
     BASEDIR = '.'
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
@@ -62,37 +66,35 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
 
 def main():
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic()
-    print(xs_meta.shape, ys_meta.shape)
-
-    # Our model
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
-    plt.subplot(1, 3, 1)
+    # Our model
+
     plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
     plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     plt.legend()
     plt.title("Model predictions")
 
-    # Logistic regression
-    lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=LogisticRegression(max_iter=1000))
-
-    plt.subplot(1, 3, 2)
-    plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
-    plt.contourf(xx, yy, lin_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
-    plt.legend()
-    plt.title("Logistic Regression predictions")
-
-    # SVC
-    lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=SVC())
-
-    plt.subplot(1, 3, 3)
-    plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
-    plt.contourf(xx, yy, lin_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
-    plt.legend()
-    plt.title("SVC predictions")
+    # # Logistic regression
+    # lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=LogisticRegression(max_iter=1000))
+    #
+    # plt.subplot(1, 3, 2)
+    # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
+    # plt.contourf(xx, yy, lin_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # plt.legend()
+    # plt.title("Logistic Regression predictions")
+    #
+    # # SVC
+    # lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=SVC())
+    #
+    # plt.subplot(1, 3, 3)
+    # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr', label="Meta")
+    # plt.contourf(xx, yy, lin_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # plt.legend()
+    # plt.title("SVC predictions")
 
     fig = plt.gcf()
-    fig.set_size_inches(15, 5)
+    fig.set_size_inches(15, 15)
     plt.show()
 
 
@@ -100,5 +102,5 @@ if __name__ == "__main__":
     # torch.manual_seed(0)
     # import numpy as np
     # np.random.seed(0)
-    for _ in range(5):
+    for _ in range(1):
         main()

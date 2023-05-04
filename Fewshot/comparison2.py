@@ -5,7 +5,7 @@ from main import *
 from dataloader import d2v_pairer
 from AllDataloader import SplitDataloader, MyDataSet
 from config import get_config
-
+import time
 import os
 import toml
 import numpy as np
@@ -275,6 +275,7 @@ class FLAT(Model):
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
+
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
@@ -310,18 +311,18 @@ class FLAT_MAML(Model):
 
         embed_meta.requires_grad = True
         pos_enc.requires_grad = True
-        #optim_pos = torch.optim.Adam([pos_enc], lr=0.005)
-        # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)  # torch.optim.Adam([embed_meta], lr=0.01)  #
-        optim_embed = torch.optim.Adam([embed_meta], lr=0.05)
+        optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
+        # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
+        optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
         for _ in range(5):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
-            loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.squeeze())
+            loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
             loss.backward()
-            #optim_pos.step()
+            optim_pos.step()
             optim_embed.step()
             optim_embed.zero_grad()
-            #optim_pos.zero_grad()
+            optim_pos.zero_grad()
 
         self.embed_meta = embed_meta
         self.pos_enc = pos_enc
@@ -338,9 +339,11 @@ class FLAT_MAML(Model):
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
-        return "FLAT_MAML"
-    
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False):
+        return "FLAT_maml"
+
+def get_results_by_dataset(
+        test_data_names, models, num_rows=10, num_targets=5, 
+        num_samples=3, agg=False, binarise=True):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -402,12 +405,16 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     # Test on full dataset
     if not agg:
         for data_name in test_data_names:
-            test_dl = SplitDataloader(
-                bs=num_samples, num_rows=num_rows,
-                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-                ds_group=data_name
-            )
+            try:
+                test_dl = SplitDataloader(
+                    bs=num_samples, num_rows=num_rows,
+                    num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+                    ds_group=data_name, binarise=binarise
+                )
+            except IndexError:
+                continue
             batch = get_batch(test_dl, num_rows)
+
             for model in models:
                 print(data_name, str(model))
                 mean_acc, std_acc = model.get_accuracy(batch)
@@ -471,13 +478,14 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
     print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    num_targets = cfg["num_targets"]
-    num_samples = 1000 // num_targets
+    num_targets = 5  
+    binarise = cfg["binarise"]
+    num_samples = 200
 
     models = [
-        FLAT_MAML(save_dir, save_ep=save_ep),
         FLAT(save_dir, save_ep=save_ep),
-        BasicModel("LR"), BasicModel("CatBoost"),  BasicModel("KNN"),# BasicModel("R_Forest"),  ,
+        FLAT_MAML(save_dir, save_ep=save_ep),
+        BasicModel("LR"), BasicModel("CatBoost"),  BasicModel("KNN"),
         TabnetModel(),
         FTTrModel(),
         # STUNT(),
@@ -486,7 +494,7 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples
+        num_samples=num_samples, binarise=binarise
     )
     unseen_results.to_csv(f'{save_dir}/unseen_results_{num_rows}_row.csv')
     detailed_results = unseen_results.copy()
@@ -536,7 +544,13 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
 
         agg_results[model_name] = mean_stds
 
-    print(agg_results.to_string(index=False))
+    # print()
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets (aggregated)")
+    print(agg_results["FLAT_diff"].to_string(index=False))
+    # print(agg_results.to_string(index=False))
+    print(agg_results.to_string())
+
 
 
     return unseen_results
@@ -547,8 +561,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    num_test_rows = [5, 10]
-    save_no_ls = [0, 1, 2]
+    num_test_rows = [1, 3, 5, 10]
+    save_no_ls = list(range(0, 10))
 
     for ep in [None]:
         print("======================================================")

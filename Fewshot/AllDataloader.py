@@ -154,7 +154,7 @@ class MyDataSet:
             # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
             # TODO: This also allows for fixing number of meta / target easily.
             if not self.fixed_targets:
-                meta_1s = np.random.binomial(self.num_rows, 0.5)
+                meta_1s = max(np.random.binomial(self.num_rows, 0.5), 1)
                 target_1s = np.random.binomial(self.num_targets, 0.5)
             else:
                 meta_1s = self.num_rows // 2
@@ -393,6 +393,7 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
+<<<<<<< HEAD
         bs=1, num_rows=10, binarise=True, num_targets=10, decrease_col_prob=-1,
         num_cols=-3, ds_group=0, ds_split="train", fixed_targets=False,
         split_file='./datasets/grouped_datasets/med_splits_2')
@@ -404,4 +405,17 @@ if __name__ == "__main__":
         print(xs_meta.mean(axis=1))
         print(xs_target.mean(axis=1))
 
+=======
+        bs=2, num_rows=5, binarise=False, num_targets=5, decrease_col_prob=-1,
+        num_cols=-3, ds_group=0, ds_split="train")
+    print(dl.all_datasets)
+    num_cols = []
+    for xs, ys, datanames in islice(dl, 10):
+        # print(xs.shape)
+        num_cols.append(xs.shape[2])
+
+    fig, ax = plt.subplots()
+    ax.hist(num_cols)
+    fig.show()
+>>>>>>> master
 # %%
