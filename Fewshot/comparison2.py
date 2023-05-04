@@ -399,18 +399,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     # Test on full dataset
 
     for data_name in test_data_names:
-        # print(data_name)
-        # try:
-        #     test_dl = SplitDataloader(
-        #         bs=num_samples, num_rows=num_rows,
-        #         num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-        #         ds_group=data_name, binarise=binarise
-        #     )
-        # except IndexError as e:
-        #     print(e)
-        #     continue
-        # batch = get_batch(test_dl, num_rows)
-
         batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
 
         model_acc_std = defaultdict(list)
@@ -424,7 +412,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             # For baselines, variance is sample variance.
             if len(acc_stds) == 1:
                 mean_acc, std_acc = acc_stds[0, 0], acc_stds[0, 1]
-                # mean_acc, std_acc= np.mean(means), np.sqrt(np.sum(std ** 2)) / std.shape[0]
 
             # Average over all FLAT and FLAT_MAML models.
             # For FLAT, variance is variance between models
@@ -514,14 +501,13 @@ def main(load_no, num_rows, save_ep=None):
     else:
         raise Exception("Invalid data split")
 
-    # num_rows = 1  # cfg["num_rows"]
-    num_targets = 5  # cfg["num_targets"]
+    num_targets = 5
     binarise = cfg["binarise"]
 
     models = [FLAT(num) for num in load_no] + \
              [FLAT_MAML(num) for num in load_no] + \
               [
-              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+              BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
