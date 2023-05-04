@@ -148,7 +148,10 @@ class MyDataSet:
         if self.binarise:
             # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
             # TODO: This also allows for fixing number of meta / target easily.
-            meta_1s = min(max(np.random.binomial(self.num_rows, 0.5), 1), self.num_rows - 1)
+            if self.num_rows == 1:
+                meta_1s = np.random.binomial(1, 0.5)
+            else:
+                meta_1s = min(max(np.random.binomial(self.num_rows, 0.5), 1), self.num_rows - 1)
             target_1s = np.random.binomial(self.num_targets, 0.5)
 
             meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
