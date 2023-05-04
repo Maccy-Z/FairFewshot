@@ -132,7 +132,7 @@ class TabnetModel(Model):
         self.patience = 17
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten().numpy()
+        ys_meta = ys_meta.flatten().float().numpy()
         xs_meta = xs_meta.numpy()
 
         if ys_meta.min() == ys_meta.max():
@@ -183,7 +183,7 @@ class FTTrModel(Model):
         self.null_categ = torch.tensor([[]])
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten()
+        ys_meta = ys_meta.flatten().float()
         xs_meta = xs_meta
         # Reset the model
         self.model = FTTransformer(
