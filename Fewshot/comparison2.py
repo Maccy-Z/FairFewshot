@@ -219,7 +219,7 @@ class BasicModel(Model):
             case "SVC":
                 self.model = SVC()
             case "KNN":
-                self.model = KNN(n_neighbors=3, p=1, weights="distance")
+                self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
@@ -561,7 +561,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    num_test_rows = [1, 3, 5, 10]
+    num_test_rows = [1, 2, 3, 5, 10]
     save_no_ls = list(range(0, 10))
 
     for ep in [None]:

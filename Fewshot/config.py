@@ -56,7 +56,7 @@ def write_toml():
                                "binarise" : True,
                                "fixed_targets": False,
                                "normalise": True,
-                               "split_file" : 'med_splits_3',
+                               "split_file" : 'med_splits_2',
                                "num_cols" : {'train': -2, 'val': -2}
                                },
 
