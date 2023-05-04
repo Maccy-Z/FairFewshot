@@ -412,7 +412,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                     ds_group=data_name, binarise=binarise
                 )
             except IndexError:
-                break
+                continue
             batch = get_batch(test_dl, num_rows)
 
             for model in models:
