@@ -421,7 +421,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             else:
                 means, std = acc_stds[:, 0], acc_stds[:, 1]
                 mean_acc = np.mean(means)
-                std_acc = np.std(means) / np.sqrt(means.shape[0])
+                std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
 
 
             result = pd.DataFrame({
@@ -508,16 +508,15 @@ def main(load_no, num_rows, save_ep=None):
     # num_rows = 1  # cfg["num_rows"]
     num_targets = 5  # cfg["num_targets"]
     binarise = cfg["binarise"]
-    num_samples = 50
+    num_samples = 100
 
     models = [FLAT(num) for num in load_no] + \
              [FLAT_MAML(num) for num in load_no] + \
               [
-              BasicModel("LR"), BasicModel("CatBoost"), # BasicModel("R_Forest"),  BasicModel("KNN"),
+              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
               # TabnetModel(),
               # FTTrModel(),
               # STUNT(),
-              # BasicModel("KNN")
               ]
 
     unseen_results = get_results_by_dataset(
@@ -608,4 +607,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[-1, -2, -3, ], num_rows=10)
+    col_accs = main(load_no=[-1, -2, -3, -4, -5, -6], num_rows=10)
