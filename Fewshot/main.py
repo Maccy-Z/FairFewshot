@@ -4,13 +4,13 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 import time
-import toml
+import argparse
+import random
 from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-from torch.optim.lr_scheduler import StepLR
 
 
 class ResBlock(nn.Module):
@@ -478,7 +478,7 @@ def main(all_cfgs, device="cpu", nametag=None):
             split_file=split_file
         )
         print("Testing data names:", val_dl.all_datasets)
-        
+
     elif ds == "custom":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
@@ -617,23 +617,20 @@ def main(all_cfgs, device="cpu", nametag=None):
 
 
 if __name__ == "__main__":
-    import random
-    # from comparison2 import main as comparison_main
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
-
-    tag = input("Description: ")
+    
+    #tag = args.nametag
 
     dev = torch.device("cpu")
-    for test_no in range(6):
-
+    for test_no in range(3):
+        random.seed(test_no)
+        np.random.seed(test_no)
+        torch.manual_seed(test_no)
         print("---------------------------------")
         print("Starting test number", test_no)
-        main(all_cfgs=get_config(), device=dev, nametag=tag)
+        main(all_cfgs=get_config(), device=dev), #nametag=tag)
 
     print("")
-    print(tag)
+    #print(tag)
     print("Training Completed")
 
     # for ep in [30]:

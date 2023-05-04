@@ -36,7 +36,7 @@ binarise = true
 split_file = "med_splits_2"
 
 [Settings]
-num_epochs = 51
+num_epochs = 31
 val_duration = 100
 val_interval = 2000
 dataset = "my_split"

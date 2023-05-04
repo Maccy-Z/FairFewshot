@@ -534,7 +534,6 @@ def main(load_no, num_rows, save_ep=None):
         num_rows=num_rows, num_targets=num_targets, binarise=binarise
     )
 
-
     # Results for each dataset
     detailed_results = unseen_results.copy()
 
@@ -550,13 +549,14 @@ def main(load_no, num_rows, save_ep=None):
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
 
-
     # Aggreate results
     agg_results = unseen_results.copy()
 
     # Move flat to first column
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
+    columns = agg_results.columns
+    flat_cols = [c for c in columns if c.startswith("FLAT")]
+    new_column_order = flat_cols + [c for c in agg_results.columns if c not in flat_cols]
     agg_results = agg_results.reindex(columns=new_column_order)
 
     # Difference between FLAT and best model
@@ -597,7 +597,6 @@ def main(load_no, num_rows, save_ep=None):
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
-
     with open(f'{result_dir}/aggregated', "w") as f:
         for line in agg_results:
             f.write(line)
@@ -608,6 +607,7 @@ def main(load_no, num_rows, save_ep=None):
 
     with open(f'{result_dir}/raw.pkl', "wb") as f:
         pickle.dump(unseen_results, f)
+
 
     exit(3)
 
@@ -620,4 +620,5 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[-1,], num_rows=1)
+    num_rows = [1, 3, 5, 10]
+    col_accs = main(load_no=[-1, -2], num_rows=1)
