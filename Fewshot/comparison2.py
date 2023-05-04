@@ -397,7 +397,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     #     num_cols *= 2
 
     # Test on full dataset
-
     for data_name in test_data_names:
         batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
 
