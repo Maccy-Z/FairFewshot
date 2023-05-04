@@ -9,7 +9,7 @@ import numpy as np
 
 # Save into file. Automatically make a new folder for every new save.
 class SaveHolder:
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, nametag=None):
         dir_path = f'{base_dir}/saves'
         files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
         existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -26,6 +26,9 @@ class SaveHolder:
         os.mkdir(self.save_dir)
 
         shutil.copy(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
+        if nametag is not None:
+            with open(f'{self.save_dir}/tag.txt', 'w') as f:
+                f.write(nametag)
 
         self.grads = []
 

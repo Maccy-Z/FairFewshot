@@ -1,4 +1,4 @@
-from Fewshot.evaluate_real_data import main as eval_main
+from old.evaluate_real_data import main as eval_main
 from tabulate import tabulate
 
 
