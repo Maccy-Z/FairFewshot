@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from collections import defaultdict
 
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
@@ -34,6 +35,14 @@ def get_batch(dl, num_rows):
     # ys_target = ys_target.view(-1)
 
     return xs_meta, xs_target, ys_meta, ys_target
+
+def load_batch(ds_name, num_rows, num_targets, num_cols):
+    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+        batch = pickle.load(f)
+
+    if batch is None:
+        raise IndexError(f"Batch not found for file {ds_name}")
+    return batch
 
 
 class Model(ABC):
@@ -219,7 +228,7 @@ class BasicModel(Model):
             case "SVC":
                 self.model = SVC()
             case "KNN":
-                self.model = KNN(n_neighbors=3, p=1, weights="distance")
+                self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
                                                 loss_function='Logloss', allow_const_label=True, verbose=False)
@@ -347,6 +356,7 @@ class FLAT_MAML(Model):
     def __repr__(self):
         return "FLAT_maml"
 
+
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -359,12 +369,8 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     ]
 
     n_cols = [d.ds_cols - 1 for d in datasets]
-    max_test_col = max([d.ds_cols - 1 for d in datasets])
-    n_cols = dict(zip(test_data_names, n_cols))
 
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
-    FLAT_results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
-    M_FLAT_results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
     num_cols = 2
     # while num_cols <= max_test_col and num_cols <= 60:
     #     print(num_cols)
@@ -391,19 +397,23 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     #     num_cols *= 2
 
     # Test on full dataset
+
     for data_name in test_data_names:
-        try:
-            test_dl = SplitDataloader(
-                bs=num_samples, num_rows=num_rows,
-                num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-                ds_group=data_name, binarise=binarise
-            )
-        except IndexError:
-            continue
-        batch = get_batch(test_dl, num_rows)
+        # print(data_name)
+        # try:
+        #     test_dl = SplitDataloader(
+        #         bs=num_samples, num_rows=num_rows,
+        #         num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
+        #         ds_group=data_name, binarise=binarise
+        #     )
+        # except IndexError as e:
+        #     print(e)
+        #     continue
+        # batch = get_batch(test_dl, num_rows)
+
+        batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
 
         model_acc_std = defaultdict(list)
-
         for model in models:
             mean_acc, std_acc = model.get_accuracy(batch)
 
@@ -422,7 +432,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 means, std = acc_stds[:, 0], acc_stds[:, 1]
                 mean_acc = np.mean(means)
                 std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
-
 
             result = pd.DataFrame({
                         'data_name': data_name,
@@ -508,7 +517,6 @@ def main(load_no, num_rows, save_ep=None):
     # num_rows = 1  # cfg["num_rows"]
     num_targets = 5  # cfg["num_targets"]
     binarise = cfg["binarise"]
-    num_samples = 100
 
     models = [FLAT(num) for num in load_no] + \
              [FLAT_MAML(num) for num in load_no] + \
@@ -521,8 +529,7 @@ def main(load_no, num_rows, save_ep=None):
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets,
-        num_samples=num_samples, binarise=binarise
+        num_rows=num_rows, num_targets=num_targets, binarise=binarise
     )
 
 
@@ -607,4 +614,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[-1, -2, -3, -4, -5, -6], num_rows=10)
+    col_accs = main(load_no=[-1,], num_rows=10)
