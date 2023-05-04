@@ -20,8 +20,8 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-from STUNT_interface import STUNT_utils, MLPProto
+# sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+# from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
@@ -283,8 +283,6 @@ class FLAT(Model):
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
-        print(save_dir)
-
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
@@ -398,7 +396,12 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
     # Test on full dataset
     for data_name in test_data_names:
-        batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+        print(data_name)
+        try:
+            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+        except IndexError as e :
+            print(e)
+            continue
 
         model_acc_std = defaultdict(list)
         for model in models:
@@ -480,8 +483,8 @@ def main(load_no, num_rows, save_ep=None):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
-        # print("Train datases:", train_data_names)
-        # print("Test datasets:", test_data_names)
+        print("Train datases:", train_data_names)
+        print("Test datasets:", test_data_names)
 
     elif ds == "custom":
         test_data_names = ['acute-inflammation', 'acute-nephritis', 'arrhythmia',
@@ -588,10 +591,6 @@ def main(load_no, num_rows, save_ep=None):
     with open(f'{result_dir}/raw.pkl', "wb") as f:
         pickle.dump(unseen_results, f)
 
-    exit(3)
-
-    return unseen_results
-
 
 if __name__ == "__main__":
 
@@ -599,4 +598,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[-1,], num_rows=10)
+    col_accs = main(load_no=[-1,-2, -3, -4, -5, -6], num_rows=10)

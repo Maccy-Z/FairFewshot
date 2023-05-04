@@ -626,7 +626,7 @@ if __name__ == "__main__":
     tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(6):
+    for test_no in range(5):
 
         print("---------------------------------")
         print("Starting test number", test_no)
