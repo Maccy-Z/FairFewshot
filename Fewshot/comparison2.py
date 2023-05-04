@@ -511,14 +511,14 @@ def main(save_no, num_rows, save_ep, dir_path=f'./saves'):
 
     # Move FLAT and FALT MAML to first 2 columns
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    new_column_order = ["FLAT", "FLAT_MAML"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_MAML")]
+    new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
     agg_results = agg_results.reindex(columns=new_column_order)
     
     # Difference between FLAT and the best baseline
     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_MAML_diff"] = (agg_results["FLAT_MAML"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
+    agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-    agg_results["FLAT_MAML_diff"] = agg_results["FLAT_MAML_diff"].apply(lambda x: f'{x:.2f}')
+    agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
     
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
