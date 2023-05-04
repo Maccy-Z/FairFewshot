@@ -40,8 +40,8 @@ def main(f, num_targets):
 
     models = [
               BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              # TabnetModel(),
-              # FTTrModel(),
+              TabnetModel(),
+              FTTrModel(),
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
