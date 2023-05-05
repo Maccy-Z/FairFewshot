@@ -26,15 +26,6 @@ sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 BASEDIR = '.'
 
 
-def get_batch(dl, num_rows):
-    xs, ys, model_id = next(iter(dl))
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    # ys_target = ys_target.view(-1)
-
-    return xs_meta, xs_target, ys_meta, ys_target
 
 def load_batch(ds_name, num_rows, num_targets, num_cols):
     with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
@@ -361,38 +352,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     Results are groupped by: data set, model, number of test columns.
     """
 
-    datasets = [
-        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all")
-        for d in test_data_names
-    ]
-
-    n_cols = [d.ds_cols - 1 for d in datasets]
-
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
-    num_cols = 2
-    # while num_cols <= max_test_col and num_cols <= 60:
-    #     print(num_cols)
-#         for data_name in test_data_names:
-#             if n_cols[data_name] >= num_cols:
-#                 test_dl = SplitDataloader(
-#                     bs=num_samples, num_rows=num_rows,
-#                     num_targets=num_targets, num_cols=[num_cols, num_cols],
-#                     ds_group=data_name
-#                 )
-#                 batch = get_batch(test_dl, num_rows)
-#                 for model in models:
-#                     mean_acc, std_acc = model.get_accuracy(batch)
-#
-#                     result = pd.DataFrame({
-#                         'data_name': data_name,
-#                         'model': str(model),
-#                         'num_cols': num_cols,
-#                         'acc': mean_acc,
-#                         'std': std_acc
-#                     }, index=[0])
-#
-#                     results = pd.concat([results, result])
-    #     num_cols *= 2
 
     # Test on full dataset
     for data_name in test_data_names:
@@ -435,22 +395,21 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows, save_ep=None):
+def main(load_no, num_rows):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
-
-    result_dir = f'{BASEDIR}/results'
+    result_dir = f'{BASEDIR}/Results'
     files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f[7:]) for f in files])
+    existing_results = sorted([int(f) for f in files])
     try:
         result_no = existing_results[-1] + 1
     except(IndexError):
         result_no = 0
-    result_dir = f'{result_dir}/result_{result_no}'
+    result_dir = f'{result_dir}/{result_no}'
     os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
@@ -489,20 +448,6 @@ def main(load_no, num_rows, save_ep=None):
         print("Train datases:", train_data_names)
         print("Test datasets:", test_data_names)
 
-    elif ds == "custom":
-        test_data_names = ['acute-inflammation', 'acute-nephritis', 'arrhythmia',
-            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
-            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
-            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
-            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
-            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
-            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
-            'statlog-heart', 'thyroid', 'vertebral-column-2clases']
-
-        train_data_names = []
-
-        print("Using Custom Dataset")
-
     else:
         raise Exception("Invalid data split")
 
@@ -531,7 +476,7 @@ def main(load_no, num_rows, save_ep=None):
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
 
-    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
+    # results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
     # print("======================================================")
     # print("Test accuracy on unseen datasets")
     # print(results.to_string())
@@ -606,4 +551,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[-1,-2, -3, -4, -5], num_rows=5)
+    col_accs = main(load_no=[-15, -14, -13, -12, -11], num_rows=5)

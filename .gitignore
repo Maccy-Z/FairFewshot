@@ -5,3 +5,4 @@ catboost_info/
 results/
 saves/
 *.pdf
+/Results/
