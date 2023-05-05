@@ -504,6 +504,7 @@ def main(all_cfgs, device="cpu", nametag=None):
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
     eps = cfg["eps"]
+    decay = cfg["decay"]
 
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
 

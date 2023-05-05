@@ -44,7 +44,8 @@ def write_toml():
                              },
 
                  "Optim": {"lr": 5e-4,
-                           "eps": 3e-4,},
+                           "eps": 3e-4,
+                           "decay": 1e-4},
 
                  "DL_params": {"bs": 3,
                                "num_rows": 10,
