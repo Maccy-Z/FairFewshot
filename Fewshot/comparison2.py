@@ -445,7 +445,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows, save_ep=None):
+def main(load_no, num_rows, save_ep=None, save_tag=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -454,13 +454,16 @@ def main(load_no, num_rows, save_ep=None):
 
 
     result_dir = f'{BASEDIR}/results'
-    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f[7:]) for f in files])
-    try:
-        result_no = existing_results[-1] + 1
-    except(IndexError):
-        result_no = 0
-    result_dir = f'{result_dir}/result_{result_no}'
+    if save_tag is None:
+        files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+        existing_results = sorted([int(f[7:]) for f in files])
+        try:
+            result_no = existing_results[-1] + 1
+        except(IndexError):
+            result_no = 0
+        result_dir = f'{result_dir}/result_{result_no}'
+    else:
+        result_dir = f'{result_dir}/result_{save_tag}'
     os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
@@ -524,8 +527,8 @@ def main(load_no, num_rows, save_ep=None):
              [FLAT_MAML(num) for num in load_no] + \
               [
               BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              # TabnetModel(),
-              # FTTrModel(),
+              TabnetModel(),
+              FTTrModel(),
               # STUNT(),
               ]
 
@@ -620,5 +623,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    num_rows = [1, 3, 5, 10]
-    col_accs = main(load_no=[-1, -2], num_rows=1)
+    for num_row in [1, 3, 5, 10]:
+        for i in range(10):
+            load_no_ls = [3 * i + j for j in range(3)]
+            main(load_no=load_no_ls, num_rows=num_row, save_tag='{i}_fold_{n}_rows}')
