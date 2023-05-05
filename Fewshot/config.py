@@ -49,17 +49,18 @@ def write_toml():
 
                  "DL_params": {"bs": 3,
                                "num_rows": 10,
-                               "num_targets": 15,
-                               "ds_group": [1, -1],          # Group of datasets from which to select from. -1 for full dataset
-                               "binarise" : False,
-                               "decrease_col_prob": 0.12,
-                               "split_file" : 'my_splits',
+                               "num_targets": 10,
+                               "ds_group": 0,          # Group of datasets from which to select from. -1 for full dataset
+                               "binarise" : True,
+                               "num_1s": None,
+                               "num_cols": {'train': -2, 'val': -2},
+                               "split_file" : 'med_splits_2',
                                },
 
                  "Settings": {"num_epochs": 51,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 2000,     # Number of batches to train for each epoch
-                              "dataset": "total",
+                              "dataset": "my_split",
                               },
                  }
 

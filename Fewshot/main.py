@@ -431,6 +431,7 @@ def main(all_cfgs, device="cpu", nametag=None):
     ds_group = cfg["ds_group"]
     num_cols = cfg.get("num_cols")
     decrease_col_prob = cfg.get("decrease_col_prob")
+    num_1s = cfg.get("num_1s")
     binarise = cfg["binarise"]
     split_file = cfg.get("split_file")
 
@@ -455,21 +456,12 @@ def main(all_cfgs, device="cpu", nametag=None):
 
     elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{split_file}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        if not num_cols:
-            num_cols = {
-                'train': [2, split[str(ds_group)]['max_test_col']],
-                'val' : [2, split[str(ds_group)]['max_val_col']],
-            }
-        else:
-            num_cols = {
-                'train': num_cols,
-                'val' : num_cols,
-            }
+        print(num_cols)
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols['train'],
+            binarise=binarise, 
+            num_1s=num_1s,
+            num_cols=num_cols['train'],
             decrease_col_prob=decrease_col_prob,
             ds_group=ds_group, ds_split="train",
             split_file=split_file
@@ -478,12 +470,15 @@ def main(all_cfgs, device="cpu", nametag=None):
 
         val_dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=num_cols['val'],
+            binarise=binarise, 
+            num_1s=num_1s,
+            num_cols=num_cols['val'],
             decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="val",
+            ds_group=ds_group, ds_split="test",
             split_file=split_file
         )
         print("Testing data names:", val_dl.all_datasets)
+        
     elif ds == "custom":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
