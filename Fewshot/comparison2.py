@@ -418,7 +418,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             print(data_name, model, end=' ')
             mean_acc, std_acc = model.get_accuracy(batch)
             e = time.time()
-            print(f'acc={(mean_acc * 100):2.f}%', f'time={(e-s)/60:.2f}min')
+            print(f'acc={(mean_acc * 100):.2f}%', f'time={(e-s)/60:.2f}min')
             model_acc_std[str(model)].append([mean_acc, std_acc])
 
         for model_name, acc_stds in model_acc_std.items():
