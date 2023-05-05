@@ -203,7 +203,7 @@ class FTTrModel(Model):
             x_categ = torch.tensor([[]])
             clf = self.model(x_categ, xs_meta)
 
-            loss = torch.nn.functional.cross_entropy(clf, ys_meta.squeeze())
+            loss = torch.nn.functional.cross_entropy(clf, ys_meta.long())
             loss.backward()
             optim.step()
             optim.zero_grad()
@@ -414,8 +414,11 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
         model_acc_std = defaultdict(list)
         for model in models:
+            s = time.time()
+            print(data_name, model, end=' ')
             mean_acc, std_acc = model.get_accuracy(batch)
-
+            e = time.time()
+            print(f'acc={mean_acc * 100}%', f'time={(e-s)/60:.2f}min')
             model_acc_std[str(model)].append([mean_acc, std_acc])
 
         for model_name, acc_stds in model_acc_std.items():
@@ -438,7 +441,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                         'num_cols': -1,
                         'acc': mean_acc,
                         'std': std_acc
-                        }, index=[0])
+                        }, index=[0]) 
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
@@ -464,7 +467,10 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
         result_dir = f'{result_dir}/result_{result_no}'
     else:
         result_dir = f'{result_dir}/result_{save_tag}'
-    os.mkdir(result_dir)
+    try:
+        os.mkdir(result_dir)
+    except(FileExistsError):
+        print("Warning: Overridinng existing results")
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
@@ -626,4 +632,4 @@ if __name__ == "__main__":
     for num_row in [1, 3, 5, 10]:
         for i in range(10):
             load_no_ls = [3 * i + j for j in range(3)]
-            main(load_no=load_no_ls, num_rows=num_row, save_tag='{i}_fold_{n}_rows}')
+            main(load_no=load_no_ls, num_rows=num_row, save_tag=f'{i}_fold_{num_row}_rows')
