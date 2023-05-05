@@ -617,16 +617,11 @@ def main(all_cfgs, device="cpu", nametag=None):
 
 
 if __name__ == "__main__":
-    import random
-    # from comparison2 import main as comparison_main
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
 
     tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(6):
+    for test_no in range(5):
 
         print("---------------------------------")
         print("Starting test number", test_no)
@@ -635,20 +630,3 @@ if __name__ == "__main__":
     print("")
     print(tag)
     print("Training Completed")
-
-    # for ep in [30]:
-    #     print("======================================================")
-    #     print("Epoch number", ep)
-    #     for i, j in zip([-1, -2, -3, -4, -5, -6], [10, 10, 10, 10, 10, 10]):
-    #         random.seed(0)
-    #         np.random.seed(0)
-    #         torch.manual_seed(0)
-    #
-    #         # save_number = int(input("Enter save number:\n"))
-    #         # main(save_no=save_number)
-    #         print()
-    #         print(i, j)
-    #         col_accs = comparison_main(save_no=i, num_rows=j, save_ep=ep)
-    #
-    #     # print(col_accs)
-    #
