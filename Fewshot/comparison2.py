@@ -20,8 +20,8 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-# sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-# from STUNT_interface import STUNT_utils, MLPProto
+sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
@@ -598,4 +598,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[-1,-2, -3, -4, -5, -6], num_rows=10)
+    col_accs = main(load_no=[-1,-2, -3, -4, -5], num_rows=5)
