@@ -175,7 +175,7 @@ def main(load_no, num_rows, save_ep=None):
 
     elif ds == "total":
 
-        ds_group = [1, -1]
+        ds_group = [0, -1]
         fold_no, split_no = ds_group
 
         splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')

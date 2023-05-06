@@ -1,5 +1,5 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel, get_batch
+from comparison2 import TabnetModel, FTTrModel, BasicModel
 from AllDataloader import SplitDataloader
 import pickle
 import os
@@ -34,6 +34,33 @@ def save_batch(ds_name, num_batches, num_targets):
         except IndexError as e:
             with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}", "wb") as f:
                 pickle.dump(None, f)
+
+
+def main_append(f, num_targets):
+
+    models = [
+              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+              TabnetModel(),
+              FTTrModel(),
+              ]
+
+    model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
+
+    for model in models:
+        print(model)
+        for num_rows in [3]:
+            for num_cols in [-3,]:
+                try:
+                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+                except IndexError as e:
+                    break
+                mean_acc, std_acc = model.get_accuracy(batch)
+                model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
+
+    with open(f'{data_dir}/{f}/baselines.dat', 'a', newline='') as f:
+        writer = csv.writer(f)
+        for row in model_accs:
+            writer.writerow(row)
 
 
 def main(f, num_targets):
@@ -79,4 +106,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        main(f, num_targets=num_targs)
+        main_append(f, num_targets=num_targs)

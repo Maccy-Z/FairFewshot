@@ -410,6 +410,7 @@ def main(load_no, num_rows):
     except(IndexError):
         result_no = 0
     result_dir = f'{result_dir}/{result_no}'
+    print(result_dir)
     os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
@@ -551,4 +552,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[-15, -14, -13, -12, -11], num_rows=5)
+    col_accs = main(load_no=[-21, -22, -23, -24, -25], num_rows=10)
