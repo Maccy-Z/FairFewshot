@@ -28,7 +28,6 @@ def get_batch(dl, num_rows):
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    # ys_target = ys_target.view(-1)
 
     return xs_meta, xs_target, ys_meta, ys_target
 

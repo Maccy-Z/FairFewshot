@@ -26,6 +26,14 @@ sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 BASEDIR = '.'
 
 
+def get_batch(dl, num_rows):
+    xs, ys, model_id = next(iter(dl))
+    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+
+    return xs_meta, xs_target, ys_meta, ys_target
 
 def load_batch(ds_name, num_rows, num_targets, num_cols):
     with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:

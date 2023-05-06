@@ -21,7 +21,7 @@ def save_batch(ds_name, num_batches, num_targets):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [1, 3, 5, 10]:
+    for num_rows in [1, 2, 3, 5, 6, 10, 15]:
         try:
             dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=True)
             batch = get_batch(dl, num_rows=num_rows)
@@ -48,7 +48,7 @@ def main(f, num_targets):
 
     for model in models:
         print(model)
-        for num_rows in [5, 10, 15]:
+        for num_rows in [1, 2, 3, 6]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
@@ -79,4 +79,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        main(f, num_targets=num_targs)
+        save_batch(f, num_batches=num_bs, num_targets=num_targs)
