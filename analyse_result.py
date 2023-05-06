@@ -4,17 +4,18 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+num_rows = [1, 2, 3, 5, 6, 10, 15] 
+# get FLAT results
 flat_results_df = pd.DataFrame()
-for num_row in [1, 2, 3, 5, 6, 10]:
+for num_row in num_rows:
     for i in range(10):
         df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
 flat_results_df
 
-#%%
+# get baseline results
 data_names = flat_results_df.data_name.unique()
-
 base_results_df = pd.DataFrame()
 for data_name in data_names:
     df = pd.read_csv(f'./datasets/data/{data_name}/baselines.dat')
@@ -22,21 +23,46 @@ for data_name in data_names:
     base_results_df = pd.concat([base_results_df, df])
 base_results_df.rename({'Model':'model'}, axis=1, inplace=True)
 base_results_df
-#%%
+
+# combine dataframes
 results_df = pd.concat([flat_results_df, base_results_df])
 
+# aggregate results over all datasets
 models = results_df.model.unique()
 flat_models = ['FLAT_maml', 'FLAT'] 
 baseline_models = [m for m in models if m not in flat_models]
-model_order = flat_models + baseline_models
+model_order = baseline_models + flat_models
 
-agg_results_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
-agg_results_df = agg_results_df.droplevel(0, axis=1)
-agg_results_df = agg_results_df.loc[:, model_order] * 100
-agg_results_df['FLAT_maml_diff'] = agg_results_df['FLAT_maml'] - agg_results_df.loc[:, baseline_models].max(axis=1)
-agg_results_df['FLAT_diff'] = agg_results_df['FLAT'] - agg_results_df.loc[:, baseline_models].max(axis=1) 
-agg_results_df
-# %%0
+agg_acc_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
+agg_acc_df = agg_acc_df.droplevel(0, axis=1)
+agg_acc_df = agg_acc_df.loc[:, model_order] * 100
+agg_acc_df['FLAT_maml_diff'] = agg_acc_df['FLAT_maml'] - agg_acc_df.loc[:, baseline_models].max(axis=1)
+agg_acc_df['FLAT_diff'] = agg_acc_df['FLAT'] - agg_acc_df.loc[:, baseline_models].max(axis=1) 
+
+agg_std_df = results_df.groupby(['num_rows', 'model'])[['std']].apply(lambda x: np.sqrt((x**2).sum()) / len(data_names) * 100).unstack()
+agg_std_df = agg_std_df.droplevel(0, axis=1)
+
+# find the std of the best model
+best_models = agg_acc_df.loc[:, baseline_models].idxmax(axis=1).values
+best_base_std = [agg_std_df.loc[num_row, best_models[i]] for i, num_row in enumerate(num_rows)]
+best_base_std = pd.Series(best_base_std, index=num_rows)
+best_std = np.sqrt(agg_std_df['FLAT']**2 + best_base_std**2) / 2
+best_std
+
+# display the results
+display_df = pd.DataFrame()
+
+for m in model_order:
+    display_df[m] = agg_acc_df[m].round(2).astype(str) + ' ± ' +  agg_std_df[m].round(2).astype(str)
+display_df['FLAT_diff'] = agg_acc_df['FLAT_diff'].round(2).astype(str) +  ' ± ' + best_std.round(2).astype(str)
+display_df.transpose()
+
+#%%
+better_df = results_df.pivot(index=['num_rows', 'data_name'], columns=['model'], values='acc')
+better_df['better'] = better_df['FLAT'] > better_df.loc[:, baseline_models].max(axis=1)
+better_df['better'].unstack().sum(axis=1).loc[[3, 5, 10, 15]]
+
+# %% 
 num_row = 5
 single_result_df = pd.DataFrame()
 for i in range(10):
@@ -67,4 +93,5 @@ sns.barplot(data=plot_df, y='data_name', x='acc', hue='model')
 plot_df
 # %%
 single_result_df.loc[:, 'acc'].loc[:, baseline_models].idxmax(axis=1)
+
 # %%
