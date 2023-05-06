@@ -3,7 +3,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ds-group', type=int)   
-args = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 def get_config(cfg_file=None):
     if cfg_file is None:
