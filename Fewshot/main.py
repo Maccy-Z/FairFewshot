@@ -418,7 +418,7 @@ class ModelHolder(nn.Module):
         return cross_entropy + kl_div
 
 
-def main(all_cfgs, device="cpu", nametag=None):
+def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     save_holder = None
 
     # all_cfgs = get_config()
@@ -428,7 +428,7 @@ def main(all_cfgs, device="cpu", nametag=None):
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = cfg["ds_group"]
+    ds_group = train_split#cfg["ds_group"]
     num_cols = cfg.get("num_cols")
     decrease_col_prob = cfg.get("decrease_col_prob")
     num_1s = cfg.get("num_1s")
@@ -625,7 +625,9 @@ if __name__ == "__main__":
 
         print("---------------------------------")
         print("Starting test number", test_no)
-        main(all_cfgs=get_config(), device=dev, nametag=tag)
+
+        group_no = 0 if test_no == 0 else test_no + 1
+        main(all_cfgs=get_config(), device=dev, nametag=tag, train_split=[0, group_no])
 
     print("")
     print(tag)
