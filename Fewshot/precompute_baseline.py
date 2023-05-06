@@ -47,8 +47,8 @@ def main(f, num_targets):
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
-        print(model)
         for num_rows in [1, 2, 3, 6]:
+            print(model, num_rows)
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
