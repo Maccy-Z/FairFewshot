@@ -26,15 +26,6 @@ sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 BASEDIR = '.'
 
 
-def get_batch(dl, num_rows):
-    xs, ys, model_id = next(iter(dl))
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    # ys_target = ys_target.view(-1)
-
-    return xs_meta, xs_target, ys_meta, ys_target
 
 def load_batch(ds_name, num_rows, num_targets, num_cols):
     with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
@@ -132,7 +123,7 @@ class TabnetModel(Model):
         self.patience = 17
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten().numpy()
+        ys_meta = ys_meta.flatten().float().numpy()
         xs_meta = xs_meta.numpy()
 
         if ys_meta.min() == ys_meta.max():
@@ -183,7 +174,7 @@ class FTTrModel(Model):
         self.null_categ = torch.tensor([[]])
 
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten()
+        ys_meta = ys_meta.flatten().long()
         xs_meta = xs_meta
         # Reset the model
         self.model = FTTransformer(
@@ -283,8 +274,6 @@ class FLAT(Model):
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
-        print(save_dir)
-
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
@@ -363,54 +352,16 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     Results are groupped by: data set, model, number of test columns.
     """
 
-    datasets = [
-        MyDataSet(d, num_rows=5, num_targets=5, binarise=True, split="all")
-        for d in test_data_names
-    ]
-
-    n_cols = [d.ds_cols - 1 for d in datasets]
-
     results = pd.DataFrame(columns=['data_name', 'model', 'num_cols', 'acc', 'std'])
-    num_cols = 2
-    # while num_cols <= max_test_col and num_cols <= 60:
-    #     print(num_cols)
-#         for data_name in test_data_names:
-#             if n_cols[data_name] >= num_cols:
-#                 test_dl = SplitDataloader(
-#                     bs=num_samples, num_rows=num_rows,
-#                     num_targets=num_targets, num_cols=[num_cols, num_cols],
-#                     ds_group=data_name
-#                 )
-#                 batch = get_batch(test_dl, num_rows)
-#                 for model in models:
-#                     mean_acc, std_acc = model.get_accuracy(batch)
-#
-#                     result = pd.DataFrame({
-#                         'data_name': data_name,
-#                         'model': str(model),
-#                         'num_cols': num_cols,
-#                         'acc': mean_acc,
-#                         'std': std_acc
-#                     }, index=[0])
-#
-#                     results = pd.concat([results, result])
-    #     num_cols *= 2
 
     # Test on full dataset
     for data_name in test_data_names:
-        # print(data_name)
-        # try:
-        #     test_dl = SplitDataloader(
-        #         bs=num_samples, num_rows=num_rows,
-        #         num_targets=num_targets, num_cols=[n_cols[data_name], n_cols[data_name]],
-        #         ds_group=data_name, binarise=binarise
-        #     )
-        # except IndexError as e:
-        #     print(e)
-        #     continue
-        # batch = get_batch(test_dl, num_rows)
-
-        batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+        print(data_name)
+        try:
+            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+        except IndexError as e :
+            print(e)
+            continue
 
         model_acc_std = defaultdict(list)
         for model in models:
@@ -426,7 +377,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             # For baselines, variance is sample variance.
             if len(acc_stds) == 1:
                 mean_acc, std_acc = acc_stds[0, 0], acc_stds[0, 1]
-                # mean_acc, std_acc= np.mean(means), np.sqrt(np.sum(std ** 2)) / std.shape[0]
 
             # Average over all FLAT and FLAT_MAML models.
             # For FLAT, variance is variance between models
@@ -454,7 +404,6 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
-
 
     result_dir = f'{BASEDIR}/results'
     if save_tag is None:
@@ -505,28 +454,13 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
-        # print("Train datases:", train_data_names)
-        # print("Test datasets:", test_data_names)
-
-    elif ds == "custom":
-        test_data_names = ['acute-inflammation', 'acute-nephritis', 'arrhythmia',
-            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
-            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
-            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
-            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
-            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
-            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
-            'statlog-heart', 'thyroid', 'vertebral-column-2clases']
-
-        train_data_names = []
-
-        print("Using Custom Dataset")
+        print("Train datases:", train_data_names)
+        print("Test datasets:", test_data_names)
 
     else:
         raise Exception("Invalid data split")
 
-    # num_rows = 1  # cfg["num_rows"]
-    num_targets = 5  # cfg["num_targets"]
+    num_targets = 5
     binarise = cfg["binarise"]
 
     models = [FLAT(num) for num in load_no] + \
@@ -550,7 +484,7 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
 
-    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
+    # results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
     # print("======================================================")
     # print("Test accuracy on unseen datasets")
     # print(results.to_string())
@@ -616,7 +550,6 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
 
     with open(f'{result_dir}/raw.pkl', "wb") as f:
         pickle.dump(unseen_results, f)
-
 
 
 if __name__ == "__main__":
