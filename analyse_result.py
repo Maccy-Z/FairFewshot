@@ -4,42 +4,40 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-results_df = pd.DataFrame()
-for num_row in [1, 3, 5, 10]:
+flat_results_df = pd.DataFrame()
+for num_row in [1, 2, 3, 5, 6, 10]:
     for i in range(10):
-        df = pd.read_pickle(f'./results/med_results/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
+        df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
-        results_df = pd.concat([results_df, df])
+        flat_results_df = pd.concat([flat_results_df, df])
+flat_results_df
 
-# acc_df = results_df.pivot(index='data_name', columns='model', values=['acc'])
-# std_df = results_df.pivot(index='data_name', columns='model', values=['std'])
+#%%
+data_names = flat_results_df.data_name.unique()
+
+base_results_df = pd.DataFrame()
+for data_name in data_names:
+    df = pd.read_csv(f'./datasets/data/{data_name}/baselines.dat')
+    df['data_name'] = data_name
+    base_results_df = pd.concat([base_results_df, df])
+base_results_df.rename({'Model':'model'}, axis=1, inplace=True)
+base_results_df
+#%%
+results_df = pd.concat([flat_results_df, base_results_df])
 
 models = results_df.model.unique()
 flat_models = ['FLAT_maml', 'FLAT'] 
 baseline_models = [m for m in models if m not in flat_models]
 model_order = flat_models + baseline_models
 
-baseline_results = results_df[results_df.model.isin(baseline_models)]
-
-results_df = pd.DataFrame()
-for num_row in [1, 3, 5, 10]:
-    for i in range(10):
-        df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
-        df['num_rows'] = num_row
-        results_df = pd.concat([results_df, df])
-
-flat_results = results_df[results_df.model.isin(flat_models)]
-
-results_df = pd.concat([flat_results, baseline_results])
-
 agg_results_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
+
+#%%
 agg_results_df = agg_results_df.droplevel(0, axis=1)
 agg_results_df = agg_results_df.loc[:, model_order] * 100
 agg_results_df['FLAT_maml_diff'] = agg_results_df['FLAT_maml'] - agg_results_df.loc[:, baseline_models].max(axis=1)
 agg_results_df['FLAT_diff'] = agg_results_df['FLAT'] - agg_results_df.loc[:, baseline_models].max(axis=1) 
 agg_results_df
-
-
 # %%0
 num_row = 5
 single_result_df = pd.DataFrame()
