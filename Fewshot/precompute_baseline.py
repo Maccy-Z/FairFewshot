@@ -47,7 +47,7 @@ def main(f, num_targets):
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
-        for num_rows in [1, 2, 3, 6]:
+        for num_rows in [5, 10, 15]:
             print(model, num_rows)
             for num_cols in [-3,]:
                 try:
@@ -57,9 +57,9 @@ def main(f, num_targets):
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/baselines.dat', 'r+', newline='') as f:
+    with open(f'{data_dir}/{f}/baselines.dat', 'a+', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+        #writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
