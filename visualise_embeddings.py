@@ -24,7 +24,7 @@ random.seed(0)
 sns.set_style('ticks')
 sns.set_palette('Set2')
 
-save_no = 31
+save_no = 33
 
 num_rows_dict, num_cols_dict = get_num_rows_cols()
 model, cfg_all = load_model(save_no)
@@ -103,7 +103,7 @@ sns.scatterplot(
 # %%
 # All datasets
 sns.set_style('whitegrid')
-fig, ax  = plt.subplots(figsize=(8, 8))
+fig, ax  = plt.subplots(figsize=(8, 6))
 all_data_names = seen_data_names + unseen_data_names
 num_datasets = len(all_data_names)
 colors = sns.husl_palette(num_datasets)
@@ -125,7 +125,10 @@ y = mean_embeddings['dim_2']
 plot_df = mean_embeddings.loc[plot_df.model_id.unique(), :]
 ax.scatter(x=plot_df.dim_1, y=plot_df.dim_2, color=colors, s=40, edgecolors='white')
 for i, txt in enumerate(mean_embeddings.index):
-    ax.annotate(txt, (x[i], y[i] + 0.2), ha='center')#(x[i] - np.random.rand(1) * 0.8, y[i] + np.random.rand(1) * 0.5))
+    ax.annotate(txt, (x[i], y[i] + 0.3 * np.random.rand()), ha='center')#(x[i] - np.random.rand(1) * 0.8, y[i] + np.random.rand(1) * 0.5))
 
 plt.savefig('figures/medical_embeddings.pdf')
 plt.show()
+# %%
+unseen_datasets
+# %%
