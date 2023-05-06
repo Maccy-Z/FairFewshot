@@ -79,4 +79,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        save_batch(f, num_batches=num_bs, num_targets=num_targs)
+        main(f, num_targets=num_targs)
