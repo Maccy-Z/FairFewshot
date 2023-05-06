@@ -31,8 +31,6 @@ baseline_models = [m for m in models if m not in flat_models]
 model_order = flat_models + baseline_models
 
 agg_results_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
-
-#%%
 agg_results_df = agg_results_df.droplevel(0, axis=1)
 agg_results_df = agg_results_df.loc[:, model_order] * 100
 agg_results_df['FLAT_maml_diff'] = agg_results_df['FLAT_maml'] - agg_results_df.loc[:, baseline_models].max(axis=1)
