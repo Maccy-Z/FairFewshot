@@ -532,9 +532,9 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
     models = [FLAT(num) for num in load_no] + \
              [FLAT_MAML(num) for num in load_no] + \
               [
-              BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              TabnetModel(),
-              FTTrModel(),
+              # BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+              # TabnetModel(),
+              # FTTrModel(),
               # STUNT(),
               ]
 
@@ -627,5 +627,5 @@ if __name__ == "__main__":
 
     for num_row in [1, 3, 5, 10]:
         for i in range(10):
-            load_no_ls = [3 * i + j for j in range(3)]
+            load_no_ls = [30 + 3 * i + j for j in range(3)]
             main(load_no=load_no_ls, num_rows=num_row, save_tag=f'{i}_fold_{num_row}_rows')
