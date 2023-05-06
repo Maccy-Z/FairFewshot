@@ -57,7 +57,7 @@ def main(f, num_targets):
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/baselines.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{f}/baselines.dat', 'r+', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
