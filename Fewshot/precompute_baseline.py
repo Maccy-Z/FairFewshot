@@ -74,6 +74,16 @@ if __name__ == "__main__":
     num_targs = 5
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    files = [
+            'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
+            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
+            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
+            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
+            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic', 
+            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
+            'statlog-heart', 'thyroid', 'vertebral-column-2clases'
+        ]
 
     for f in files:
         print("---------------------")
