@@ -4,16 +4,18 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-num_rows = [1, 2, 3, 5, 6, 10, 15] 
+num_rows = [2, 6, 10] 
+# num_rows = [1, 3, 5, 10, 15]
 # get FLAT results
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
     for i in range(10):
-        df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
+        df = pd.read_pickle(f'./results/kshot_results/results_{num_row}_rows/result_kshot_{i}_fold_{num_row}_rows/raw.pkl')
+        # df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
 flat_results_df
-
+#%%
 # get baseline results
 data_names = flat_results_df.data_name.unique()
 base_results_df = pd.DataFrame()
