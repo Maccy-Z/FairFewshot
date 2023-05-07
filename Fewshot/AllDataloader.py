@@ -118,7 +118,7 @@ class MyDataSet:
                 print("WARN: Discarding dataset due to lack of labels", self.ds_name)
                 self.ds_rows = 0
         else:
-
+            assert False
             # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
             row_probs = np.ones(self.ds_rows)
 
