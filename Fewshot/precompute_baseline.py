@@ -1,10 +1,11 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel, get_batch
+from comparison2 import TabnetModel, FTTrModel, BasicModel
 from AllDataloader import SplitDataloader
-from utils import load_batch
+from utils import load_batch, get_batch
 import pickle
 import os
 import csv
+
 data_dir = './datasets/data'
 
 # Get batch and save to disk. All columns.
@@ -38,7 +39,7 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
                 pickle.dump(None, f)
 
 
-def main(f, num_targets):
+def main(f, num_targets, batch_tag=None):
     models = [
               BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
               TabnetModel(),
@@ -48,19 +49,30 @@ def main(f, num_targets):
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
-        for num_rows in [5, 10, 15]:
-            print(model, num_rows)
+        for num_rows in [2]:
             for num_cols in [-3,]:
                 try:
-                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+                    batch = load_batch(
+                        ds_name=f, 
+                        num_rows=num_rows,
+                        num_cols=-3, 
+                        num_targets=num_targets,
+                        tag=batch_tag
+                    )
                 except IndexError as e:
                     break
                 mean_acc, std_acc = model.get_accuracy(batch)
+                print(f, num_rows, model, np.round(mean_acc, 2) * 100)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/baselines.dat', 'a+', newline='') as f:
+    
+    if batch_tag:
+        file_path = f'{data_dir}/{f}/baselines_{batch_tag}.dat'
+    else:
+        file_path = f'{data_dir}/{f}/baselines.dat'
+    with open(file_path, 'a+', newline='') as f:
         writer = csv.writer(f)
-        #writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+        writer.writerow(["model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
@@ -90,4 +102,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        save_batch(f, num_batches=num_bs, num_targets=num_targs, tag='kshot')
+        main(f, num_targets=num_targs, batch_tag='kshot')
