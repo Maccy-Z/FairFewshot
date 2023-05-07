@@ -3,7 +3,7 @@ import os
 import torch
 import torch.optim as optim
 
-from utils import load_checkpoint
+from Fewshot.utils import load_checkpoint
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

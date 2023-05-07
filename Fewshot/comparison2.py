@@ -18,30 +18,13 @@ from sklearn.ensemble import RandomForestClassifier
 from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
+from utils import load_batch
 
-import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-#from STUNT_interface import STUNT_utils, MLPProto
-
+# import sys
+# sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+# from STUNT_interface import STUNT_utils, MLPProto
+ 
 BASEDIR = '.'
-
-
-def get_batch(dl, num_rows):
-    xs, ys, model_id = next(iter(dl))
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-
-    return xs_meta, xs_target, ys_meta, ys_target
-
-def load_batch(ds_name, num_rows, num_targets, num_cols):
-    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
-        batch = pickle.load(f)
-
-    if batch is None:
-        raise IndexError(f"Batch not found for file {ds_name}")
-    return batch
 
 
 class Model(ABC):
@@ -354,7 +337,9 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
+def get_results_by_dataset(
+        test_data_names, models, num_rows=10, num_targets=5, 
+        num_samples=3, agg=False, binarise=True, batch_tag=None):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -366,7 +351,13 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+            batch = load_batch(
+                ds_name=data_name, 
+                num_rows=num_rows, 
+                num_cols=-3, 
+                num_targets=num_targets,
+                tag=batch_tag
+            )
         except IndexError as e :
             print(e)
             continue
@@ -406,7 +397,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows, save_ep=None, save_tag=None):
+def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -468,7 +459,6 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
     else:
         raise Exception("Invalid data split")
 
-    num_targets = 5
     binarise = cfg["binarise"]
 
     models = [FLAT(num) for num in load_no] + \
@@ -481,8 +471,8 @@ def main(load_no, num_rows, save_ep=None, save_tag=None):
               ]
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, binarise=binarise
+        test_data_names, models, binarise=binarise,
+        num_rows=num_rows, num_targets=num_targets, batch_tag=batch_tag,
     )
 
     # Results for each dataset
@@ -566,7 +556,15 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [15]:
+    for num_row in [2, 6, 10]:
         for i in range(10):
-            load_no_ls = [30 + 3 * i + j for j in range(3)]
-            main(load_no=load_no_ls, num_rows=num_row, save_tag=f'{i}_fold_{num_row}_rows')
+            load_no_ls = [3 * i + j for j in range(3)]
+            batch_tag = 'kshot'
+            save_tag = f'{batch_tag}_{i}_fold_{num_row}_rows'
+            main(
+                load_no=load_no_ls, 
+                num_rows=num_row,
+                num_targets=6, 
+                batch_tag=batch_tag, 
+                save_tag=save_tag,
+            )

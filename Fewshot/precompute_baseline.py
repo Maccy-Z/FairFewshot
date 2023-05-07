@@ -1,43 +1,44 @@
 import torch
 from comparison2 import TabnetModel, FTTrModel, BasicModel, get_batch
 from AllDataloader import SplitDataloader
+from utils import load_batch
 import pickle
 import os
 import csv
 data_dir = './datasets/data'
 
-
-def load_batch(ds_name, num_rows, num_targets, num_cols):
-    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
-        batch = pickle.load(f)
-
-    if batch is None:
-        raise IndexError(f"Batch not found for file {ds_name}")
-    return batch
-
-
 # Get batch and save to disk. All columns.
-def save_batch(ds_name, num_batches, num_targets):
+def save_batch(ds_name, num_batches, num_targets, tag=None):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [1, 2, 3, 5, 6, 10, 15]:
+    for num_rows in [2, 6, 10]:
         try:
-            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=True)
+            dl = SplitDataloader(
+                ds_group=ds_name, 
+                bs=num_batches, 
+                num_rows=num_rows, 
+                num_targets=num_targets, 
+                num_cols=-3, 
+                binarise=True,
+                num_1s={'meta': num_rows // 2, 'target': num_targets // 2}
+            )
             batch = get_batch(dl, num_rows=num_rows)
 
             # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}", "wb") as f:
+            file_name = f'{num_rows}_{num_targets}_{-3}'
+            if tag:
+                file_name += f'_{tag}'
+            with open(f"{data_dir}/{ds_name}/batches/{file_name}", "wb") as f:
                 pickle.dump(batch, f)
 
 
         except IndexError as e:
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/{file_name}", "wb") as f:
                 pickle.dump(None, f)
 
 
 def main(f, num_targets):
-
     models = [
               BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
               TabnetModel(),
@@ -70,10 +71,10 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 200
-    num_targs = 5
+    num_bs = 167
+    num_targs = 6
 
-    files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
     files = [
             'acute-inflammation', 'acute-nephritis', 'arrhythmia',
             'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
@@ -89,4 +90,4 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        main(f, num_targets=num_targs)
+        save_batch(f, num_batches=num_bs, num_targets=num_targs, tag='kshot')

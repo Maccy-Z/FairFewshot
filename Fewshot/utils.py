@@ -1,9 +1,32 @@
 import os
 import torch
-from Fewshot.main import *
-from Fewshot.AllDataloader import MyDataSet
+import pickle
+from main import *
 
-BASEDIR = '/Users/kasiakobalczyk/FairFewshot'
+from AllDataloader import MyDataSet
+
+BASEDIR = '.'
+DATADIR = f'{BASEDIR}/datasets/data'
+
+def get_batch(dl, num_rows):
+    xs, ys, model_id = next(iter(dl))
+    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+
+    return xs_meta, xs_target, ys_meta, ys_target
+
+def load_batch(ds_name, num_rows, num_targets, num_cols, tag):
+    file_name = f'{num_rows}_{num_targets}_{-3}'
+    if tag:
+        file_name += f'_{tag}'
+    with open(f"{DATADIR}/{ds_name}/batches/{file_name}", "rb")  as f:
+        batch = pickle.load(f)
+
+    if batch is None:
+        raise IndexError(f"Batch not found for file {ds_name}")
+    return batch
 
 def get_num_rows_cols():
     all_data_names = os.listdir(f'{BASEDIR}/datasets/data')

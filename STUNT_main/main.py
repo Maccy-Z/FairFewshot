@@ -9,7 +9,7 @@ from common.utils import get_optimizer, load_model
 from data.dataset import get_meta_dataset
 from models.model import get_model
 from train.trainer import meta_trainer
-from utils import Logger, set_random_seed, cycle
+from Fewshot.utils import Logger, set_random_seed, cycle
 
 
 def main(rank, P):

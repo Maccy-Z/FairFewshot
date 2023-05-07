@@ -1,7 +1,7 @@
 import torch
 from torchmeta.utils.prototype import get_prototypes
 from train.metric_based import get_accuracy
-from utils import MetricLogger
+from Fewshot.utils import MetricLogger
 import numpy as np
 import argparse
 import torch

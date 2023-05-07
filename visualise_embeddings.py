@@ -17,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot/Fewshot')
 from Fewshot.main import *
 from Fewshot.AllDataloader import SplitDataloader
-from utils import get_batch, load_model, get_num_rows_cols
+from Fewshot.utils import get_batch, load_model, get_num_rows_cols
 
 np.random.seed(0)
 random.seed(0)

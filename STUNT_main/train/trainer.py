@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from common.utils import is_resume
-from utils import MetricLogger, save_checkpoint, save_checkpoint_step
+from Fewshot.utils import MetricLogger, save_checkpoint, save_checkpoint_step
 from train.metric_based.protonet import protonet_step
 
 

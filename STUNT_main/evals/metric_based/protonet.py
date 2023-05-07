@@ -3,7 +3,7 @@ import torch
 from torchmeta.utils.prototype import get_prototypes
 
 from train.metric_based import get_accuracy
-from utils import MetricLogger
+from Fewshot.utils import MetricLogger
 import torch.nn.functional as F
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
