@@ -49,7 +49,7 @@ def main(f, num_targets, batch_tag=None):
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
-        for num_rows in [2]:
+        for num_rows in [2, 6, 10]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(
