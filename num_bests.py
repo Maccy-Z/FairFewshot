@@ -1,7 +1,7 @@
 import pickle
 from Fewshot.comparison_base2 import main as baselines
 
-with open(f'/mnt/storage_ssd/FairFewshot/Results/7/raw.pkl', "rb") as f:
+with open(f'/mnt/storage_ssd/FairFewshot/Results/24/raw.pkl', "rb") as f:
     flat_results = pickle.load(f)
 
 flat_results = flat_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
@@ -17,7 +17,7 @@ for col in wanted_columns:
     best_flat[col] = ds_results.iloc[0].tolist()
 
 
-baseline_results = baselines(num_rows=5)
+baseline_results = baselines(num_rows=3)
 baseline_results.columns = baseline_results.columns.droplevel(0)
 
 
