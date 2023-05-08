@@ -21,7 +21,7 @@ class Model(ABC):
 
 
     def get_accuracy(self, ds_name, num_rows, num_cols):
-        with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
+        with open(f'./datasets/data/{ds_name}/base_fix_num_1s.dat', "r") as f:
             lines = f.read()
 
         lines = lines.split("\n")[1:]

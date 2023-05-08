@@ -557,4 +557,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[0,1,2,3,4,5], num_rows=10, num_1s=5)
+    col_accs = main(load_no=[11,12,13,14,15], num_rows=10, num_1s=5)
