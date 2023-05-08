@@ -147,18 +147,18 @@ class MyDataSet:
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
         if self.binarise:
             # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
-            # TODO: This also allows for fixing number of meta / target easily.
             if isinstance(num_1s, dict):
                 meta_1s = num_1s['meta']
-                target_1s = num_1s['target']
+                meta_1s = np.random.choice([meta_1s, self.num_rows - meta_1s], size=1)
             elif num_1s is None:
                 if self.num_rows == 1:
                     meta_1s = np.random.binomial(1, 0.5)
                 else:
                     meta_1s = min(max(np.random.binomial(self.num_rows, 0.5), 1), self.num_rows - 1)
-                target_1s = np.random.binomial(self.num_targets, 0.5)
             else:
                 TypeError("num_1s must be either None or a dictionary")
+
+            target_1s = np.random.binomial(self.num_targets, 0.5)
 
             meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
 
@@ -181,6 +181,7 @@ class MyDataSet:
             select_data = torch.cat([meta_rows, targ_rows])
 
         else:
+            assert False
             rows = np.random.choice(
                 self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
             select_data = self.data[rows]

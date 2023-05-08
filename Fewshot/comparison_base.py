@@ -1,8 +1,4 @@
-import torch
 from main import *
-from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
-from config import get_config
 import time, os, toml, random, pickle, warnings
 import numpy as np
 from scipy import stats
@@ -11,20 +7,11 @@ import pandas as pd
 from collections import defaultdict
 
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier as KNN
-from sklearn.ensemble import RandomForestClassifier
-from pytorch_tabnet.tab_model import TabNetClassifier
-from catboost import CatBoostClassifier, CatboostError
-from tab_transformer_pytorch import FTTransformer
-
 import sys
 sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 #from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
-
 
 
 class Model(ABC):
@@ -51,58 +38,6 @@ class Model(ABC):
 
     def __repr__(self):
         return self.model_name
-
-# class STUNT(STUNT_utils, Model):
-#     model: torch.nn.Module
-
-#     def __init__(self):
-#         self.lr = 0.0001
-#         self.model_size = (256, 256) # num_cols, out_dim, hid_dim
-#         self.steps =0
-#         self.shot = 4
-#         self.tasks_per_batch = 4
-#         self.test_num_way = 2
-#         self.query = 1
-#         self.kmeans_iter = 5
-
-
-#     def fit(self, xs_meta, ys_meta):
-#         ys_meta = ys_meta.flatten()
-#         # Reset the model
-#         self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
-#         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-#         with warnings.catch_warnings():
-#             # warnings.simplefilter("ignore")
-#             for _ in range(self.steps):
-#                 try:
-#                     train_batch = self.get_batch(xs_meta.clone())
-#                     self.protonet_step(train_batch)
-#                 except AttributeError as e:
-#                     pass
-
-#         with torch.no_grad():
-#             meta_embed = self.model(xs_meta)
-#         self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
-
-
-#     def get_acc(self, xs_target, ys_target):
-#         self.model.eval()
-#         with torch.no_grad():
-#             support_target = self.model(xs_target)
-
-#         self.prototypes = self.prototypes[0]
-#         support_target = support_target.unsqueeze(1)
-
-
-#         sq_distances = torch.sum((self.prototypes
-#                                   - support_target) ** 2, dim=-1)
-
-#         # print(sq_distances.shape)
-#         _, preds = torch.min(sq_distances, dim=-1)
-
-#         # print(preds.numpy(), ys_target.numpy())
-#         return (preds == ys_target).numpy()
-
 
 
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
@@ -164,6 +99,7 @@ def main(load_no, num_rows, save_ep=None):
     ds_group = cfg["ds_group"]
 
     if ds == "my_split":
+        exit(2)
         split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
         with open(split_file) as f:
             split = toml.load(f)
@@ -174,8 +110,7 @@ def main(load_no, num_rows, save_ep=None):
         print("Test datasets:", test_data_names)
 
     elif ds == "total":
-
-        ds_group = [3, -1]
+        ds_group = save_ep
         fold_no, split_no = ds_group
 
         splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
@@ -274,4 +209,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[-1, -2, -3, -4, -5], num_rows=15)
+    col_accs = main(load_no=[-1, -2, -3, -4, -5], num_rows=3, save_ep=[3, -1])

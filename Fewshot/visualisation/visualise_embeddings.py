@@ -82,7 +82,7 @@ for d in datanames:
     try:
         dl = SplitDataloader(
                 bs=1, num_rows=15, num_targets=0,
-                num_cols=[n_col - 1, n_col], ds_group=[d],
+                num_cols=[n_col - 1, n_col], ds_group=[d], binarise=True
         )
     except IndexError as e:
         print(e)
@@ -111,17 +111,17 @@ reduced_embeddings_df = pd.DataFrame({
 })
 plot_df = reduced_embeddings_df
 
-# #%%
-# # All unseen datasets
-# sns.scatterplot(
-#     plot_df[plot_df.model_id.isin(unseen_data_names)],
-#     x='dim_1', y='dim_2', hue='model_id')
+#%%
+# All unseen datasets
+sns.scatterplot(
+    plot_df[plot_df.model_id.isin(unseen_data_names)],
+    x='dim_1', y='dim_2', hue='model_id')
 
-# # %%
-# # All seen datasets
-# sns.scatterplot(
-#     plot_df[plot_df.model_id.isin(seen_data_names)],
-#       x='dim_1', y='dim_2', hue='model_id', legend=False)
+# %%
+# All seen datasets
+sns.scatterplot(
+    plot_df[plot_df.model_id.isin(seen_data_names)],
+      x='dim_1', y='dim_2', hue='model_id', legend=False)
 
 # %%
 # Average embeddings

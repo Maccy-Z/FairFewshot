@@ -27,9 +27,14 @@ BASEDIR = '.'
 
 
 
-def load_batch(ds_name, num_rows, num_targets, num_cols):
-    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
-        batch = pickle.load(f)
+def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
+    if num_1s is None:
+        exit(2)
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+            batch = pickle.load(f)
+    else:
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
+            batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -346,7 +351,7 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
+def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_1s=None):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -358,7 +363,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
         except IndexError as e :
             print(e)
             continue
@@ -395,7 +400,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows):
+def main(load_no, num_rows, num_1s=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -466,7 +471,7 @@ def main(load_no, num_rows):
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, binarise=binarise
+        num_rows=num_rows, num_targets=num_targets, num_1s=num_1s
     )
 
 
@@ -552,4 +557,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[-1, -2, -3], num_rows=10)
+    col_accs = main(load_no=[0,1,2,3,4,5], num_rows=10, num_1s=5)
