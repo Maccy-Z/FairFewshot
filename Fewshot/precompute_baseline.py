@@ -7,9 +7,14 @@ import csv
 data_dir = './datasets/data'
 
 
-def load_batch(ds_name, num_rows, num_targets, num_cols):
-    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
-        batch = pickle.load(f)
+def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
+    if num_1s is None:
+        exit(2)
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+            batch = pickle.load(f)
+    else:
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
+            batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -30,21 +35,21 @@ def save_batch(ds_name, num_batches, num_targets):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    num_pos = 4
+    num_1s = 4
 
     for num_rows in [10]:
         try:
-            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, num_1s={"meta": num_pos}, binarise=True)
+            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, num_1s={"meta": num_1s}, binarise=True)
             batch = get_batch(dl, num_rows=num_rows)
 
             # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_pos}", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
                 pickle.dump(batch, f)
 
 
         except IndexError as e:
             print(e)
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_pos}", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
                 pickle.dump(None, f)
 
 
@@ -75,11 +80,11 @@ def main_append(f, num_targets):
             writer.writerow(row)
 
 
-def main(f, num_targets):
+def main(f, num_targets, num_1s="a"):
 
     models = [
               BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              TabnetModel(),
+              # TabnetModel(),
               FTTrModel(),
               ]
 
@@ -87,16 +92,17 @@ def main(f, num_targets):
 
     for model in models:
         print(model)
-        for num_rows in [5, 10, 15]:
+        for num_rows in [10]:
             for num_cols in [-3,]:
                 try:
-                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
                 except IndexError as e:
+                    print(e)
                     break
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/baselines.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{f}/base_fix_num_1s.dat', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
@@ -113,10 +119,11 @@ if __name__ == "__main__":
     num_targs = 5
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    for n_1 in [5, 3, 1, 4, 2]:
+        for f in files:
+            print("---------------------")
+            print(f'{f = }, {n_1 = }')
+            # save_batch(f, num_bs, num_targs)
 
-    for f in files:
-        print("---------------------")
-        print(f)
-        save_batch(f, num_bs, num_targs)
-
-        # main_append(f, num_targets=num_targs)
+            # main_append(f, num_targets=num_targs)
+            main(f, num_targets=num_targs, num_1s=n_1)
