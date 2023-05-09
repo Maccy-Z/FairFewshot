@@ -88,7 +88,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10,):
 
 def main(num_rows):
 
-    ds_dir = "/mnt/storage_ssd/FairFewshot/datasets/data"
+    ds_dir = "./datasets/data"
     test_data_names = [f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')]
 
     #print("Test datasets:", test_data_names)

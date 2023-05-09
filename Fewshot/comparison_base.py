@@ -20,19 +20,32 @@ class Model(ABC):
         self.model_name = model_name
 
 
-    def get_accuracy(self, ds_name, num_rows, num_cols):
-        with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
-            lines = f.read()
+    def get_accuracy(self, ds_name, num_rows, num_cols, num_1s=None):
+        if num_1s is None:
+            with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
+                lines = f.read()
 
-        lines = lines.split("\n")[1:]
+            lines = lines.split("\n")[1:]
 
-        for config in lines:
-            if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
-                config = config.split(",")
+            for config in lines:
+                if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
+                    config = config.split(",")
 
-                mean, std = float(config[-2]), float(config[-1])
-                return mean, std
+                    mean, std = float(config[-2]), float(config[-1])
+                    return mean, std
 
+        else:
+            with open(f'./datasets/data/{ds_name}/base_fix_num_1s.dat', "r") as f:
+                lines = f.read()
+
+            lines = lines.split("\n")[1:]
+
+            for config in lines:
+                if config.startswith(f'{self.model_name},{num_rows},{num_cols},{num_1s}'):
+                    config = config.split(",")
+
+                    mean, std = float(config[-2]), float(config[-1])
+                    return mean, std
 
         raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
 
@@ -40,7 +53,7 @@ class Model(ABC):
         return self.model_name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_samples=3, agg=False, binarise=True):
+def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -53,7 +66,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         model_acc_std = defaultdict(list)
         for model in models:
             try:
-                mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3)
+                mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3, num_1s=num_1s)
             except FileNotFoundError as e:
                 print(e)
                 continue
@@ -86,7 +99,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows, save_ep=None):
+def main(load_no, num_rows, save_ep=None, num_1s=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -139,12 +152,12 @@ def main(load_no, num_rows, save_ep=None):
     num_targets = 5
     binarise = cfg["binarise"]
 
-    models = [Model("LR"), Model("CatBoost"), Model("R_Forest"),  Model("KNN"), Model("TabNet"), Model("FTTransformer")
+    models = [Model("LR"), Model("CatBoost"), Model("R_Forest"),  Model("KNN"),Model("FTTransformer") , # Model("TabNet"),
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, binarise=binarise
+        num_rows=num_rows, num_1s=num_1s
     )
 
 
@@ -209,4 +222,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[-1, -2, -3, -4, -5], num_rows=3, save_ep=[3, -1])
+    col_accs = main(load_no=[10,11,12,13,14], num_rows=10, save_ep=[2, -1], num_1s=1)

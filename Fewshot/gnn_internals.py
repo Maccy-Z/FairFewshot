@@ -1,14 +1,19 @@
 # Visualising the internal state of the model. Save states in custom model.
 import os
 import sys
-sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
+sys.path.append("/mnt/storage_ssd/FairFewshot")
 
 import torch
-from Fewshot.AllDataloader import SingleDataloader
+from Fewshot.AllDataloader import SplitDataloader
+from dataloader import d2v_pairer
 import toml
-from Fewshot.main import *
+from Fewshot.main import GATConvFunc, ModelHolder, get_config
 import networkx as nx
 from matplotlib import pyplot as plt
+import torch.nn as nn
+import numpy as np
+import torch.nn.functional as F
+
 
 class GNN2(nn.Module):
     def __init__(self, device="cpu"):
@@ -110,8 +115,8 @@ class Fewshot:
 
 
 def get_batch(dl, num_rows):
-
-    xs, ys = next(iter(dl))
+    batch = next(iter(dl))
+    xs, ys, _ = batch
 
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
@@ -122,7 +127,7 @@ def get_batch(dl, num_rows):
     return xs_meta, xs_target, ys_meta, ys_target
 
 
-def main(save_no, ds_group=-1, ds_name="adult"):
+def main(save_no, ds_name="adult"):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
@@ -134,14 +139,14 @@ def main(save_no, ds_group=-1, ds_name="adult"):
     cfg = toml.load(os.path.join(save_dir, './defaults.toml'))["DL_params"]
 
 
-    num_rows = 100  # cfg["num_rows"]
+    num_rows = 50 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
     # ds_group = 2 # cfg["ds_group"]
 
     model = Fewshot(save_dir)
 
-    val_dl = SingleDataloader(ds_name=ds_name, bs=1, num_rows=num_rows, num_targets=1,
-                             num_cols=-1, ds_group=ds_group, split="val")
+    val_dl = SplitDataloader(ds_group=ds_name, bs=1, num_rows=num_rows, num_targets=1, binarise=True,
+                             num_cols=-3)
 
     save_alphas = [[], []]
     for j in range(1):
@@ -155,28 +160,36 @@ def main(save_no, ds_group=-1, ds_name="adult"):
 
     for alpha in save_alphas:
         alpha = torch.stack(alpha)
-        # print(alpha[0])
+        num_alphas = np.sqrt(alpha.shape[1])
 
         a_std, a_mean = torch.std_mean(alpha, dim=0)
-        a_mean = a_mean[:, 0]#torch.mean(alpha, dim=-1)
-        a_mean = 60 * (a_mean) #   - torch.mean(a_mean))
+        a_mean = a_mean[:, 0] #  torch.mean(alpha, dim=-1)
+        a_mean = 20 * (a_mean)  # - torch.mean(a_mean)
         edge_matrix = model.model.gnn_model.GATConv.edge_index.T.numpy()
 
         G = nx.from_edgelist(edge_matrix)
 
-        labels = ["Age", "WorkClass", "fnlwgt", "Edu", "Edu-num", "Marital", "Occupation", "Relation",
-                  "Race", "Sex", "Cap-gain", "Cap-loss", "Hr/Wk", "NativeCont"]
+        # labels = ["Age", "WorkClass", "fnlwgt", "Edu", "Edu-num", "Marital", "Occupation", "Relation",
+        #           "Race", "Sex", "Cap-gain", "Cap-loss", "Hr/Wk", "NativeCont"]
+
+        print(num_alphas)
+        labels = ["Temp", "Nausea", "Lumbar pain", "Urine", "Micturition", "Urethra"]
+        assert len(labels) == num_alphas
+
+
         node_labels = {node: labels[node] for node in G.nodes()}
         plt.figure(figsize=(12, 12))
 
         pos = nx.circular_layout(G)
+        print(pos)
+
         nx.draw_networkx_nodes(G, pos)
         nx.draw_networkx_edges(G, pos, edgelist=edge_matrix, width=a_mean)
-        nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=18, font_color="red")
-        plt.axis("off")
+        nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=25, font_color="orange", verticalalignment="top")
+        #plt.axis("off")
         plt.show()
 
-        # exit(4)
+        exit(4)
 
     return weight_list
 
@@ -195,15 +208,16 @@ if __name__ == "__main__":
 
     save_weights = {}
 
-    files = ["adult"]
-    for ds_file in files:
-        print()
-        print(ds_file)
-        try:
-            w_l = main(save_no=-1, ds_group=-1, ds_name=ds_file)
-            save_weights[ds_file] = w_l
-        except ValueError as e:
-            print(e)
+
+    ds_file = ["acute-inflammation"]
+    print()
+    print(ds_file)
+    try:
+        w_l = main(save_no=10,  ds_name=ds_file)
+        save_weights[ds_file] = w_l
+    except RuntimeError as e:
+        print(e)
+        exit(2)
 
     # with open("./saves/aaab_1/weights", "wb") as f:
     #     pickle.dump(save_weights, f)
