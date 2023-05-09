@@ -88,7 +88,7 @@ def main(f, num_targets, num_1s="a"):
               FTTrModel(),
               ]
 
-    model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
+    model_accs = [] # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
 
     for model in models:
         print(model)
@@ -100,9 +100,9 @@ def main(f, num_targets, num_1s="a"):
                     print(e)
                     break
                 mean_acc, std_acc = model.get_accuracy(batch)
-                model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
+                model_accs.append([model, num_rows, num_cols, num_1s, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/base_fix_num_1s.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{f}/base_fix_num_1s.dat', 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
