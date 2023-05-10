@@ -21,15 +21,13 @@ from tab_transformer_pytorch import FTTransformer
 
 import sys
 sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-#from STUNT_interface import STUNT_utils, MLPProto
+from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
 
-
 def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
     if num_1s is None:
-        exit(2)
         with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
             batch = pickle.load(f)
     else:
@@ -69,56 +67,57 @@ class Model(ABC):
         pass
 
 
-# class STUNT(STUNT_utils, Model):
-#     model: torch.nn.Module
+class STUNT(STUNT_utils, Model):
+    model: torch.nn.Module
 
-#     def __init__(self):
-#         self.lr = 0.0001
-#         self.model_size = (256, 256) # num_cols, out_dim, hid_dim
-#         self.steps =0
-#         self.shot = 4
-#         self.tasks_per_batch = 4
-#         self.test_num_way = 2
-#         self.query = 1
-#         self.kmeans_iter = 5
+    def __init__(self):
+        self.lr = 0.0001
+        self.model_size = (1024, 1024) # num_cols, out_dim, hid_dim
+        self.steps = 5
+        self.tasks_per_batch = 4
+        self.test_num_way = 2
+        self.query = 1
+        self.kmeans_iter = 5
 
+    def fit(self, xs_meta, ys_meta):
+        self.shot = (xs_meta.shape[0] -2)//2
+        ys_meta = ys_meta.flatten().long()
 
-#     def fit(self, xs_meta, ys_meta):
-#         ys_meta = ys_meta.flatten()
-#         # Reset the model
-#         self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
-#         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-#         with warnings.catch_warnings():
-#             # warnings.simplefilter("ignore")
-#             for _ in range(self.steps):
-#                 try:
-#                     train_batch = self.get_batch(xs_meta.clone())
-#                     self.protonet_step(train_batch)
-#                 except AttributeError as e:
-#                     pass
+        # Reset the model
+        self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
+        self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        with warnings.catch_warnings():
+            # warnings.simplefilter("ignore")
+            for _ in range(self.steps):
+                try:
+                    train_batch = self.get_batch(xs_meta.clone())
+                    self.protonet_step(train_batch)
+                except NameError as e:
+                    pass
 
-#         with torch.no_grad():
-#             meta_embed = self.model(xs_meta)
-#         self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
+        with torch.no_grad():
+            meta_embed = self.model(xs_meta)
 
-
-#     def get_acc(self, xs_target, ys_target):
-#         self.model.eval()
-#         with torch.no_grad():
-#             support_target = self.model(xs_target)
-
-#         self.prototypes = self.prototypes[0]
-#         support_target = support_target.unsqueeze(1)
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
 
 
-#         sq_distances = torch.sum((self.prototypes
-#                                   - support_target) ** 2, dim=-1)
+    def get_acc(self, xs_target, ys_target):
+        self.model.eval()
+        with torch.no_grad():
+            support_target = self.model(xs_target)
 
-#         # print(sq_distances.shape)
-#         _, preds = torch.min(sq_distances, dim=-1)
+        self.prototypes = self.prototypes[0]
+        support_target = support_target.unsqueeze(1)
 
-#         # print(preds.numpy(), ys_target.numpy())
-#         return (preds == ys_target).numpy()
+
+        sq_distances = torch.sum((self.prototypes
+                                  - support_target) ** 2, dim=-1)
+
+        # print(sq_distances.shape)
+        _, preds = torch.min(sq_distances, dim=-1)
+
+        # print(preds.numpy(), ys_target.numpy())
+        return (preds == ys_target).numpy()
 
 
 class TabnetModel(Model):
@@ -422,6 +421,8 @@ def main(load_no, num_rows, num_1s=None):
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
+    print()
+    print(ds_group)
 
     if ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
@@ -451,23 +452,23 @@ def main(load_no, num_rows, num_1s=None):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
-        print("Train datases:", train_data_names)
+        # print("Train datases:", train_data_names)
         print("Test datasets:", test_data_names)
 
     else:
         raise Exception("Invalid data split")
 
     num_targets = 5
-    binarise = cfg["binarise"]
 
-    models = [FLAT(num) for num in load_no] + \
-             [FLAT_MAML(num) for num in load_no] + \
-              [
-              BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              # TabnetModel(),
-              # FTTrModel(),
-              # STUNT(),
-              ]
+    models = [STUNT(), BasicModel("LR")]
+    #[FLAT(num) for num in load_no] + \
+             # [FLAT_MAML(num) for num in load_no] + \
+             #  [
+             #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+             #  # TabnetModel(),
+             #  # FTTrModel(),
+             #  # STUNT(),
+             #  ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
@@ -557,4 +558,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[0,1,2,3,4,5], num_rows=10, num_1s=5)
+    col_accs = main(load_no=[10], num_rows=10)

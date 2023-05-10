@@ -17,17 +17,18 @@ def ys_fn(point):
     x, y, = point
 
     label = (x ** 2 + y ** 2) < 100
-    label = x + y < -5000.0
+    label = x + y > -5000.0
     return label
 
 
-def gen_synthetic():
+def gen_synthetic(point):
     # Train/meta data
     # xx, yy = torch.meshgrid(torch.linspace(-1, 1, 4),
     #                         torch.linspace(-1, 1, 4))
     # xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
 
-    xs_meta = torch.tensor([[1., 0]])
+    xs_meta = torch.tensor([point])
+
     #xs_meta += 0.1 * torch.randn_like(xs_meta)
     # xs_meta = torch.tensor([[0., 0.]])
 
@@ -38,10 +39,14 @@ def gen_synthetic():
     # Test/target data
     xx, yy = torch.meshgrid(torch.linspace(-2, 2, 100),
                             torch.linspace(-2, 2, 100))
-
     xs_target = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
-    # ys_target = [ys_fn(point) for point in xs_target]
+
+    # Remove original point
+    # index = torch.all(xs_target == torch.tensor(point), dim=1).nonzero()
+    # xs_target = torch.cat((xs_target[:index], xs_target[index + 1:]))
+
     xs_target = xs_target.view(1, -1, 2)
+
     return xs_meta, ys_meta, xs_target, xx, yy
 
 
@@ -99,17 +104,39 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
 
 
 def main():
-    xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic()
+    # point = [1, 0]
+    # xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic(point)
+    #
+    # print(xs_meta.shape, ys_meta.shape, xs_target.shape)
+    # model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
+    #
+    # target = [-point[0], -point[1]]
+    # # One shot
+    # plt.subplot(1, 2, 1)
+    # plt.title(f'meta: {point}, target: {target}', fontsize=15)
+    # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr',s=200)
+    # plt.scatter(-point[0], -point[1], c="r", marker="x",s=200)
+    #
+    # plt.contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
+    # plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
+
+    xs_meta = torch.tensor([[[0, 0, 0, 0, -1]]])
+    ys_meta = torch.tensor([[1]])
+    xs_target = torch.tensor([[[0, 0, 0, 0, 1], [1., 1., 1, 0, 0]]])
+    print(xs_meta.shape, ys_meta.shape, xs_target.shape)
+
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
+    print(model_preds)
     # Our model
-    plt.subplot(1, 2, 1)
-    plt.title("FLAT", fontsize=15)
-
-    plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr')
-    plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
-    plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
-    plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
+    # plt.subplot(1, 2, 1)
+    # plt.title("FLAT", fontsize=15)
+    #
+    # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr')
+    # plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
+    # plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
 
     # plt.subplot(1, 2, 2)
     # plt.title("FLAT-MAML", fontsize=15)

@@ -74,7 +74,6 @@ class MLPProto(nn.Module):
         return embeddings
 
 
-
 def protonet_step(step, model, optimizer, batch):
 
     train_inputs, train_targets = batch['train']
@@ -95,9 +94,10 @@ def protonet_step(step, model, optimizer, batch):
     loss = F.cross_entropy(-squared_distances, test_targets)
 
     """ outer gradient step """
-    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+    optimizer.zero_grad()
+
 
     acc = get_accuracy(prototypes, test_embeddings, test_targets).item()
     if step % 20 == 0:
@@ -162,9 +162,9 @@ class STUNT_utils:
         loss = F.cross_entropy(-squared_distances, test_targets)
 
         """ outer gradient step """
-        self.optim.zero_grad()
         loss.backward()
         self.optim.step()
+        self.optim.zero_grad()
         _, preds = torch.min(squared_distances, dim=-1)
 
 
@@ -209,7 +209,6 @@ class STUNT_utils:
         n_shot, n_query = self.shot, self.query
         for _ in range(self.tasks_per_batch):
 
-            # min_count = 0
             # Need at least shot + query examples of each class.
             # This might not always be possible, so allow for smaller amounts.
             loop_count = 0
@@ -247,7 +246,7 @@ class STUNT_utils:
 
             # Dataset cannot be split into classes.
             if n_shot == 0 or len(counts) == 1:
-                raise AttributeError("Cannot split dataset")
+                raise NameError("Cannot split dataset")
 
             num_to_permute = x.shape[0]
             for t_idx in task_idx:

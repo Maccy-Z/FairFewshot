@@ -1,5 +1,5 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel
+from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
 from AllDataloader import SplitDataloader
 import pickle
 import os
@@ -9,7 +9,6 @@ data_dir = './datasets/data'
 
 def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
     if num_1s is None:
-        exit(2)
         with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
             batch = pickle.load(f)
     else:
@@ -55,17 +54,14 @@ def save_batch(ds_name, num_batches, num_targets):
 
 def main_append(f, num_targets):
 
-    models = [
-              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              TabnetModel(),
-              FTTrModel(),
+    models = [STUNT()
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
         print(model)
-        for num_rows in [3]:
+        for num_rows in [3,5,10,15]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
@@ -119,11 +115,10 @@ if __name__ == "__main__":
     num_targs = 5
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
-    for n_1 in [5, 3, 1, 4, 2]:
-        for f in files:
-            print("---------------------")
-            print(f'{f = }, {n_1 = }')
-            # save_batch(f, num_bs, num_targs)
+    for f in files:
+        print("---------------------")
+        print(f)
 
-            # main_append(f, num_targets=num_targs)
-            main(f, num_targets=num_targs, num_1s=n_1)
+        #save_batch(f, num_bs, num_targs)
+        main_append(f, num_targets=num_targs)
+        # main(f, num_targets=num_targs)
