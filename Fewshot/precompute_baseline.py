@@ -115,6 +115,7 @@ if __name__ == "__main__":
     num_targs = 5
 
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    for n in [5,4,3,2,1]:
     for f in files:
         print("---------------------")
         print(f)

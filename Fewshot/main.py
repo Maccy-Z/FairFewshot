@@ -339,33 +339,8 @@ class ModelHolder(nn.Module):
 
         load_d2v = cfg["load_d2v"]
         freeze_model = cfg["freeze_d2v"]
-        if load_d2v:
-            print()
-            print("Loading model. Possibly overriding some config options")
-            exit(2)
-            model_load = cfg["model_load"]
-            load = torch.load(f"./dataset2vec/{model_load}")
-            state, params = load["state_dict"], load["params"]
-            set_h_dim, set_out_dim, d2v_layers = params
-            cfg["set_h_dim"] = set_h_dim
-            cfg["set_out_dim"] = set_out_dim
-            cfg["d2v_layers"] = d2v_layers
 
-            model = SetSetModel(cfg=cfg)
-
-            model.load_state_dict(state, strict=False)
-
-            if freeze_model:
-                for fs in model.fs.parameters():
-                    fs.requires_grad = False
-                for gs in model.gs.parameters():
-                    gs.requires_grad = False
-                for hs in model.hs.parameters():
-                    hs.requires_grad = False
-
-            self.d2v_model = model
-        else:
-            self.d2v_model = SetSetModel(cfg=cfg)
+        self.d2v_model = SetSetModel(cfg=cfg)
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
 
@@ -405,17 +380,7 @@ class ModelHolder(nn.Module):
 
     def loss_fn(self, preds, targs):
         cross_entropy = torch.nn.functional.cross_entropy(preds, targs.long())
-
-        kl_div: torch.Tensor = 0
-        if self.reparam_weight:
-            div = 1 + self.embed_lvar - self.embed_means.square() - self.embed_lvar.exp()  # [BS, embed_dim]
-            kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
-
-        if self.reparam_pos_enc:
-            div = 1 + self.pos_lvar - self.pos_means.square() - self.pos_lvar.exp()  # [BS, num_cols, emb_dim]
-            kl_div += torch.mean(-0.5 * torch.sum(div, dim=-1))
-
-        return cross_entropy + kl_div
+        return cross_entropy
 
 
 def main(all_cfgs, device="cpu", nametag=None, train_split=None):

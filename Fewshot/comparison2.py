@@ -225,10 +225,11 @@ class BasicModel(Model):
             case "KNN":
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
-                self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
-                                                loss_function='Logloss', allow_const_label=True, verbose=False)
+                self.model = CatBoostClassifier( allow_const_label=True, verbose=False)
+                    #iterations=20, depth=4, learning_rate=0.5,
+                                                #loss_function='Logloss', allow_const_label=True, verbose=False)
             case "R_Forest":
-                self.model = RandomForestClassifier(n_estimators=30)
+                self.model = RandomForestClassifier()#n_estimators=30)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -460,7 +461,7 @@ def main(load_no, num_rows, num_1s=None):
 
     num_targets = 5
 
-    models = [STUNT(), BasicModel("LR")]
+    models = [BasicModel("R_Forest")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
