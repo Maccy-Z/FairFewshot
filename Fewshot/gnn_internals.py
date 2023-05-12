@@ -1,19 +1,22 @@
 # Visualising the internal state of the model. Save states in custom model.
 import os
 import sys
-sys.path.append("/mnt/storage_ssd/FairFewshot")
+#sys.path.append("/mnt/storage_ssd/FairFewshot")
 
 import torch
-from Fewshot.AllDataloader import SplitDataloader
+from AllDataloader import SplitDataloader
 from dataloader import d2v_pairer
 import toml
-from Fewshot.main import GATConvFunc, ModelHolder, get_config
+from main import GATConvFunc, ModelHolder, get_config
 import networkx as nx
 from matplotlib import pyplot as plt
 import torch.nn as nn
 import numpy as np
+import seaborn as sns
 import torch.nn.functional as F
 
+sns.set_style('white')
+sns.set_palette(sns.husl_palette(n_colors=2))
 
 class GNN2(nn.Module):
     def __init__(self, device="cpu"):
@@ -127,19 +130,88 @@ def get_batch(dl, num_rows):
     return xs_meta, xs_target, ys_meta, ys_target
 
 
-def main(save_no, ds_name="adult"):
+# def main(save_no, ds_name="adult"):
+#     BASEDIR = '.'
+#     dir_path = f'{BASEDIR}/saves'
+#     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+#     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+#     save_no = existing_saves[save_no]
+#     save_dir = f'{BASEDIR}/saves/max_saves/save_{save_no}'
+
+
+#     cfg = toml.load(os.path.join(save_dir, './defaults.toml'))["DL_params"]
+
+
+#     num_rows = 50 # cfg["num_rows"]
+#     num_targets = cfg["num_targets"]
+#     # ds_group = 2 # cfg["ds_group"]
+
+#     model = Fewshot(save_dir)
+
+#     val_dl = SplitDataloader(ds_group=ds_name, bs=1, num_rows=num_rows, num_targets=1, binarise=True,
+#                              num_cols=-3)
+
+#     save_alphas = [[], []]
+#     for j in range(1):
+#         # Fewshot predictions
+#         xs_meta, xs_target, ys_meta, ys_target = get_batch(val_dl, num_rows)
+#         model.fit(xs_meta, ys_meta)
+#         acc, alpha, weight_list = model.get_acc(xs_target, ys_target)
+
+#         for a, save_alpha in enumerate(save_alphas):
+#             save_alphas[a].append(alpha[a].clone())
+
+#     for alpha in save_alphas:
+#         alpha = torch.stack(alpha)
+#         num_alphas = np.sqrt(alpha.shape[1])
+
+#         a_std, a_mean = torch.std_mean(alpha, dim=0)
+#         a_mean = a_mean[:, 0] #  torch.mean(alpha, dim=-1)
+#         a_mean = 20 * (a_mean)  # - torch.mean(a_mean)
+#         edge_matrix = model.model.gnn_model.GATConv.edge_index.T.numpy()
+
+#         G = nx.from_edgelist(edge_matrix)
+
+#         # labels = ["Age", "WorkClass", "fnlwgt", "Edu", "Edu-num", "Marital", "Occupation", "Relation",
+#         #           "Race", "Sex", "Cap-gain", "Cap-loss", "Hr/Wk", "NativeCont"]
+
+#         labels = ["Temp", "Nausea", "Lumbar pain", "Urine", "Micturition", "Urethra"]
+#         assert len(labels) == num_alphas
+
+#         node_labels = {node: labels[node] for node in G.nodes()}
+        
+#         plt.figure(figsize=(5, 12))
+#         pos = nx.circular_layout(G)
+
+#         nx.draw_networkx_nodes(G, pos, node_color=sns.husl_palette(n_colors=2)[1])
+#         nx.draw_networkx_edges(
+#             G, pos, edgelist=edge_matrix, width=a_mean, alpha=0.6)
+#         nx.draw_networkx_labels(
+#             G, pos, labels=node_labels, verticalalignment="top",
+#             bbox={'boxstyle':"round,pad=0.1", 'facecolor': "white", 'edgecolor':'grey'}
+#         )
+#         #plt.axis("off")
+#         plt.savefig('figures/gnn_weights.pdf')
+#         plt.show()
+
+#         exit(4)
+
+#     return weight_list
+
+
+def get_graph(save_no, ds_name, labels):
     BASEDIR = '.'
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     save_no = existing_saves[save_no]
-    save_dir = f'{BASEDIR}/saves/save_{save_no}'
+    save_dir = f'{BASEDIR}/saves/max_saves/save_{save_no}'
 
 
     cfg = toml.load(os.path.join(save_dir, './defaults.toml'))["DL_params"]
 
 
-    num_rows = 50 # cfg["num_rows"]
+    num_rows = 40 # cfg["num_rows"]
     num_targets = cfg["num_targets"]
     # ds_group = 2 # cfg["ds_group"]
 
@@ -158,7 +230,7 @@ def main(save_no, ds_name="adult"):
         for a, save_alpha in enumerate(save_alphas):
             save_alphas[a].append(alpha[a].clone())
 
-    for alpha in save_alphas:
+        alpha = save_alphas[0]
         alpha = torch.stack(alpha)
         num_alphas = np.sqrt(alpha.shape[1])
 
@@ -169,60 +241,75 @@ def main(save_no, ds_name="adult"):
 
         G = nx.from_edgelist(edge_matrix)
 
-        # labels = ["Age", "WorkClass", "fnlwgt", "Edu", "Edu-num", "Marital", "Occupation", "Relation",
-        #           "Race", "Sex", "Cap-gain", "Cap-loss", "Hr/Wk", "NativeCont"]
-
-        print(num_alphas)
-        labels = ["Temp", "Nausea", "Lumbar pain", "Urine", "Micturition", "Urethra"]
         assert len(labels) == num_alphas
 
-
         node_labels = {node: labels[node] for node in G.nodes()}
-        plt.figure(figsize=(12, 12))
 
+    return G, edge_matrix, a_mean, node_labels
+
+def main(save_no, ds_dict):
+    
+    fig, axs = plt.subplots(2, 2, figsize=(9, 10))
+
+    for i, ((ds_name, labels), ax) in enumerate(zip(ds_dict.items(), axs.ravel())):
+        G, edge_matrix, a_mean, node_labels = get_graph(save_no, ds_name, labels)
         pos = nx.circular_layout(G)
-        print(pos)
-
-        nx.draw_networkx_nodes(G, pos)
-        nx.draw_networkx_edges(G, pos, edgelist=edge_matrix, width=a_mean)
-        nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=25, font_color="orange", verticalalignment="top")
-        #plt.axis("off")
-        plt.show()
-
-        exit(4)
-
-    return weight_list
-
-
-
+        ax.set_title(ds_name, fontsize=15)
+        nx.draw_networkx_nodes(G, pos, node_color=sns.husl_palette(n_colors=4)[i], ax=ax)
+        std_a_mean = ((a_mean - min(a_mean)) / (max(a_mean) - min(a_mean)) + 0.4) * 0.4
+        nx.draw_networkx_edges(
+            G, pos, edgelist=edge_matrix, width=a_mean, alpha=std_a_mean, ax=ax)
+        nx.draw_networkx_labels(
+            G, pos, labels=node_labels, verticalalignment="top", ax=ax,
+            bbox={'boxstyle':"round,pad=0.1", 'facecolor': "white", 'edgecolor':'grey'}
+        )
+        ax.set_xlim([-1.5, 1.5])
+        ax.set_ylim([-1.5, 1.5])
+    plt.tight_layout()
+    plt.savefig('figures/gnn_weights.pdf', bbox_inches='tight')
+    plt.show()
 
 if __name__ == "__main__":
     import random
     import pickle
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
+    random.seed(1)
+    np.random.seed(1)
+    torch.manual_seed(1)
     path = "./datasets/data"
     files = [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     print(files)
 
     save_weights = {}
 
+    ds_dict = {
+        'acute-inflammation': [
+            "Temp", "Nausea", "Lumbar pain", "Urine", "Micturition", "Urethra"],
+        'pima': [
+          "#Pregnant", "Glucose", "Blood Preassure", "Skin Thickness", 
+          "Insulin", "BMI", "Diabietes Pedigree", "Age"],
+        'iris': [
+            "Sepal Length", "Sepal Width", "Petal Length", "Petal Width"],
+        'seeds': [
+            "Area", "Perimeter", "Compactness", "Length", 
+            "Width", "Asymmetry", "Groove Length"]
+    }
+    main(save_no=10, ds_dict=ds_dict)
 
-    ds_file = ["acute-inflammation"]
-    print()
-    print(ds_file)
-    try:
-        w_l = main(save_no=10,  ds_name=ds_file)
-        save_weights[ds_file] = w_l
-    except RuntimeError as e:
-        print(e)
-        exit(2)
+    # ds_file = ["acute-inflammation"]
+    # print()
+    # print(ds_file)
+    # try:
+    #     w_l = main(save_no=10,  ds_name=ds_file)
+    #     save_weights[ds_file] = w_l
+    # except RuntimeError as e:
+    #     print(e)
+    #     exit(2)
 
     # with open("./saves/aaab_1/weights", "wb") as f:
     #     pickle.dump(save_weights, f)
     #
     # print(save_weights)
+
 
 
 
