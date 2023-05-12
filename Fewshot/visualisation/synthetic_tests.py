@@ -1,17 +1,27 @@
 # Tests on 2D simple synthetic data
 import sys
-sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
+sys.path.append("/Users/kasiakobalczyk/FairFewshot/Fewshot")
 import torch
-from main import ModelHolder
-from dataloader import d2v_pairer
+import random
+import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+
+from main import ModelHolder
+from dataloader import d2v_pairer
 from config import get_config
 
+sns.set_style('ticks')
+sns.set_palette(sns.husl_palette(n_colors=2))
 
-save_no = 41
+np.random.seed(123)
+torch.manual_seed(123)
+random.seed(123)
 
+# 17
+save_no = 21
 
 def ys_fn(point):
     x, y, = point
@@ -22,15 +32,7 @@ def ys_fn(point):
 
 
 def gen_synthetic(point):
-    # Train/meta data
-    # xx, yy = torch.meshgrid(torch.linspace(-1, 1, 4),
-    #                         torch.linspace(-1, 1, 4))
-    # xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
-
     xs_meta = torch.tensor([point])
-
-    #xs_meta += 0.1 * torch.randn_like(xs_meta)
-    # xs_meta = torch.tensor([[0., 0.]])
 
     ys_meta = torch.stack([ys_fn(point) for point in xs_meta]).long()
     xs_meta = xs_meta.view(1, -1, 2)
@@ -49,6 +51,25 @@ def gen_synthetic(point):
 
     return xs_meta, ys_meta, xs_target, xx, yy
 
+def gen_synthetic_data():
+    # Train/meta data
+    # generate a grid of values
+    xx, yy = torch.meshgrid(torch.linspace(-1, 1, 4),
+                            torch.linspace(-1, 1, 4))
+    # reshape and add Gaussian noise
+    xs_meta = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
+    xs_meta += 0.1 * torch.randn_like(xs_meta)
+    ys_meta = torch.tensor(xs_meta[:, 0] < xs_meta[:, 1]).long()
+    xs_meta = xs_meta.view(1, -1, 2)
+    ys_meta = ys_meta.view(1, -1)
+
+    # Test/target data
+    xx, yy = torch.meshgrid(torch.linspace(-2, 2, 100),
+                            torch.linspace(-2, 2, 100))
+    xs_target = torch.stack([xx.reshape(-1), yy.reshape(-1)], dim=1)
+    xs_target = xs_target.view(1, -1, 2)
+
+    return xs_meta, ys_meta, xs_target, xx, yy
 
 def model_predictions(xs_meta, ys_meta, xs_target):
     BASEDIR = '.'
@@ -103,50 +124,77 @@ def sklearn_pred(xs_meta, ys_meta, xs_target, model):
     return predictions
 
 
-def main():
-    point = [1, 0]
+def plot_boundries(point, target, ax):
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic(point)
 
     print(xs_meta.shape, ys_meta.shape, xs_target.shape)
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
-    target = [-point[0], -point[1]]
     # One shot
-    plt.subplot(1, 2, 1)
-    plt.title(f'meta: {point}, target: {target}', fontsize=15)
-    plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr',s=200)
-    plt.scatter(-point[0], -point[1], c="r", marker="x",s=200)
+    ax.set_title(f'meta: {point}, target: {target}')
+    ax.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], color='C0', s=200)
+    ax.scatter(-point[0], -point[1], marker="x", color = 'C1', s=200)
 
-    plt.contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
-    plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
-    plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
+    ax.contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
+    ax.set_xticks([-2, 0, 2], [-2, 0, 2])
+    ax.set_yticks([-2, 0, 2], [-2, 0, 2])
 
-    # xs_meta = torch.tensor([[[0, 0, 0, 0, -1]]])
-    # ys_meta = torch.tensor([[1]])
-    # xs_target = torch.tensor([[[0, 0, 0, 0, 1], [1., 1., 1, 0, 0]]])
-    # print(xs_meta.shape, ys_meta.shape, xs_target.shape)
-    #
-    # model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
-    #
+
+def main():
+    # Zero - shot predictions
+    points = [[-1, 1], [-1, -1], [1, -1], [1, 1], [0, 0], [1, 0]]
+    targets = [[1, -1], [1 -1], [-1, 1], [-1, -1], [0, 0], [-1, 0]]
+
+    fig, axs = plt.subplots(2, 3, figsize=(8, 6), sharex=True, sharey=True)
+    for point, target, ax in zip(points, targets, axs.ravel()):
+        plot_boundries(point, target, ax)
+    plt.tight_layout()
+    plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
+
+    xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
+    
+    # FLAT vs. FLAT-MAML
+    fig, axs = plt.subplots(2, 1, figsize=(3, 6), sharex=True, sharey=True)
+    model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
+    axs[0].set_title('FLAT')
+    axs[0].scatter(
+        xs_meta[0, :, 0], xs_meta[0, :, 1], 
+        color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
+    )
+    axs[0].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
+
+    model_preds = maml_predcitions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
+    axs[1].set_title('FLAT-MAML')
+    axs[1].scatter(
+        xs_meta[0, :, 0], xs_meta[0, :, 1], 
+        color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
+    )
+    axs[1].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
+    axs[1].set_xticks([-2, 0, 2], [-2, 0, 2])
+    axs[1].set_yticks([-2, 0, 2], [-2, 0, 2])
+
+    fig.tight_layout()
+    fig.savefig('figures/synthetic_data_maml.pdf', bbox_inches='tight')
+    
     # print(model_preds)
-    # Our model
+    # #Our model
     # plt.subplot(1, 2, 1)
     # plt.title("FLAT", fontsize=15)
-    #
+    
     # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr')
-    # plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # #plt.contourf(xx, yy, model_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     # plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
     # plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
 
     # plt.subplot(1, 2, 2)
     # plt.title("FLAT-MAML", fontsize=15)
-    #
+    
     # maml_preds = maml_predcitions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
     # plt.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], c=ys_meta.squeeze(), cmap='bwr')
-    # plt.contourf(xx, yy, maml_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
+    # #plt.contourf(xx, yy, maml_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     # plt.xticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
     # plt.yticks([-2, 0, 2], [-2, 0, 2], fontsize=15)
-
+    # plt.savefig('figures/synthethic_data.pdf')
 
     # # Logistic regression
     # lin_preds = sklearn_pred(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target, model=LogisticRegression(max_iter=1000))
@@ -168,6 +216,7 @@ def main():
 
     fig = plt.gcf()
     fig.set_size_inches(10, 5)
+    plt.savefig('figures/test.pdf')
     plt.show()
 
 
@@ -177,3 +226,5 @@ if __name__ == "__main__":
     np.random.seed(0)
     for _ in range(1):
         main()
+
+# %%
