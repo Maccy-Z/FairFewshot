@@ -3,9 +3,9 @@ import sys
 
 import copy
 import faiss
-from train.metric_based import get_accuracy
+from STUNT_main.train.metric_based import get_accuracy
 import torch.nn.functional as F
-from data.income import Income, Income2
+from STUNT_main.data.income import Income, Income2
 import torch
 import torch.nn as nn
 import numpy as np

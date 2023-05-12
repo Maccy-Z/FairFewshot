@@ -43,9 +43,10 @@ def main(f, num_targets, batch_tag=None):
     models = [
               BasicModel("SVC"), BasicModel("LR") , BasicModel("CatBoost"), 
               BasicModel("R_Forest"),  BasicModel("KNN"),
+              STUNT(),
               TabnetModel(),
               FTTrModel(),
-              ]
+    ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
@@ -89,18 +90,17 @@ if __name__ == "__main__":
     num_targs = 6
 
     # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
-    # files = [
-    #         'acute-inflammation', 'acute-nephritis', 'arrhythmia',
-    #         'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
-    #         'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
-    #         'dermatology', 'echocardiogram', 'fertility', 
-    files = [ 'heart-cleveland', 
+    files = [
+            'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
+            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
+            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
             'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
             'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic', 
             'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
             'statlog-heart', 'thyroid', 'vertebral-column-2clases'
-        ]
-
+    ]
+    print(len(files))
     for f in files:
         print("---------------------")
         print(f)
