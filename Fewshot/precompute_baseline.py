@@ -41,7 +41,8 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
 
 def main(f, num_targets, batch_tag=None):
     models = [
-              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+              BasicModel("SVC"), BasicModel("LR") , BasicModel("CatBoost"), 
+              BasicModel("R_Forest"),  BasicModel("KNN"),
               TabnetModel(),
               FTTrModel(),
               ]

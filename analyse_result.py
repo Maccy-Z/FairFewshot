@@ -19,12 +19,16 @@ for num_row in num_rows:
 data_names = flat_results_df.data_name.unique()
 base_results_df = pd.DataFrame()
 for data_name in data_names:
-    df = pd.read_csv(f'./datasets/data/{data_name}/baselines.dat')
+    df = pd.read_csv(f'./datasets/max_data/{data_name}/baselines.dat', header=None)
     #df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot.dat')
+    df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
+    df = df[df.model != 'Model']
+    df['num_rows'] = df['num_rows'].astype(int)
+    df['acc'] = df['acc'].astype(float)
+    df['std'] = df['std'].astype(float)
     df = df[df.num_rows.isin(num_rows)]
     df['data_name'] = data_name
     base_results_df = pd.concat([base_results_df, df])
-base_results_df.rename({'Model':'model'}, axis=1, inplace=True)
 base_results_df
 
 # combine dataframes
@@ -32,21 +36,22 @@ results_df = pd.concat([flat_results_df, base_results_df])
 
 # aggregate results over all datasets
 models = results_df.model.unique()
-flat_models = ['FLAT_maml', 'FLAT'] 
+flat_models = ['FLAT', 'FLAT_maml']
 baseline_models = [m for m in models if m not in flat_models]
 model_order = baseline_models + flat_models
 
 agg_acc_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
 agg_acc_df = agg_acc_df.droplevel(0, axis=1)
 agg_acc_df = agg_acc_df.loc[:, model_order] * 100
-agg_acc_df['FLAT_maml_diff'] = agg_acc_df['FLAT_maml'] - agg_acc_df.loc[:, baseline_models].max(axis=1)
-agg_acc_df['FLAT_diff'] = agg_acc_df['FLAT'] - agg_acc_df.loc[:, baseline_models].max(axis=1) 
+
+agg_acc_df['FLAT_maml_diff'] = agg_acc_df['FLAT_maml'] - agg_acc_df.loc[:, baseline_models].fillna(0).max(axis=1)
+agg_acc_df['FLAT_diff'] = agg_acc_df['FLAT'] - agg_acc_df.loc[:, baseline_models].fillna(0).max(axis=1) 
 
 agg_std_df = results_df.groupby(['num_rows', 'model'])[['std']].apply(lambda x: np.sqrt((x**2).sum()) / len(data_names) * 100).unstack()
 agg_std_df = agg_std_df.droplevel(0, axis=1)
 
 # find the std of the best model
-best_models = agg_acc_df.loc[:, baseline_models].idxmax(axis=1).values
+best_models = agg_acc_df.loc[:, baseline_models].fillna(0).idxmax(axis=1).values
 best_base_std = [agg_std_df.loc[num_row, best_models[i]] for i, num_row in enumerate(num_rows)]
 best_base_std = pd.Series(best_base_std, index=num_rows)
 best_std = np.sqrt(agg_std_df['FLAT']**2 + best_base_std**2) / 2
@@ -60,11 +65,11 @@ for m in model_order:
 display_df['FLAT_diff'] = agg_acc_df['FLAT_diff'].round(2).astype(str) +  ' ± ' + best_std.round(2).astype(str)
 display_df.transpose()
 
+#%%
 # find the number of successes
 better_df = results_df.pivot(index=['num_rows', 'data_name'], columns=['model'], values='acc')
 better_df['better'] = better_df['FLAT'] > better_df.loc[:, baseline_models].max(axis=1)
 better_df['better'].unstack().sum(axis=1).loc[num_rows]
-
 
 #%%
 det_results_df = results_df[results_df.num_rows == 5].pivot(index=['data_name'], columns=['model'], values='acc')

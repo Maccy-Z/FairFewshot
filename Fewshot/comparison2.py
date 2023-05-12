@@ -9,7 +9,7 @@ from scipy import stats
 from abc import ABC, abstractmethod
 import pandas as pd
 from collections import defaultdict
-
+import sys
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -20,9 +20,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 from utils import load_batch
 
-import sys
-# sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-# from STUNT_interface import STUNT_utils, MLPProto
+from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
 BASEDIR = '.'
 
@@ -55,56 +53,56 @@ class Model(ABC):
         pass
 
 
-# class STUNT(STUNT_utils, Model):
-#     model: torch.nn.Module
+class STUNT(STUNT_utils, Model):
+    model: torch.nn.Module
 
-#     def __init__(self):
-#         self.lr = 0.0001
-#         self.model_size = (256, 256) # num_cols, out_dim, hid_dim
-#         self.steps =0
-#         self.shot = 4
-#         self.tasks_per_batch = 4
-#         self.test_num_way = 2
-#         self.query = 1
-#         self.kmeans_iter = 5
-
-
-#     def fit(self, xs_meta, ys_meta):
-#         ys_meta = ys_meta.flatten()
-#         # Reset the model
-#         self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
-#         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-#         with warnings.catch_warnings():
-#             # warnings.simplefilter("ignore")
-#             for _ in range(self.steps):
-#                 try:
-#                     train_batch = self.get_batch(xs_meta.clone())
-#                     self.protonet_step(train_batch)
-#                 except AttributeError as e:
-#                     pass
-
-#         with torch.no_grad():
-#             meta_embed = self.model(xs_meta)
-#         self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
+    def __init__(self):
+        self.lr = 0.0001
+        self.model_size = (256, 256) # num_cols, out_dim, hid_dim
+        self.steps =0
+        self.shot = 4
+        self.tasks_per_batch = 4
+        self.test_num_way = 2
+        self.query = 1
+        self.kmeans_iter = 5
 
 
-#     def get_acc(self, xs_target, ys_target):
-#         self.model.eval()
-#         with torch.no_grad():
-#             support_target = self.model(xs_target)
+    def fit(self, xs_meta, ys_meta):
+        ys_meta = ys_meta.flatten()
+        # Reset the model
+        self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
+        self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        with warnings.catch_warnings():
+            # warnings.simplefilter("ignore")
+            for _ in range(self.steps):
+                try:
+                    train_batch = self.get_batch(xs_meta.clone())
+                    self.protonet_step(train_batch)
+                except AttributeError as e:
+                    pass
 
-#         self.prototypes = self.prototypes[0]
-#         support_target = support_target.unsqueeze(1)
+        with torch.no_grad():
+            meta_embed = self.model(xs_meta)
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
 
 
-#         sq_distances = torch.sum((self.prototypes
-#                                   - support_target) ** 2, dim=-1)
+    def get_acc(self, xs_target, ys_target):
+        self.model.eval()
+        with torch.no_grad():
+            support_target = self.model(xs_target)
 
-#         # print(sq_distances.shape)
-#         _, preds = torch.min(sq_distances, dim=-1)
+        self.prototypes = self.prototypes[0]
+        support_target = support_target.unsqueeze(1)
 
-#         # print(preds.numpy(), ys_target.numpy())
-#         return (preds == ys_target).numpy()
+
+        sq_distances = torch.sum((self.prototypes
+                                  - support_target) ** 2, dim=-1)
+
+        # print(sq_distances.shape)
+        _, preds = torch.min(sq_distances, dim=-1)
+
+        # print(preds.numpy(), ys_target.numpy())
+        return (preds == ys_target).numpy()
 
 
 class TabnetModel(Model):
