@@ -104,7 +104,8 @@ if __name__ == "__main__":
     for f in files:
         print("---------------------")
         print(f)
+        #save_batch(f, num_bs, num_targs, tag='kshot_v2')
         try:
             main(f, num_targets=num_targs, batch_tag='kshot_v2')
         except(FileNotFoundError):
-            print("No batch file for {f} found")
+            print(f"No batch file for {f} found")

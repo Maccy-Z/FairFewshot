@@ -29,7 +29,7 @@ BASEDIR = '.'
 class Model(ABC):
     # Process batch of data
     def get_accuracy(self, batch):
-        xs_metas, xs_targets, ys_metas, ys_targets = batch
+        _, xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
 
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
