@@ -54,7 +54,7 @@ def save_batch(ds_name, num_batches, num_targets):
 
 def main_append(f, num_targets):
 
-    models = [BasicModel("SVC")
+    models = [BasicModel("R_Forest")
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
@@ -66,11 +66,12 @@ def main_append(f, num_targets):
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
                 except IndexError as e:
+                    print(e)
                     break
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/baselines.dat', 'a', newline='') as f:
+    with open(f'{data_dir}/{f}/base_RF_fix.dat', 'w', newline='') as f:
         writer = csv.writer(f)
         for row in model_accs:
             writer.writerow(row)
@@ -88,7 +89,7 @@ def main(f, num_targets, num_1s="a"):
 
     for model in models:
         print(model)
-        for num_rows in [10]:
+        for num_rows in [3,5,10,15]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
@@ -98,7 +99,7 @@ def main(f, num_targets, num_1s="a"):
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, num_1s, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/base_fix_num_1s.dat', 'a', newline='') as f:
+    with open(f'{data_dir}/{f}/base_RF_fix.dat', 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:

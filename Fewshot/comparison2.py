@@ -231,7 +231,7 @@ class BasicModel(Model):
                     #                             loss_function='Logloss', allow_const_label=True, verbose=False)
 
             case "R_Forest":
-                self.model = RandomForestClassifier(n_estimators=75)
+                self.model = RandomForestClassifier(n_estimators=200, n_jobs=5)
             case _:
                 raise Exception("Invalid model specified")
 
