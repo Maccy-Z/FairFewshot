@@ -105,6 +105,6 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
         try:
-            main(f, num_targets=num_targs, batch_tag='kshot')
+            main(f, num_targets=num_targs, batch_tag='kshot_v2')
         except(FileNotFoundError):
             print("No batch file for {f} found")
