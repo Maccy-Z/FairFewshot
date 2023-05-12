@@ -44,13 +44,13 @@ class Model(ABC):
     def get_accuracy(self, batch):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
+
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
             # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
 
             accs.append(a)
-
 
         accs = np.concatenate(accs)
 
@@ -141,6 +141,7 @@ class TabnetModel(Model):
                 warnings.simplefilter("ignore")
 
                 try:
+                    #self.model.fit(xs_meta, ys_meta, drop_last=False)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_name=["accuracy"], eval_set=[(xs_meta, ys_meta)],
                                    batch_size=self.bs, patience=self.patience, drop_last=False)
@@ -221,15 +222,16 @@ class BasicModel(Model):
             case "LR":
                 self.model = LogisticRegression(max_iter=1000)
             case "SVC":
-                self.model = SVC()
+                self.model = SVC(C=10, kernel="sigmoid", gamma=0.02)
             case "KNN":
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
-                self.model = CatBoostClassifier( allow_const_label=True, verbose=False)
-                    #iterations=20, depth=4, learning_rate=0.5,
-                                                #loss_function='Logloss', allow_const_label=True, verbose=False)
+                self.model = CatBoostClassifier(iterations=200, learning_rate=0.03, allow_const_label=True, verbose=False)
+                    # iterations=20, depth=4, learning_rate=0.5,
+                    #                             loss_function='Logloss', allow_const_label=True, verbose=False)
+
             case "R_Forest":
-                self.model = RandomForestClassifier()#n_estimators=30)
+                self.model = RandomForestClassifier(n_estimators=75)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -248,6 +250,8 @@ class BasicModel(Model):
 
             try:
                 self.model.fit(xs_meta, ys_meta)
+                # print(self.model.get_all_params())
+                # exit(2)
             except CatboostError:
                 # Catboost fails if every input element is the same
                 self.identical_batch = True
@@ -410,10 +414,9 @@ def main(load_no, num_rows, num_1s=None):
     result_dir = f'{BASEDIR}/Results'
     files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
     existing_results = sorted([int(f) for f in files])
-    try:
-        result_no = existing_results[-1] + 1
-    except(IndexError):
-        result_no = 0
+
+    result_no = existing_results[-1] + 1
+
     result_dir = f'{result_dir}/{result_no}'
     print(result_dir)
     os.mkdir(result_dir)
@@ -461,7 +464,7 @@ def main(load_no, num_rows, num_1s=None):
 
     num_targets = 5
 
-    models = [BasicModel("R_Forest")]
+    models = [BasicModel("R_Forest"), BasicModel("LR")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [

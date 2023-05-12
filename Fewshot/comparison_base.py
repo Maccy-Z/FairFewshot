@@ -25,7 +25,7 @@ class Model(ABC):
             with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
                 lines = f.read()
 
-            lines = lines.split("\n")[1:]
+            lines = lines.split("\n")
 
             for config in lines:
                 if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
@@ -145,14 +145,13 @@ def main(load_no, num_rows, save_ep=None, num_1s=None):
             train_data_names += ds_name
 
         print("Test datasets:", test_data_names)
-
     else:
         raise Exception("Invalid data split")
 
     num_targets = 5
     binarise = cfg["binarise"]
 
-    models = [Model("LR"), Model("CatBoost"), Model("R_Forest"),  Model("KNN"),Model("FTTransformer") , # Model("TabNet"),
+    models = [Model("R_Forest"), Model("CatBoost"),
               ]
 
     unseen_results = get_results_by_dataset(
@@ -221,5 +220,5 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-
-    col_accs = main(load_no=[10,11,12,13,14], num_rows=10, save_ep=[2, -1], num_1s=1)
+    for i in [0,1,2,3]:
+        col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1])
