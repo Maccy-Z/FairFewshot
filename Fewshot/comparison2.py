@@ -30,13 +30,13 @@ class Model(ABC):
     def get_accuracy(self, batch):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
+
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
             # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
 
             accs.append(a)
-
 
         accs = np.concatenate(accs)
 
@@ -58,17 +58,17 @@ class STUNT(STUNT_utils, Model):
 
     def __init__(self):
         self.lr = 0.0001
-        self.model_size = (256, 256) # num_cols, out_dim, hid_dim
-        self.steps =0
-        self.shot = 4
+        self.model_size = (1024, 1024) # num_cols, out_dim, hid_dim
+        self.steps = 5
         self.tasks_per_batch = 4
         self.test_num_way = 2
         self.query = 1
         self.kmeans_iter = 5
 
-
     def fit(self, xs_meta, ys_meta):
-        ys_meta = ys_meta.flatten()
+        self.shot = (xs_meta.shape[0] -2)//2
+        ys_meta = ys_meta.flatten().long()
+
         # Reset the model
         self.model = MLPProto(xs_meta.shape[-1], self.model_size[0], self.model_size[1])
         self.optim = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -78,11 +78,12 @@ class STUNT(STUNT_utils, Model):
                 try:
                     train_batch = self.get_batch(xs_meta.clone())
                     self.protonet_step(train_batch)
-                except AttributeError as e:
+                except NameError as e:
                     pass
 
         with torch.no_grad():
             meta_embed = self.model(xs_meta)
+
         self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
 
 
@@ -126,6 +127,7 @@ class TabnetModel(Model):
                 warnings.simplefilter("ignore")
 
                 try:
+                    #self.model.fit(xs_meta, ys_meta, drop_last=False)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_name=["accuracy"], eval_set=[(xs_meta, ys_meta)],
                                    batch_size=self.bs, patience=self.patience, drop_last=False)
@@ -206,14 +208,16 @@ class BasicModel(Model):
             case "LR":
                 self.model = LogisticRegression(max_iter=1000)
             case "SVC":
-                self.model = SVC()
+                self.model = SVC(C=10, kernel="sigmoid", gamma=0.02)
             case "KNN":
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
-                self.model = CatBoostClassifier(iterations=20, depth=4, learning_rate=0.5,
-                                                loss_function='Logloss', allow_const_label=True, verbose=False)
+                self.model = CatBoostClassifier(iterations=200, learning_rate=0.03, allow_const_label=True, verbose=False)
+                    # iterations=20, depth=4, learning_rate=0.5,
+                    #                             loss_function='Logloss', allow_const_label=True, verbose=False)
+
             case "R_Forest":
-                self.model = RandomForestClassifier(n_estimators=30)
+                self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -232,6 +236,8 @@ class BasicModel(Model):
 
             try:
                 self.model.fit(xs_meta, ys_meta)
+                # print(self.model.get_all_params())
+                # exit(2)
             except CatboostError:
                 # Catboost fails if every input element is the same
                 self.identical_batch = True
@@ -422,6 +428,8 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None):
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
+    print()
+    print(ds_group)
 
     if ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
@@ -451,7 +459,7 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None):
             ds_name = splits[str(split)]["train"]
             train_data_names += ds_name
 
-        print("Train datases:", train_data_names)
+        # print("Train datases:", train_data_names)
         print("Test datasets:", test_data_names)
 
     else:

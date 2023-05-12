@@ -1,5 +1,5 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel
+from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
 from AllDataloader import SplitDataloader
 from utils import load_batch, get_batch
 import pickle
@@ -61,6 +61,7 @@ def main(f, num_targets, batch_tag=None):
                         tag=batch_tag
                     )
                 except IndexError as e:
+                    print(e)
                     break
                 mean_acc, std_acc = model.get_accuracy(batch)
                 print(f, num_rows, model, np.round(mean_acc, 2) * 100)
