@@ -4,14 +4,14 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-num_rows = [2, 6, 10] 
-# num_rows = [1, 3, 5, 10, 15]
+#num_rows = [2, 6, 10] 
+num_rows = [1, 3, 5, 10, 15]
 # get FLAT results
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
     for i in range(10):
-        df = pd.read_pickle(f'./results/kshot_results/results_{num_row}_rows/result_kshot_{i}_fold_{num_row}_rows/raw.pkl')
-        #df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
+        #df = pd.read_pickle(f'./results/kshot_results/results_{num_row}_rows/result_kshot_{i}_fold_{num_row}_rows/raw.pkl')
+        df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
 
@@ -19,13 +19,13 @@ for num_row in num_rows:
 data_names = flat_results_df.data_name.unique()
 base_results_df = pd.DataFrame()
 for data_name in data_names:
-    #df = pd.read_csv(f'./datasets/max_data/{data_name}/baselines.dat', header=None)
-    df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot_v2.dat')
-    # df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
-    # df = df[df.model != 'Model']
-    # df['num_rows'] = df['num_rows'].astype(int)
-    # df['acc'] = df['acc'].astype(float)
-    # df['std'] = df['std'].astype(float)
+    df = pd.read_csv(f'./datasets/max_data/{data_name}/baselines.dat', header=None)
+    #df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot_v2.dat')
+    df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
+    df = df[df.model != 'Model']
+    df['num_rows'] = df['num_rows'].astype(int)
+    df['acc'] = df['acc'].astype(float)
+    df['std'] = df['std'].astype(float)
     df = df[df.num_rows.isin(num_rows)]
     df['data_name'] = data_name
     base_results_df = pd.concat([base_results_df, df])
@@ -77,6 +77,7 @@ det_results_df = results_df[results_df.num_rows == 5].pivot(index=['data_name'],
 det_results_df['FLAT_diff'] = det_results_df['FLAT'] - det_results_df.loc[:, baseline_models].max(axis=1)
 det_results_df = (det_results_df * 100).round(1).sort_values(by='FLAT_diff')
 model_order = list(det_results_df.mean().sort_values().index.values[1:]) + ['FLAT_diff']
+model_order.remove('FLAT_maml')
 det_results_df.loc[:, model_order]
 det_results_df.loc[:, model_order].mean().round(1).values
 

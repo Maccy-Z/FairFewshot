@@ -1,10 +1,12 @@
+#%%
 import numpy as np
 from matplotlib import pyplot as plt
+import seaborn as sns
+
+sns.set_style('ticks')
+sns.set_palette('Set2')
 
 def proc_data(xs):
-
-
-
     xs = [x.split() for x in xs]
 
     outs = []
@@ -31,19 +33,27 @@ errors = proc_data(["0.144	0.145	0.278	0.263	0.261	0.263	0.263",
                     "0.125	0.121	0.290	0.276	0.283	0.280	0.273",
                     "0.139	0.151	0.248	0.280	0.293	0.293	0.285",])
 
+colors = ['#a2d1f2', '#50a7e6', 'C1', 'C6', 'C3', 'C4', 'C5']
 num_1s = [5, 6, 7, 8, 9]
-model_names = ["FLAT", "FLAT-MAML", "LR", "K-NN", "Rand Forest", "CatBoost", "FT Transformer"]
+model_names = ["FLAT", "FLAT-MAML", "LR", "KNN", "RandForest", "CatBoost", "FT-Transformer"]
+fig, ax = plt.subplots(figsize=(6, 4))
 for model_num, (model_accs, model_errs) in enumerate(zip(accs, errors)):
-    plt.errorbar(num_1s, model_accs, yerr=model_errs, label=model_names[model_num])
+    ax.errorbar(
+        num_1s, model_accs, yerr=model_errs, 
+        label=model_names[model_num],
+        color = colors[model_num]
+    )
 
-plt.legend()
-plt.xlim(min(num_1s), max(num_1s))
-plt.xticks(range(min(num_1s), max(num_1s)+1))
-plt.ylabel("Accuracy / %")
-plt.xlabel("k, No. of most common class")
+ax.legend()
+ax.set_xlim(min(num_1s), max(num_1s))
+ax.set_xticks(range(min(num_1s), max(num_1s)+1))
+ax.set_ylabel("Accuracy (%)")
+ax.set_xlabel("$k$ - no. of the majority class")
 
-plt.plot([5, 10], [70.3, 70.3], c="C0", linestyle="--", alpha=0.7)
-plt.plot([5, 10], [70.6, 70.6], c="C1", linestyle="--", alpha=0.7)
-
+ax.plot([5, 10], [70.3, 70.3], c='#a2d1f2', linestyle="--", alpha=0.7)
+ax.plot([5, 10], [70.6, 70.6], c='#50a7e6', linestyle="--", alpha=0.7)
+plt.savefig('figures/imbalanced_class')
 plt.show()
 
+
+# %%
