@@ -4,15 +4,22 @@ base_dir = "./data"
 datasets = sorted([f for f in os.listdir(base_dir) if os.path.isdir(f'{base_dir}/{f}')])
 
 for dataset in datasets:
+    new_baselines = []
     with open(f'./data/{dataset}/baselines.dat', "r") as f:
-        new_baselines = f.readlines()
+        old_baselines = f.readlines()
 
-    with open(f'./data2/{dataset}/baselines.dat', "r") as f:
-        stunt_baseline = f.readlines()
+    with open(f'./data/{dataset}/base_RF_fix.dat', "r") as f:
+        RF_baseline = f.readlines()
 
-    for stunt_base in stunt_baseline:
-        if stunt_base.startswith("STUNT"):
-            new_baselines.append(stunt_base)
+    for old_base in old_baselines:
+        if not old_base.startswith("R_Forest"):
+            new_baselines.append(old_base)
+
+    new_baselines += RF_baseline
+    new_baselines = sorted(new_baselines)
+    #nprint(new_baselines)
+
+    # exit(2)
 
 
     new_baselines = sorted(new_baselines)
@@ -21,7 +28,6 @@ for dataset in datasets:
         for b in new_baselines:
             f.write(b)
 
-    os.remove(f'./data/{dataset}/baselines2.dat')
 
 
 
