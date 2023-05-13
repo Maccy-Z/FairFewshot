@@ -564,28 +564,15 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [2, 6, 10]:
+    for num_row in [1, 3, 5, 10, 15]:
         for i in range(10):
             load_no_ls = [30 + 3 * i + j for j in range(3)]
-            batch_tag = 'binomial_v2'
-            save_tag = f'{batch_tag}_{i}_fold_{num_row}_rows'
+            batch_tag = None
+            save_tag = f'_{i}_fold_{num_row}_rows'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
-                num_targets=6, 
-                batch_tag=batch_tag, 
-                save_tag=save_tag,
-            )
-    
-    for num_row in [2, 6, 10]:
-        for i in range(10):
-            load_no_ls = [30 + 3 * i + j for j in range(3)]
-            batch_tag = 'kshot_v2'
-            save_tag = f'{batch_tag}_{i}_fold_{num_row}_rows'
-            main(
-                load_no=load_no_ls, 
-                num_rows=num_row,
-                num_targets=6, 
+                num_targets=5, 
                 batch_tag=batch_tag, 
                 save_tag=save_tag,
             )

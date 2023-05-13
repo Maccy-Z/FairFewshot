@@ -16,9 +16,9 @@ from config import get_config
 sns.set_style('ticks')
 sns.set_palette(sns.husl_palette(n_colors=2))
 
-np.random.seed(123)
-torch.manual_seed(123)
-random.seed(123)
+np.random.seed(0)
+torch.manual_seed(0)
+random.seed(0)
 
 # 17
 save_no = 21
@@ -131,7 +131,7 @@ def plot_boundries(point, target, ax):
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
     # One shot
-    ax.set_title(f'meta: {point}, target: {target}')
+    ax.set_title(f'meta: {point}, target: {target}', fontsize=11)
     ax.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], color='C0', s=100)
     ax.scatter(target[0], target[1], marker="x", color = 'C1', s=100)
 
@@ -141,20 +141,19 @@ def plot_boundries(point, target, ax):
 
 
 def main():
-    # # Zero - shot predictions
+    # Zero - shot predictions
     # points = [[-1, 1], [-1, -1],  [0, 0], [1, -1], [1, 1], [1, 0]]
     # targets = [[1, -1], [1, 1],  [0, 0], [-1, 1], [-1, -1], [-1, 0]]
 
-    # fig, axs = plt.subplots(2, 3, figsize=(8, 6), sharex=True, sharey=True)
+    # fig, axs = plt.subplots(2, 3, figsize=(7, 5), sharex=True, sharey=True)
     # for point, target, ax in zip(points, targets, axs.ravel()):
     #     plot_boundries(point, target, ax)
     # plt.tight_layout()
     # plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
-
-    xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
     
     # FLAT vs. FLAT-MAML
-    fig, axs = plt.subplots(2, 1, figsize=(3, 6), sharex=True, sharey=True)
+    xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
+    fig, axs = plt.subplots(2, 1, figsize=(2.5, 5), sharex=True, sharey=True)
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
     axs[0].set_title('FLAT')
     axs[0].scatter(
@@ -213,12 +212,6 @@ def main():
     # plt.contourf(xx, yy, lin_preds.reshape(xx.shape), alpha=0.2, cmap='bwr')
     # plt.legend()
     # plt.title("SVC predictions")
-
-    fig = plt.gcf()
-    fig.set_size_inches(10, 5)
-    plt.savefig('figures/test.pdf')
-    plt.show()
-
 
 if __name__ == "__main__":
     torch.manual_seed(0)

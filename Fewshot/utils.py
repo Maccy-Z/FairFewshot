@@ -6,7 +6,7 @@ from main import *
 from AllDataloader import MyDataSet
 
 BASEDIR = '.'
-DATADIR = f'{BASEDIR}/datasets/data'
+DATADIR = f'{BASEDIR}/datasets/max_data'
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))

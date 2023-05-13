@@ -10,8 +10,8 @@ num_rows = [2, 6, 10]
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
     for i in range(10):
-        #df = pd.read_pickle(f'./results/kshot_results_v2/results_{num_row}_rows/result_kshot_v2_{i}_fold_{num_row}_rows/raw.pkl')
-        df = pd.read_pickle(f'./results/binomial_results_v2/results_{num_row}_rows/result_binomial_v2_{i}_fold_{num_row}_rows/raw.pkl')
+        df = pd.read_pickle(f'./results/fixed_kshot_results_v2/results_{num_row}_rows/result_kshot_v2_{i}_fold_{num_row}_rows/raw.pkl')
+        #df = pd.read_pickle(f'./results/binomial_results_v2/results_{num_row}_rows/result_binomial_v2_{i}_fold_{num_row}_rows/raw.pkl')
         #df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
@@ -20,8 +20,8 @@ for num_row in num_rows:
 data_names = flat_results_df.data_name.unique()
 base_results_df = pd.DataFrame()
 for data_name in data_names:
-    df = pd.read_csv(f'./datasets/data/{data_name}/baselines_binomial_v2.dat', header=0)
-    #df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot_v2.dat')
+    #df = pd.read_csv(f'./datasets/data/{data_name}/baselines_binomial_v2.dat', header=0)
+    df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot_v2.dat')
     # df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
     # df = df[df.model != 'Model']
     # df['num_rows'] = df['num_rows'].astype(int)
