@@ -22,7 +22,7 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
                 num_targets=num_targets, 
                 num_cols=-3, 
                 binarise=True,
-                num_1s={'meta': num_rows // 2, 'target': num_targets // 2}
+                #num_1s={'meta': num_rows // 2, 'target': num_targets // 2}
             )
             batch = get_batch(dl, num_rows=num_rows)
 
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     for f in files:
         print("---------------------")
         print(f)
-        #save_batch(f, num_bs, num_targs, tag='kshot_v2')
+        #save_batch(f, num_bs, num_targs, tag='binomial_v2')
         try:
-            main(f, num_targets=num_targs, batch_tag='kshot_v2')
+            main(f, num_targets=num_targs, batch_tag='binomial_v2')
         except(FileNotFoundError):
             print(f"No batch file for {f} found")

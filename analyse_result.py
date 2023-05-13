@@ -4,8 +4,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-#num_rows = [2, 6, 10] 
-num_rows = [1, 3, 5, 10, 15]
+num_rows = [2, 6, 10] 
+#num_rows = [1, 3, 5, 10, 15]
 # get FLAT results
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
