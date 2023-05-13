@@ -132,8 +132,8 @@ def plot_boundries(point, target, ax):
 
     # One shot
     ax.set_title(f'meta: {point}, target: {target}')
-    ax.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], color='C0', s=200)
-    ax.scatter(-point[0], -point[1], marker="x", color = 'C1', s=200)
+    ax.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], color='C0', s=100)
+    ax.scatter(target[0], target[1], marker="x", color = 'C1', s=100)
 
     ax.contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
     ax.set_xticks([-2, 0, 2], [-2, 0, 2])
@@ -141,15 +141,15 @@ def plot_boundries(point, target, ax):
 
 
 def main():
-    # Zero - shot predictions
-    points = [[-1, 1], [-1, -1], [1, -1], [1, 1], [0, 0], [1, 0]]
-    targets = [[1, -1], [1 -1], [-1, 1], [-1, -1], [0, 0], [-1, 0]]
+    # # Zero - shot predictions
+    # points = [[-1, 1], [-1, -1],  [0, 0], [1, -1], [1, 1], [1, 0]]
+    # targets = [[1, -1], [1, 1],  [0, 0], [-1, 1], [-1, -1], [-1, 0]]
 
-    fig, axs = plt.subplots(2, 3, figsize=(8, 6), sharex=True, sharey=True)
-    for point, target, ax in zip(points, targets, axs.ravel()):
-        plot_boundries(point, target, ax)
-    plt.tight_layout()
-    plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
+    # fig, axs = plt.subplots(2, 3, figsize=(8, 6), sharex=True, sharey=True)
+    # for point, target, ax in zip(points, targets, axs.ravel()):
+    #     plot_boundries(point, target, ax)
+    # plt.tight_layout()
+    # plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
 
     xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
     

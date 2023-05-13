@@ -10,8 +10,9 @@ num_rows = [2, 6, 10]
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
     for i in range(10):
-        #df = pd.read_pickle(f'./results/kshot_results/results_{num_row}_rows/result_kshot_{i}_fold_{num_row}_rows/raw.pkl')
-        df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
+        #df = pd.read_pickle(f'./results/kshot_results_v2/results_{num_row}_rows/result_kshot_v2_{i}_fold_{num_row}_rows/raw.pkl')
+        df = pd.read_pickle(f'./results/binomial_results_v2/results_{num_row}_rows/result_binomial_v2_{i}_fold_{num_row}_rows/raw.pkl')
+        #df = pd.read_pickle(f'./results/med_results_new/results_{num_row}_rows/result_{i}_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
 
