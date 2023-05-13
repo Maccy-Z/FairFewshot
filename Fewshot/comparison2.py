@@ -567,7 +567,7 @@ if __name__ == "__main__":
     for num_row in [2, 6, 10]:
         for i in range(10):
             load_no_ls = [3 * i + j for j in range(3)]
-            batch_tag = 'kshot'
+            batch_tag = 'kshot_v2'
             save_tag = f'{batch_tag}_{i}_fold_{num_row}_rows'
             main(
                 load_no=load_no_ls, 

@@ -19,13 +19,13 @@ for num_row in num_rows:
 data_names = flat_results_df.data_name.unique()
 base_results_df = pd.DataFrame()
 for data_name in data_names:
-    df = pd.read_csv(f'./datasets/max_data/{data_name}/baselines.dat', header=None)
+    df = pd.read_csv(f'./datasets/data/{data_name}/baselines_binomial_v2.dat', header=0)
     #df =  pd.read_csv(f'./datasets/data/{data_name}/baselines_kshot_v2.dat')
-    df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
-    df = df[df.model != 'Model']
-    df['num_rows'] = df['num_rows'].astype(int)
-    df['acc'] = df['acc'].astype(float)
-    df['std'] = df['std'].astype(float)
+    # df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
+    # df = df[df.model != 'Model']
+    # df['num_rows'] = df['num_rows'].astype(int)
+    # df['acc'] = df['acc'].astype(float)
+    # df['std'] = df['std'].astype(float)
     df = df[df.num_rows.isin(num_rows)]
     df['data_name'] = data_name
     base_results_df = pd.concat([base_results_df, df])
