@@ -20,6 +20,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 from utils import load_batch
 
+# sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
 sys.path.insert(0, '/home/andrija/FairFewshot')
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
@@ -29,7 +30,7 @@ BASEDIR = '.'
 class Model(ABC):
     # Process batch of data
     def get_accuracy(self, batch):
-        _, xs_metas, xs_targets, ys_metas, ys_targets = batch
+        xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
 
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):

@@ -18,7 +18,7 @@ def get_batch(dl, num_rows):
     return xs_meta, xs_target, ys_meta, ys_target
 
 def load_batch(ds_name, num_rows, num_targets, num_cols, tag):
-    file_name = f'{num_rows}_{num_targets}_{-3}'
+    file_name = f'{num_rows}_{num_targets}_{num_cols}'
     if tag:
         file_name += f'_{tag}'
     with open(f"{DATADIR}/{ds_name}/batches/{file_name}", "rb")  as f:
@@ -51,7 +51,7 @@ def load_model(save_no):
     model.load_state_dict(state_dict['model_state_dict'])
     return model, cfg_all
     
-def get_batch(dl, num_rows):
+def get_batch_id(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
