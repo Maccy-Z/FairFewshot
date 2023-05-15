@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
+sys.path.append("/home/maccyz/Documents/FairFewshot/Fewshot")
 
 import torch
 from main_miss import *
@@ -23,7 +23,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+sys.path.append('/home/maccyz/Documents/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
@@ -284,7 +284,7 @@ class FLAT(Model):
             state_dict = torch.load(f'{save_dir}/model.pt')
         else:
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
-        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'), miss=miss)
+        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
 
@@ -292,13 +292,23 @@ class FLAT(Model):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
 
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
+
         with torch.no_grad():
             self.embed_meta, self.pos_enc = self.model.forward_meta(pairs_meta)
 
     def get_acc(self, xs_target, ys_target) -> np.array:
         xs_target = xs_target.unsqueeze(0)
+
+        if self.miss is not None:
+            num_elements_to_delete = 3  # Specify the number of elements to delete
+            random_indices = torch.randperm(xs_target.shape[-1])[:num_elements_to_delete]
+            miss = random_indices
+        else:
+            miss = None
+
+
         with torch.no_grad():
-            ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
+            ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc, miss=miss)
 
         ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
 
@@ -469,7 +479,7 @@ def main(load_no, num_rows, num_1s=None):
 
     num_targets = 5
 
-    models = [FLAT(10, miss=False), FLAT(10, miss=3), BasicModel("LR")]
+    models = [FLAT(10, miss=None), FLAT(10, miss=3), BasicModel("LR")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [

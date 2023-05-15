@@ -259,30 +259,22 @@ class WeightGenerator(nn.Module):
 
 
 class GNN(nn.Module):
-    def __init__(self, miss, device="cpu"):
+    def __init__(self, device="cpu"):
         super().__init__()
-        self.miss = miss
         self.GATConv = GATConvFunc()
         self.device = device
 
     # Generate additional fixed embeddings / graph
-    def graph_matrix(self, num_rows, num_xs):
+    def graph_matrix(self, num_rows, num_xs, miss=None):
         # Densely connected graph
         nodes = torch.arange(num_xs)
 
         mask = None
-        if self.miss:
-            # # Generate a random index
-            # random_index = torch.randint(0, len(nodes), size=(1,)).item()
-            # # Remove the selected element from the array
-            # nodes = torch.cat((nodes[:random_index], nodes[random_index + 1:]))
-
-            num_elements_to_delete = self.miss  # Specify the number of elements to delete
-            random_indices = torch.randperm(len(nodes))[:num_elements_to_delete]
+        if miss is not None:
 
             # Create a boolean mask for deletion
             mask = torch.ones_like(nodes, dtype=torch.bool)
-            mask[random_indices] = False
+            mask[miss] = False
 
             # Delete elements using advanced slicing
             nodes = nodes[mask]
@@ -302,7 +294,7 @@ class GNN(nn.Module):
 
         return edge_idx.to(self.device), mask
 
-    def forward(self, xs, pos_enc, weight_list: tuple[list[list[torch.Tensor]], list]):
+    def forward(self, xs, pos_enc, weight_list: tuple[list[list[torch.Tensor]], list], miss=None):
         """
         :param xs:              shape = [BS, num_rows, num_xs]
         :param pos_enc:         shape = [BS, num_xs, enc_dim]
@@ -320,7 +312,7 @@ class GNN(nn.Module):
         xs = torch.cat([xs, pos_enc], dim=-1)
 
         # Edges are fully connected graph for each row. Rows are processed independently.
-        edge_idx, mask = self.graph_matrix(num_rows, num_cols)
+        edge_idx, mask = self.graph_matrix(num_rows, num_cols, miss=miss)
 
         output = []
         # Forward each batch separately
@@ -335,7 +327,7 @@ class GNN(nn.Module):
             # Sum GAT node outputs for final predictions.
             x = x.view(num_rows, num_cols, -1)
 
-            if self.miss:
+            if miss is not None:
                 x = x[:, mask]
             x = x.sum(-2)
 
@@ -348,7 +340,7 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, cfg_all, miss, device="cpu"):
+    def __init__(self, cfg_all, device="cpu"):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
@@ -368,39 +360,18 @@ class ModelHolder(nn.Module):
 
         self.d2v_model = SetSetModel(cfg=cfg)
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
-        self.gnn_model = GNN(device=device, miss=miss)
+        self.gnn_model = GNN(device=device)
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
         # Reparametrisation trick. Save mean and log_var.
-        if self.reparam_weight:
-            embed_means, embed_lvar = embed_meta[:, 0], embed_meta[:, 1]
-            if self.training:
-                std = torch.exp(0.5 * embed_lvar)
-                eps = torch.randn_like(std)
-                embed_meta = embed_means + eps * std
-                self.embed_lvar = embed_lvar
-                self.embed_means = embed_means
-            else:
-                embed_meta = embed_means
-
-        if self.reparam_pos_enc:
-            pos_means, pos_lvar = pos_enc[:, 0], pos_enc[:, 1]
-            if self.training:
-                std = torch.exp(0.5 * pos_lvar)
-                eps = torch.randn_like(std)
-                pos_enc = pos_means + eps * std
-                self.pos_lvar = pos_lvar
-                self.pos_means = pos_means
-            else:
-                pos_enc = pos_means
 
         return embed_meta, pos_enc
 
-    def forward_target(self, xs_target, embed_meta, pos_enc):
+    def forward_target(self, xs_target, embed_meta, pos_enc, miss=None):
         weights_target = self.weight_model(embed_meta)
-        preds_meta = self.gnn_model(xs_target, pos_enc, weights_target)
+        preds_meta = self.gnn_model(xs_target, pos_enc, weights_target, miss=miss)
 
         return preds_meta
 
