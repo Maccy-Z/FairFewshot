@@ -5,12 +5,14 @@ import numpy as np
 import itertools
 import time
 import toml
+
+import sys
+sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
 from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-from torch.optim.lr_scheduler import StepLR
 
 
 class ResBlock(nn.Module):
@@ -257,8 +259,9 @@ class WeightGenerator(nn.Module):
 
 
 class GNN(nn.Module):
-    def __init__(self, device="cpu"):
+    def __init__(self, miss, device="cpu"):
         super().__init__()
+        self.miss = miss
         self.GATConv = GATConvFunc()
         self.device = device
 
@@ -266,8 +269,27 @@ class GNN(nn.Module):
     def graph_matrix(self, num_rows, num_xs):
         # Densely connected graph
         nodes = torch.arange(num_xs)
-        interleave = torch.repeat_interleave(nodes, num_xs)
-        repeat = torch.tile(nodes, (num_xs,))
+
+        mask = None
+        if self.miss:
+            # # Generate a random index
+            # random_index = torch.randint(0, len(nodes), size=(1,)).item()
+            # # Remove the selected element from the array
+            # nodes = torch.cat((nodes[:random_index], nodes[random_index + 1:]))
+
+            num_elements_to_delete = self.miss  # Specify the number of elements to delete
+            random_indices = torch.randperm(len(nodes))[:num_elements_to_delete]
+
+            # Create a boolean mask for deletion
+            mask = torch.ones_like(nodes, dtype=torch.bool)
+            mask[random_indices] = False
+
+            # Delete elements using advanced slicing
+            nodes = nodes[mask]
+
+
+        interleave = torch.repeat_interleave(nodes, len(nodes))
+        repeat = torch.tile(nodes, (len(nodes),))
         base_edge_idx = torch.stack([interleave, repeat])
 
         # Repeat edge_index over num_rows to get block diagonal adjacency matrix by adding num_xs to everything
@@ -277,7 +299,8 @@ class GNN(nn.Module):
 
         edge_idx = torch.cat(edge_idx, dim=-1)
 
-        return edge_idx
+
+        return edge_idx.to(self.device), mask
 
     def forward(self, xs, pos_enc, weight_list: tuple[list[list[torch.Tensor]], list]):
         """
@@ -297,7 +320,7 @@ class GNN(nn.Module):
         xs = torch.cat([xs, pos_enc], dim=-1)
 
         # Edges are fully connected graph for each row. Rows are processed independently.
-        edge_idx = self.graph_matrix(num_rows, num_cols).to(self.device)
+        edge_idx, mask = self.graph_matrix(num_rows, num_cols)
 
         output = []
         # Forward each batch separately
@@ -311,6 +334,9 @@ class GNN(nn.Module):
 
             # Sum GAT node outputs for final predictions.
             x = x.view(num_rows, num_cols, -1)
+
+            if self.miss:
+                x = x[:, mask]
             x = x.sum(-2)
 
             # Final linear classification layer
@@ -322,7 +348,7 @@ class GNN(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, cfg_all, device="cpu"):
+    def __init__(self, cfg_all, miss, device="cpu"):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
@@ -342,7 +368,7 @@ class ModelHolder(nn.Module):
 
         self.d2v_model = SetSetModel(cfg=cfg)
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
-        self.gnn_model = GNN(device=device)
+        self.gnn_model = GNN(device=device, miss=miss)
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
@@ -410,11 +436,11 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
+            binarise=binarise, num_cols=-2, ds_group=(1, -1), ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
+            binarise=binarise, num_cols=-3, ds_group=(1, -1), ds_split="test"
         )
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
@@ -582,8 +608,11 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
 
 if __name__ == "__main__":
-
-    tag = input("Description: ")
+    import random
+    random.seed(0)
+    tag = "None" # input("Description: ")
+    torch.manual_seed(0)
+    np.random.seed(0)
 
     dev = torch.device("cpu")
     for test_no in range(5):

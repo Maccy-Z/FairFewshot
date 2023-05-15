@@ -221,4 +221,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     for i in [0,1,2,3]:
-        col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1])
+        col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1], num_1s=5)
