@@ -4,13 +4,11 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 import time
-import toml
 from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-from torch.optim.lr_scheduler import StepLR
 
 
 class ResBlock(nn.Module):
@@ -46,9 +44,6 @@ class SetSetModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
 
-        self.reparam_weight = cfg["reparam_weight"]
-        self.reparam_pos_enc = cfg["reparam_pos_enc"]
-
         h_size = cfg["set_h_dim"]
         out_size = cfg["set_out_dim"]
 
@@ -70,8 +65,6 @@ class SetSetModel(nn.Module):
         # h network
         self.hs = ResBlock(h_size, h_size, out_size, n_blocks=h_depth, out_relu=False)
 
-        if self.reparam_weight:
-            self.h_out_lvar = nn.Linear(h_size, out_size)
 
         # Positional embedding Network
         self.ps = nn.ModuleList([])
@@ -79,8 +72,6 @@ class SetSetModel(nn.Module):
             self.ps.append(nn.Linear(h_size, h_size))
 
         self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias != "off"))
-        if self.reparam_pos_enc:
-            self.p_out_lvar = nn.Linear(h_size, pos_enc_dim)
 
         if pos_enc_bias == "zero":
             # print(f'Positional encoding bias init to 0')
@@ -102,18 +93,10 @@ class SetSetModel(nn.Module):
         # h network
         x_out, prev_x = self.hs(x)
 
-        if self.reparam_weight:
-            x_lvar = self.h_out_lvar(prev_x)
-            x_out = torch.stack([x_out, x_lvar])
-
         # Positional Encoding
         for layer in self.ps:
             x_pos_enc = self.relu(layer(x_pos_enc))
         pos_enc_out = self.p_out(x_pos_enc)
-
-        if self.reparam_pos_enc:
-            pos_lvar = self.p_out_lvar(x_pos_enc)
-            pos_enc_out = torch.stack([pos_enc_out, pos_lvar])
 
         return x_out, pos_enc_out
 
@@ -326,9 +309,6 @@ class ModelHolder(nn.Module):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
-        self.reparam_weight = cfg["reparam_weight"]
-        self.reparam_pos_enc = cfg["reparam_pos_enc"]
-
         gat_heads = cfg["gat_heads"]
         gat_hid_dim = cfg["gat_hid_dim"]
         gat_in_dim = cfg["gat_in_dim"]
@@ -337,9 +317,6 @@ class ModelHolder(nn.Module):
 
         gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
 
-        load_d2v = cfg["load_d2v"]
-        freeze_model = cfg["freeze_d2v"]
-
         self.d2v_model = SetSetModel(cfg=cfg)
         self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
         self.gnn_model = GNN(device=device)
@@ -347,29 +324,6 @@ class ModelHolder(nn.Module):
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
         embed_meta, pos_enc = self.d2v_model(pairs_meta)
-        # Reparametrisation trick. Save mean and log_var.
-        if self.reparam_weight:
-            embed_means, embed_lvar = embed_meta[:, 0], embed_meta[:, 1]
-            if self.training:
-                std = torch.exp(0.5 * embed_lvar)
-                eps = torch.randn_like(std)
-                embed_meta = embed_means + eps * std
-                self.embed_lvar = embed_lvar
-                self.embed_means = embed_means
-            else:
-                embed_meta = embed_means
-
-        if self.reparam_pos_enc:
-            pos_means, pos_lvar = pos_enc[:, 0], pos_enc[:, 1]
-            if self.training:
-                std = torch.exp(0.5 * pos_lvar)
-                eps = torch.randn_like(std)
-                pos_enc = pos_means + eps * std
-                self.pos_lvar = pos_lvar
-                self.pos_means = pos_means
-            else:
-                pos_enc = pos_means
-
         return embed_meta, pos_enc
 
     def forward_target(self, xs_target, embed_meta, pos_enc):
@@ -385,9 +339,6 @@ class ModelHolder(nn.Module):
 
 def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     save_holder = None
-
-    # all_cfgs = get_config()
-
 
     cfg = all_cfgs["DL_params"]
     bs = cfg["bs"]
@@ -583,7 +534,6 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
 if __name__ == "__main__":
 
-    tag = input("Description: ")
 
     dev = torch.device("cpu")
     for test_no in range(5):
@@ -592,8 +542,7 @@ if __name__ == "__main__":
         print("Starting test number", test_no)
 
         group_no = 0 if test_no == 0 else test_no + 1
-        main(all_cfgs=get_config(), device=dev, nametag=tag, train_split=[0, group_no])
+        main(all_cfgs=get_config(), device=dev, train_split=[0, group_no])
 
     print("")
-    print(tag)
     print("Training Completed")
