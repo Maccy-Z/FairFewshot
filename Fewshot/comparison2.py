@@ -1,9 +1,10 @@
-import torch
+"""
+This file contains all baseline implementations and compares against baselines.
+"""
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
 from config import get_config
-import time, os, toml, random, pickle, warnings
+import os, toml, random, pickle, warnings
 import numpy as np
 from scipy import stats
 from abc import ABC, abstractmethod
@@ -19,9 +20,7 @@ from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
-import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-from STUNT_interface import STUNT_utils, MLPProto
+from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
@@ -478,7 +477,6 @@ def main(load_no, num_rows, num_1s=None):
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets, num_1s=num_1s
     )
-
 
     # Results for each dataset
     detailed_results = unseen_results.copy()

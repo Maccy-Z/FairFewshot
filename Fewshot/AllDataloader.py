@@ -1,28 +1,15 @@
-#%%
 import torch
 import numpy as np
 import pandas as pd
 import os
 import random
 import toml
-from itertools import islice
-import matplotlib.pyplot as plt
 
 DATADIR = './datasets'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
     return torch.from_numpy(array).to(device).to(dtype)
-
-
-def binarise_data(ys):
-    median = torch.median(ys)
-
-    if np.random.randint(2) == 1:
-        ys = (ys >= median)
-    else:
-        ys = (ys > median)
-    return ys.long()
 
 
 def one_vs_all(ys):
@@ -372,17 +359,3 @@ class SplitDataloader:
     def __repr__(self):
         return str(self.all_datasets)
 
-
-if __name__ == "__main__":
-    np.random.seed(0)
-    torch.manual_seed(0)
-    random.seed(0)
-
-    dl = SplitDataloader(
-        bs=1, num_rows=5, binarise=True, num_targets=5, 
-        decrease_col_prob=-1, num_cols=-3, ds_group=0, ds_split="train",
-        num_1s={'meta': 1, 'target': 0}
-    )
-
-    for xs, ys, datanames in islice(dl, 10):
-        print(ys[:, :5].sum(), ys[:, 5:].sum())

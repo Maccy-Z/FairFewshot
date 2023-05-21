@@ -3,14 +3,12 @@ from typing import Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn import Parameter
-from torch_sparse import SparseTensor, set_diag
+from torch_sparse import SparseTensor
 
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.typing import NoneType  # noqa
 from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
 from torch_geometric.utils import add_self_loops, remove_self_loops, softmax
-from torch_geometric.nn import GATConv
 
 import torch.nn.functional as tf
 
@@ -178,46 +176,3 @@ class GATConvFunc(MessagePassing):
     def message(self, x_j: Tensor, alpha: Tensor) -> Tensor:
         return alpha.unsqueeze(-1) * x_j
 
-
-def main():
-    # Compare the outputs of GATconv vs functional implementation
-    in_dim, out_dim = 1, 2
-    heads = 5
-
-    linear_weight = torch.rand((out_dim * heads, in_dim), requires_grad=True)
-    src = torch.rand((1, heads, out_dim))
-    dst = torch.rand((1, heads, out_dim))
-    bias = torch.rand(out_dim * heads)
-
-    model = GATConvFunc()
-
-    edge_index = torch.tensor([[0, 1, 1, 2, 0, 2],
-                               [1, 0, 2, 1, 2, 0]], dtype=torch.long)
-    data = torch.tensor([[1], [30.], [1]], dtype=torch.float)
-
-    func_out = model(data, edge_index, lin_weight=linear_weight, att_src=src, att_dst=dst, bias=bias)
-
-    # Make a identical GATConv layer
-    model2 = GATConv(in_dim, out_dim, heads=heads)
-
-    model2.att_src = torch.nn.Parameter(src)
-    model2.att_dst = torch.nn.Parameter(dst)
-    model2.bias = torch.nn.Parameter(bias)
-    model2.lin_src.weight = torch.nn.Parameter(linear_weight)
-    base_out = model2(data, edge_index)
-    print("Functional GATConv output")
-    print(func_out)
-    print()
-    print("Normal GATConv output")
-    print(base_out)
-    # loss = torch.mean(base_out)
-    # loss.backward()
-    # print(model2.lin_src.weight.grad)
-
-if __name__ == "__main__":
-   # torch.manual_seed(123)
-    main()
-
-    # tensor([[0.4632, 0.5067, 0.4027],
-    #         [0.1512, 0.1654, 0.1315],
-    #         [-0.3556, -0.3889, -0.3091]], grad_fn= < AddBackward0 >)

@@ -20,8 +20,6 @@ def write_toml():
                              "d2v_layers": [4, 2, 4],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": False,          # Load pretrained datset2vec
-                             "freeze_d2v": False,       # Continue training datset2vec
                              "model_load": "model_3",  # Which D2V to load from
 
                              "weight_hid_dim": 64,      # Weight generator hidden dimension
@@ -32,8 +30,6 @@ def write_toml():
                              "gat_hid_dim": 128,        # Hidden dimension of GAT
                              "gat_out_dim": 16,         # Output of GAT
 
-                             "reparam_weight": False,   # Reparametrise outputs
-                             "reparam_pos_enc": False,
 
                              "weight_bias": "off",     # Zero: zero init. # Off, disable bias completely # Anything else: default init
                              "pos_enc_bias": "zero",

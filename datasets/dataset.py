@@ -91,23 +91,6 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    # import json
-    #
-    # torch.manual_seed(0)
-    #
-    # with open("./data/info.json") as f:
-    #     json_data = json.load(f)
-    #
-    # dataset_lengths = {}
-    # for k, v in json_data.items():
-    #     length = int(v['cardinality']['train'])
-    #     if length > 500:
-    #         dataset_lengths[k] = v['cardinality']['train']
-    #
-    # print(dataset_lengths.keys())
-    # print("Long datasets:", len(dataset_lengths))
-    # print()
-
     dl = DataLoader("adult", bs=1, train=True)
     print(dl.len)
     gender = dl.data[:, 9]

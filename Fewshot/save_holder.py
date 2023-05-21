@@ -130,24 +130,4 @@ class SaveLoader:
             plt.show()
 
 
-if __name__ == "__main__":
-    import re
-
-    BASEDIR = "."
-    SAVE_NO = -2
-
-    def sort_key(filename):
-        match = re.compile(r'(\d+)').search(filename)
-        if match:
-            return int(match.group(1))
-        else:
-            return filename
-
-    saves = os.listdir(f'{BASEDIR}/saves')
-    saves = sorted(saves, key=sort_key)
-    save_dir = f'{BASEDIR}/saves/{saves[SAVE_NO]}'
-    print(save_dir)
-    h = SaveLoader(save_dir=save_dir)
-    h.plot_history()
-    h.plot_grads()
 
