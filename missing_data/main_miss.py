@@ -271,14 +271,12 @@ class GNN(nn.Module):
 
         mask = None
         if miss is not None:
-
             # Create a boolean mask for deletion
             mask = torch.ones_like(nodes, dtype=torch.bool)
             mask[miss] = False
 
             # Delete elements using advanced slicing
             nodes = nodes[mask]
-
 
         interleave = torch.repeat_interleave(nodes, len(nodes))
         repeat = torch.tile(nodes, (len(nodes),))

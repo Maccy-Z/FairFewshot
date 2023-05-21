@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/maccyz/Documents/FairFewshot/Fewshot")
+sys.path.append("/mnt/storage_ssd/FairFewshot/Fewshot")
 
 import torch
 from main_miss import *
@@ -23,7 +23,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-sys.path.append('/home/maccyz/Documents/FairFewshot/STUNT_main')
+sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
@@ -44,11 +44,15 @@ def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
 
 class Model(ABC):
     # Process batch of data
-    def get_accuracy(self, batch):
-        xs_metas, xs_targets, ys_metas, ys_targets = batch
-        accs = []
+    def get_accuracy(self, batch, miss_idxs):
+        self.num_delete = miss_idxs.shape[-1]
 
-        for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
+        xs_metas, xs_targets, ys_metas, ys_targets = batch
+
+        accs = []
+        for xs_meta, xs_target, ys_meta, ys_target, miss_idx in zip(xs_metas, xs_targets, ys_metas, ys_targets, miss_idxs):
+            xs_meta, xs_target = self.preprocess_batch(xs_meta, xs_target, miss_idx)
+
             # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
@@ -60,6 +64,15 @@ class Model(ABC):
         mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
 
         return mean, std
+
+    def preprocess_batch(self, xs_meta, xs_target, miss_idx):
+        mask = torch.ones_like(xs_meta[0], dtype=torch.bool)
+        mask[miss_idx] = False
+
+        xs_meta, xs_target = xs_meta[:,  mask], xs_target[:, mask]
+
+        # print(miss_idx, xs_meta.shape, xs_target.shape)
+        return xs_meta, xs_target
 
     @abstractmethod
     def fit(self, xs_meta, ys_meta):
@@ -277,6 +290,7 @@ class BasicModel(Model):
 class FLAT(Model):
     def __init__(self, load_no, miss, save_ep=None):
         self.miss = miss
+
         save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
@@ -286,6 +300,9 @@ class FLAT(Model):
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
+
+        if self.miss is not None:
+            self.preprocess_batch = self.preprocess_batch2
 
 
     def fit(self, xs_meta, ys_meta):
@@ -300,12 +317,10 @@ class FLAT(Model):
         xs_target = xs_target.unsqueeze(0)
 
         if self.miss is not None:
-            num_elements_to_delete = 3  # Specify the number of elements to delete
-            random_indices = torch.randperm(xs_target.shape[-1])[:num_elements_to_delete]
+            random_indices = torch.randperm(xs_target.shape[-1])[:self.num_delete]
             miss = random_indices
         else:
             miss = None
-
 
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc, miss=miss)
@@ -313,6 +328,9 @@ class FLAT(Model):
         ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
 
         return (ys_pred_target_labels == ys_target).numpy()
+
+    def preprocess_batch2(self, xs_meta, xs_target, miss_idx):
+        return xs_meta, xs_target
 
     def __repr__(self):
         if self.miss:
@@ -388,11 +406,21 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             print(e)
             continue
 
+        # Columns to remove
+        num_cols = batch[0].shape[-1]
+        num_elements_to_delete = int(num_cols * 0.2)  # Specify the number of elements to delete
+
+        if num_elements_to_delete >= num_cols:
+            continue
+
+        rand_idxs = torch.stack([torch.randperm(num_cols)[:num_elements_to_delete] for _ in range(200)])
+
+
         model_acc_std = defaultdict(list)
         for model in models:
-            mean_acc, std_acc = model.get_accuracy(batch)
-
+            mean_acc, std_acc = model.get_accuracy(batch, miss_idxs=rand_idxs)
             model_acc_std[str(model)].append([mean_acc, std_acc])
+
 
         for model_name, acc_stds in model_acc_std.items():
             acc_stds = np.array(acc_stds)
@@ -479,7 +507,7 @@ def main(load_no, num_rows, num_1s=None):
 
     num_targets = 5
 
-    models = [FLAT(10, miss=None), FLAT(10, miss=3), BasicModel("LR")]
+    models = [FLAT(10, miss=None), FLAT(10, miss=True), BasicModel("LR")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
@@ -572,9 +600,9 @@ def main(load_no, num_rows, num_1s=None):
 
 if __name__ == "__main__":
 
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
+    # random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
 
 
     col_accs = main(load_no=[10], num_rows=10)
