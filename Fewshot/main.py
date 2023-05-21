@@ -537,15 +537,12 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
 if __name__ == "__main__":
 
+    print("Training starting")
 
     dev = torch.device("cpu")
-    for test_no in range(5):
 
-        print("---------------------------------")
-        print("Starting test number", test_no)
 
-        group_no = 0 if test_no == 0 else test_no + 1
-        main(all_cfgs=get_config(), device=dev, train_split=[0, group_no])
+    main(all_cfgs=get_config(), device=dev, train_split=[0, -1])
 
     print("")
     print("Training Completed")

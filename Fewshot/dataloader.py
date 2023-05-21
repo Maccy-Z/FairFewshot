@@ -1,4 +1,3 @@
-# Loads datasets.
 import torch
 
 # Dataset2vec requires different dataloader from GNN. Returns all pairs of x and y.
