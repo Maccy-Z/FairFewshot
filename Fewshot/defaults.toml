@@ -31,16 +31,13 @@ decay = 0.0001
 bs = 3
 num_rows = 10
 num_targets = 15
-ds_group = false
+ds_group = "short"
 binarise = true
 split_file = ""
 
 [Settings]
-num_epochs = 31
-val_duration = 100
+num_epochs = 21
+val_duration = 10
 val_interval = 2000
 dataset = "total"
 
-[DL_params.num_cols]
-train = -2
-val = -2

@@ -365,7 +365,6 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
     # Test on full dataset
     for data_name in test_data_names:
-        print(data_name)
         try:
             batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
         except IndexError as e :
@@ -404,7 +403,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     return results
 
 
-def main(load_no, num_rows, num_1s=None):
+def main(load_no, num_rows, num_1s=None, ds_group=None):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -419,52 +418,39 @@ def main(load_no, num_rows, num_1s=None):
 
     result_dir = f'{result_dir}/{result_no}'
     print(result_dir)
-    os.mkdir(result_dir)
+    # os.mkdir(result_dir)
 
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
+    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    # cfg = all_cfg["DL_params"]
+    # ds = all_cfg["Settings"]["dataset"]
+    # ds_group = cfg["ds_group"]
     print()
     print(ds_group)
 
-    if ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
-
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
-    elif ds == "total":
-        fold_no, split_no = ds_group
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-
-        # print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
+    fold_no, split_no = ds_group
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    if split_no == -1:
+        get_splits = range(6)
     else:
-        raise Exception("Invalid data split")
+        get_splits = [split_no]
+
+    test_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
+
+    train_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["train"]
+        train_data_names += ds_name
+
+    # print("Train datases:", train_data_names)
+    print("Test datasets:", test_data_names)
+
 
     num_targets = 5
 
-    models = [BasicModel("R_Forest"), BasicModel("LR")]
+    models = [BasicModel("LR"), BasicModel("R_Forest")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
@@ -543,16 +529,16 @@ def main(load_no, num_rows, num_1s=None):
     agg_results = agg_results.to_string()
 
 
-    with open(f'{result_dir}/aggregated', "w") as f:
-        for line in agg_results:
-            f.write(line)
-
-    with open(f'{result_dir}/detailed', "w") as f:
-        for line in det_results:
-            f.write(line)
-
-    with open(f'{result_dir}/raw.pkl', "wb") as f:
-        pickle.dump(unseen_results, f)
+    # with open(f'{result_dir}/aggregated', "w") as f:
+    #     for line in agg_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/detailed', "w") as f:
+    #     for line in det_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/raw.pkl', "wb") as f:
+    #     pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
@@ -561,5 +547,6 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-
-    col_accs = main(load_no=[10], num_rows=10)
+    for i in [0, 1, 2, 3]:
+        print(i)
+        col_accs = main(load_no=[10], num_rows=10, num_1s=4, ds_group=[i, -1])

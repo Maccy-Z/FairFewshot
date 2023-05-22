@@ -1,33 +1,39 @@
 import os
+import toml
+import random
 
 base_dir = "./data"
 datasets = sorted([f for f in os.listdir(base_dir) if os.path.isdir(f'{base_dir}/{f}')])
 
+short = []
+long = []
+
 for dataset in datasets:
     new_baselines = []
-    with open(f'./data/{dataset}/baselines.dat', "r") as f:
-        old_baselines = f.readlines()
+    with open(f'./data/{dataset}/{dataset}_py.dat', "r") as f:
+        labels = f.readline().split(",")
 
-    with open(f'./data/{dataset}/base_RF_fix.dat', "r") as f:
-        RF_baseline = f.readlines()
+        if len(labels) < 50:
+            short.append(dataset)
+        else:
+            long.append(dataset)
 
-    for old_base in old_baselines:
-        if not old_base.startswith("R_Forest"):
-            new_baselines.append(old_base)
+dataset_splits = {}
 
-    new_baselines += RF_baseline
-    new_baselines = sorted(new_baselines)
-    #nprint(new_baselines)
+short_train = random.sample(short, int(2 * len(short) / 3))
+short_test = [e for e in short if e not in short_train]
 
-    # exit(2)
+long_train = random.sample(long, int(2 * len(long) / 3))
+long_test = [e for e in long if e not in long_train]
 
 
-    new_baselines = sorted(new_baselines)
+with open("grouped_datasets/short_splits", "w") as f:
 
-    with open(f'./data/{dataset}/baselines.dat', "w") as f:
-        for b in new_baselines:
-            f.write(b)
+    dataset_splits["short"] = {"train": sorted(short_train), "test": sorted(short_test)}
+    dataset_splits["long"] = {"train": sorted(long_train), "test": sorted(long_test)}
 
+    print(dataset_splits)
+    toml.dump(dataset_splits, f)
 
 
 

@@ -410,55 +410,11 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
+            binarise=binarise, num_cols=100, ds_group=ds_group, ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
-        )
-        print("Training data names:", dl)
-        print("\nTest data names:", val_dl)
-
-    elif ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{split_file}"
-        print(num_cols)
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, 
-            num_1s=num_1s,
-            num_cols=num_cols['train'],
-            decrease_col_prob=decrease_col_prob,
-            ds_group=ds_group, ds_split="train",
-            split_file=split_file
-        )
-        print("Training data names:", dl.all_datasets)
-
-        val_dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, 
-            num_1s=num_1s,
-            num_cols=num_cols['val'],
-            decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="test",
-            split_file=split_file
-        )
-        print("Testing data names:", val_dl.all_datasets)
-        
-    elif ds == "custom":
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=['abalone', 'adult', 'annealing', 'audiology-std', 'balance-scale', 'balloons', 'bank', 'car', 'cardiotocography-10clases', 'chess-krvk', 'chess-krvkp', 'congressional-voting', 'conn-bench-sonar-mines-rocks', 'conn-bench-vowel-deterding', 'connect-4', 'contrac', 'credit-approval', 'cylinder-bands', 'ecoli', 'energy-y1', 'energy-y2', 'flags', 'glass', 'haberman-survival', 'hayes-roth', 'hill-valley', 'image-segmentation', 'ionosphere', 'iris', 'led-display', 'lenses', 'letter', 'libras', 'low-res-spect', 'magic', 'miniboone', 'molec-biol-promoter', 'molec-biol-splice', 'monks-1', 'monks-2', 'monks-3', 'mushroom', 'musk-1', 'musk-2', 'nursery', 'oocytes_merluccius_nucleus_4d', 'oocytes_merluccius_states_2f', 'oocytes_trisopterus_nucleus_2f', 'oocytes_trisopterus_states_5b', 'optical', 'ozone', 'page-blocks', 'pendigits', 'pima', 'pittsburg-bridges-MATERIAL', 'pittsburg-bridges-REL-L', 'pittsburg-bridges-SPAN', 'pittsburg-bridges-T-OR-D', 'pittsburg-bridges-TYPE', 'planning', 'plant-margin', 'plant-shape', 'plant-texture', 'ringnorm', 'seeds', 'semeion', 'soybean', 'spambase', 'statlog-australian-credit', 'statlog-german-credit', 'statlog-image', 'statlog-landsat', 'statlog-shuttle', 'statlog-vehicle', 'steel-plates', 'synthetic-control', 'teaching', 'tic-tac-toe', 'titanic', 'trains', 'twonorm', 'vertebral-column-3clases', 'wall-following', 'waveform', 'waveform-noise', 'wine', 'wine-quality-red', 'wine-quality-white', 'yeast', 'zoo'], ds_split="train"
-        )
-        val_dl = SplitDataloader(
-            bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=['acute-inflammation', 'acute-nephritis', 'arrhythmia',
-            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
-            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
-            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
-            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
-            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
-            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
-            'statlog-heart', 'thyroid', 'vertebral-column-2clases'], ds_split="test"
+            binarise=binarise, num_cols=100, ds_group=ds_group, ds_split="test"
         )
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
@@ -583,17 +539,15 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
 if __name__ == "__main__":
 
-    tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(5):
+    for test_no in range(3):
 
         print("---------------------------------")
         print("Starting test number", test_no)
 
         group_no = 0 if test_no == 0 else test_no + 1
-        main(all_cfgs=get_config(), device=dev, nametag=tag, train_split=[0, group_no])
+        main(all_cfgs=get_config(), device=dev, train_split=[0, group_no])
 
     print("")
-    print(tag)
     print("Training Completed")
