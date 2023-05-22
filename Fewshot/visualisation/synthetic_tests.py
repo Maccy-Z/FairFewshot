@@ -131,7 +131,7 @@ def plot_boundries(point, target, ax):
     model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
 
     # One shot
-    ax.set_title(f'meta: {point}, target: {target}', fontsize=11)
+    ax.set_title(f'meta: $({point[0]}, {point[1]})$, target: $({target[0]}, {target[1]})$', fontsize=10)
     ax.scatter(xs_meta[0, :, 0], xs_meta[0, :, 1], color='C0', s=100)
     ax.scatter(target[0], target[1], marker="x", color = 'C1', s=100)
 
@@ -142,38 +142,38 @@ def plot_boundries(point, target, ax):
 
 def main():
     # Zero - shot predictions
-    # points = [[-1, 1], [-1, -1],  [0, 0], [1, -1], [1, 1], [1, 0]]
-    # targets = [[1, -1], [1, 1],  [0, 0], [-1, 1], [-1, -1], [-1, 0]]
+    points = [[-1, 1], [-1, -1],  [0, 0], [1, -1], [1, 1], [1, 0]]
+    targets = [[1, -1], [1, 1],  [0, 0], [-1, 1], [-1, -1], [-1, 0]]
 
-    # fig, axs = plt.subplots(2, 3, figsize=(7, 5), sharex=True, sharey=True)
-    # for point, target, ax in zip(points, targets, axs.ravel()):
-    #     plot_boundries(point, target, ax)
-    # plt.tight_layout()
-    # plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
+    fig, axs = plt.subplots(2, 3, figsize=(7, 4), sharex=True, sharey=True)
+    for point, target, ax in zip(points, targets, axs.ravel()):
+        plot_boundries(point, target, ax)
+    plt.tight_layout()
+    plt.savefig('figures/zero_shot.pdf', bbox_inches='tight')
     
     # FLAT vs. FLAT-MAML
-    xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
-    fig, axs = plt.subplots(2, 1, figsize=(2.5, 5), sharex=True, sharey=True)
-    model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
-    axs[0].set_title('FLAT')
-    axs[0].scatter(
-        xs_meta[0, :, 0], xs_meta[0, :, 1], 
-        color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
-    )
-    axs[0].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
+    # xs_meta, ys_meta, xs_target, xx, yy = gen_synthetic_data()
+    # fig, axs = plt.subplots(2, 1, figsize=(2.5, 4), sharex=True, sharey=True)
+    # model_preds = model_predictions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
+    # axs[0].set_title('FLAT')
+    # axs[0].scatter(
+    #     xs_meta[0, :, 0], xs_meta[0, :, 1], 
+    #     color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
+    # )
+    # axs[0].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
 
-    model_preds = maml_predcitions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
-    axs[1].set_title('FLAT-MAML')
-    axs[1].scatter(
-        xs_meta[0, :, 0], xs_meta[0, :, 1], 
-        color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
-    )
-    axs[1].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
-    axs[1].set_xticks([-2, 0, 2], [-2, 0, 2])
-    axs[1].set_yticks([-2, 0, 2], [-2, 0, 2])
+    # model_preds = maml_predcitions(xs_meta=xs_meta, ys_meta=ys_meta, xs_target=xs_target)
+    # axs[1].set_title('FLAT-MAML')
+    # axs[1].scatter(
+    #     xs_meta[0, :, 0], xs_meta[0, :, 1], 
+    #     color=[f'C{1 - int(i)}' for i in ys_meta.detach().numpy().flatten()]
+    # )
+    # axs[1].contourf(xx, yy, 1 - model_preds.reshape(xx.shape), alpha=0.2, cmap='Spectral')
+    # axs[1].set_xticks([-2, 0, 2], [-2, 0, 2])
+    # axs[1].set_yticks([-2, 0, 2], [-2, 0, 2])
 
-    fig.tight_layout()
-    fig.savefig('figures/synthetic_data_maml.pdf', bbox_inches='tight')
+    # fig.tight_layout()
+    # fig.savefig('figures/synthetic_data_maml.pdf', bbox_inches='tight')
     
     # print(model_preds)
     # #Our model

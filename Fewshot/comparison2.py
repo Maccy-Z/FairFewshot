@@ -403,7 +403,7 @@ def get_results_by_dataset(
     return results
 
 
-def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None):
+def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_all=False):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
@@ -433,7 +433,14 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None):
     print()
     print(ds_group)
 
-    if ds == "my_split":
+    if eval_all:
+        all_data_names = os.listdir('./datasets/data')
+        all_data_names.remove('info.json')
+        if '.DS_Store' in all_data_names:
+            all_data_names.remove('.DS_Store')
+        test_data_names = all_data_names
+
+    elif ds == "my_split":
         split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
         with open(split_file) as f:
             split = toml.load(f)
@@ -564,7 +571,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [1, 3, 5, 10, 15]:
+    for num_row in [5]:
         for i in range(10):
             load_no_ls = [30 + 3 * i + j for j in range(3)]
             batch_tag = None
@@ -575,4 +582,5 @@ if __name__ == "__main__":
                 num_targets=5, 
                 batch_tag=batch_tag, 
                 save_tag=save_tag,
+                eval_all=True
             )

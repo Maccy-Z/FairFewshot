@@ -31,8 +31,10 @@ def load_batch(ds_name, num_rows, num_targets, num_cols, tag):
 def get_num_rows_cols():
     all_data_names = os.listdir(f'{BASEDIR}/datasets/data')
     all_data_names.remove('info.json')
-    all_data_names.remove('.DS_Store')
-
+    try:
+        all_data_names.remove('.DS_Store')
+    except:
+        pass
     all_datasets = [
         MyDataSet(d, num_rows=0, num_targets=0, binarise=True, split="all") 
         for d in all_data_names]

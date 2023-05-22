@@ -16,7 +16,7 @@ import seaborn as sns
 import torch.nn.functional as F
 
 sns.set_style('white')
-sns.set_palette(sns.husl_palette(n_colors=2))
+sns.set_palette('Set2')
 
 class GNN2(nn.Module):
     def __init__(self, device="cpu"):
@@ -255,7 +255,7 @@ def main(save_no, ds_dict):
         G, edge_matrix, a_mean, node_labels = get_graph(save_no, ds_name, labels)
         pos = nx.circular_layout(G)
         ax.set_title(ds_name, fontsize=15)
-        nx.draw_networkx_nodes(G, pos, node_color=sns.husl_palette(n_colors=4)[i], ax=ax)
+        nx.draw_networkx_nodes(G, pos, node_color=f'C{i+1}', ax=ax)
         std_a_mean = ((a_mean - min(a_mean)) / (max(a_mean) - min(a_mean)) + 0.4) * 0.4
         nx.draw_networkx_edges(
             G, pos, edgelist=edge_matrix, width=a_mean, alpha=std_a_mean, ax=ax)
