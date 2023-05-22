@@ -575,7 +575,7 @@ if __name__ == "__main__":
         for i in range(10):
             load_no_ls = [30 + 3 * i + j for j in range(3)]
             batch_tag = None
-            save_tag = f'_{i}_fold_{num_row}_rows'
+            save_tag = f'{i}_fold_{num_row}_rows'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
