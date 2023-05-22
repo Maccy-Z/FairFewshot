@@ -476,14 +476,14 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
 
     binarise = cfg["binarise"]
 
-    models = [FLAT(num) for num in load_no] + \
-             #[FLAT_MAML(num) for num in load_no] + \
-             # [
-              # BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-              # TabnetModel(),
-              # FTTrModel(),
-              # STUNT(),
-             # ]
+    models = [FLAT(num) for num in load_no]
+            #  [FLAT_MAML(num) for num in load_no] + \
+            #  [
+            #   BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+            #   TabnetModel(),
+            #   FTTrModel(),
+            #   STUNT(),
+            #  ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, binarise=binarise,
