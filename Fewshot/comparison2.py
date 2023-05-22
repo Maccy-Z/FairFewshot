@@ -515,11 +515,11 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
     new_column_order = flat_cols + [c for c in agg_results.columns if c not in flat_cols]
     agg_results = agg_results.reindex(columns=new_column_order)
 
-    # Difference between FLAT and best model
-    agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
-    agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-    agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
+    # # Difference between FLAT and best model
+    # agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    # agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
+    # agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
+    # agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
     
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
@@ -548,7 +548,7 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    print(agg_results["FLAT_diff"].to_string(index=False))
+    # print(agg_results["FLAT_diff"].to_string(index=False))
     # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
@@ -575,7 +575,7 @@ if __name__ == "__main__":
         for i in range(10):
             load_no_ls = [30 + 3 * i + j for j in range(3)]
             batch_tag = None
-            save_tag = f'{i}_fold_{num_row}_rows'
+            save_tag = f'{i}all_fold_{num_row}_rows'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
