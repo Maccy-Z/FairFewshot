@@ -1,4 +1,4 @@
-from main import *
+from main_no_weight_gat import *
 from old.dataloader import d2v_pairer
 from config import get_config
 import os, toml, random, pickle, warnings
@@ -409,15 +409,16 @@ def main(load_no, num_rows, num_1s=None):
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
-    result_dir = f'{BASEDIR}/Results'
-    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f) for f in files])
-
-    result_no = existing_results[-1] + 1
-
-    result_dir = f'{result_dir}/{result_no}'
-    print(result_dir)
-    os.mkdir(result_dir)
+    # result_dir = f'{BASEDIR}/Results'
+    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    # existing_results = sorted([int(f) for f in files if f.isdigit()])
+    #
+    # print(existing_results)
+    # result_no = existing_results[-1] + 1
+    #
+    # result_dir = f'{result_dir}/{result_no}'
+    # print(result_dir)
+    # os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
@@ -462,8 +463,8 @@ def main(load_no, num_rows, num_1s=None):
 
     num_targets = 5
 
-    models = [BasicModel("R_Forest"), BasicModel("LR")]
-    #[FLAT(num) for num in load_no] + \
+    models = [BasicModel("LR")] +  \
+    [FLAT(num) for num in load_no] + []
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
              #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
@@ -471,6 +472,7 @@ def main(load_no, num_rows, num_1s=None):
              #  # FTTrModel(),
              #  # STUNT(),
              #  ]
+
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
@@ -535,22 +537,23 @@ def main(load_no, num_rows, num_1s=None):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
+    print()
     print(agg_results["FLAT_diff"].to_string(index=False))
     # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
 
-    with open(f'{result_dir}/aggregated', "w") as f:
-        for line in agg_results:
-            f.write(line)
-
-    with open(f'{result_dir}/detailed', "w") as f:
-        for line in det_results:
-            f.write(line)
-
-    with open(f'{result_dir}/raw.pkl', "wb") as f:
-        pickle.dump(unseen_results, f)
+    # with open(f'{result_dir}/aggregated', "w") as f:
+    #     for line in agg_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/detailed', "w") as f:
+    #     for line in det_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/raw.pkl', "wb") as f:
+    #     pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
@@ -560,4 +563,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[10], num_rows=10)
+    col_accs = main(load_no=[-1, -2, -3, -4, -5], num_rows=10)

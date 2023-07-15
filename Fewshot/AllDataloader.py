@@ -296,7 +296,7 @@ class SplitDataloader:
                     ds_names.remove('.DS_Store')
             else:
                 # get datasets from pre-defined split
-                splits = toml.load(self.split_file)
+                splits = tomllib.load(self.split_file)
                 ds_names = splits[str(self.ds_group)][self.ds_split]
 
         elif isinstance(self.ds_group, str):

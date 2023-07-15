@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch_geometric as pyg
 import numpy as np
 import itertools
 import time
+
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
@@ -134,7 +136,7 @@ class SetSetModel(nn.Module):
 
 # Generates weights from dataset2vec model outputs.
 class WeightGenerator(nn.Module):
-    def __init__(self, cfg, out_sizes: list):
+    def __init__(self, cfg):
         """
         :param in_dim: Dim of input from dataset2vec
         :param hid_dim: Internal hidden size
@@ -152,23 +154,15 @@ class WeightGenerator(nn.Module):
         self.gen_layers = cfg["gen_layers"]
         self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
         self.learn_norm = cfg["learn_norm"]
-
+        self.gat_heads = cfg["gat_heads"]
+        self.gat_out_dim = cfg["gat_out_dim"]
         weight_bias = cfg["weight_bias"]
 
-        self.out_sizes = out_sizes
-
-        # Each GAT layer has a submodel to generate weights
-        self.layer_model = []
-        for i, gat_shape in enumerate(out_sizes):
-            model, weights, dims = self.gen_layer(*gat_shape)
-            self.layer_model.append([model, weights, dims])
-
-            # Need to register each module manually
-            self.add_module(f'weight_gen_{i}', model)
 
         # Weights for final linear classificaion layer
         self.num_classes = 2
-        self.gat_out_dim = self.out_sizes[-1][-2]
+        #print(self.out_sizes[-1][-2])
+        self.gat_out_dim = self.gat_out_dim * self.gat_heads
         lin_out_dim = self.gat_out_dim * self.num_classes
         self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
@@ -182,65 +176,12 @@ class WeightGenerator(nn.Module):
         # learned normalisation
         # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
         if self.learn_norm:
-            if self.norm_weights:
-                self.w_norm = torch.nn.Parameter(torch.tensor([1., 1.8, 2., 0.05]))
             if self.norm_lin:
                 self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
 
-    def gen_layer(self, gat_in_dim, gat_out_dim, gat_heads):
-        # WARN: GAT output size is heads * out_dim, so correct here.
-        gat_out_dim = gat_out_dim // gat_heads
-
-        # Number of parameters model needs to output:
-        lin_weight_params = gat_out_dim * gat_heads * gat_in_dim
-        src_params = gat_heads * gat_out_dim
-        dst_params = gat_heads * gat_out_dim
-        bias_params = gat_out_dim * gat_heads
-
-        tot_params = lin_weight_params + src_params + dst_params + bias_params
-        # Save indices of weights
-        weight_idxs = [lin_weight_params, src_params, dst_params, bias_params]
-        if self.gen_layers == 1:
-            # print("Only 1 gen layer, Not using gen_hid_dim")
-            module = nn.Sequential(nn.Linear(self.gen_in_dim, tot_params))
-        else:
-            module = [nn.Linear(self.gen_in_dim, self.gen_hid_dim), nn.ReLU()]
-            for _ in range(self.gen_layers - 2):
-                module.append(nn.Linear(self.gen_hid_dim, self.gen_hid_dim))
-                module.append(nn.ReLU())
-            module.append(nn.Linear(self.gen_hid_dim, tot_params))
-
-        module = nn.Sequential(*module)
-
-        return module, weight_idxs, (gat_in_dim, gat_out_dim, gat_heads)
 
     def forward(self, d2v_embed):
         # d2v_embed.shape = [BS, d2v_out]
-
-        layer_weights = []
-        for module, split_idxs, (gat_in, gat_out, gat_heads) in self.layer_model:
-
-            all_weights = module(d2v_embed)  # [BS, layers_size]
-
-            # Split weights into individual matrices and a list of batches.
-            batch = []
-            for batch_weights in all_weights:
-                lin, src, dst, bias = torch.split(batch_weights, split_idxs)
-                if self.norm_weights:
-                    lin, src, dst, bias = F.normalize(lin, dim=0), F.normalize(src, dim=0), F.normalize(dst, dim=0), F.normalize(bias, dim=0)
-                    if self.learn_norm:
-                        lin, src, dst, bias = lin * self.w_norm[0], src * self.w_norm[1], dst * self.w_norm[2], bias * self.w_norm[3]
-
-                # Reshape each weight matrix
-                lin = lin.view(gat_out * gat_heads, gat_in)
-                src = src.view(1, gat_heads, gat_out)
-                dst = dst.view(1, gat_heads, gat_out)
-                bias = bias.view(gat_out * gat_heads)
-
-                batch.append((lin, src, dst, bias))
-            layer_weights.append(batch)
-
-        layer_weights = list(zip(*layer_weights))  # [BS, num_layers, tensor[4]]
 
         # Weights for linear layer
         lin_weights = self.w_gen_out(d2v_embed)
@@ -251,7 +192,7 @@ class WeightGenerator(nn.Module):
 
         lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
 
-        return layer_weights, lin_weights
+        return lin_weights
 
 
 class GNN(nn.Module):
@@ -319,25 +260,92 @@ class GNN(nn.Module):
         return output
 
 
+class GNN2(nn.Module):
+    def __init__(self, cfg_dims):
+        super().__init__()
+        self.GATConv = GATConvFunc()
+
+        gat_heads = cfg_dims["gat_heads"]
+        gat_hid_dim = cfg_dims["gat_hid_dim"]
+        gat_in_dim = cfg_dims["gat_in_dim"]
+        gat_out_dim = cfg_dims["gat_out_dim"]
+        gat_layers = cfg_dims["gat_layers"]
+
+        self.gat_layers = nn.ModuleList([])
+        self.gat_layers.append(pyg.nn.GATConv(gat_in_dim, gat_hid_dim, heads=gat_heads))
+        for _ in range(gat_layers - 2):
+            self.gat_layers.append(pyg.nn.GATConv(gat_hid_dim*gat_heads, gat_hid_dim, heads=gat_heads))
+        self.gat_layers.append(pyg.nn.GATConv(gat_hid_dim*gat_heads, gat_out_dim, heads=gat_heads))
+
+
+    # Generate additional fixed embeddings / graph
+    def graph_matrix(self, num_rows, num_xs):
+        # Densely connected graph
+        nodes = torch.arange(num_xs)
+        interleave = torch.repeat_interleave(nodes, num_xs)
+        repeat = torch.tile(nodes, (num_xs,))
+        base_edge_idx = torch.stack([interleave, repeat])
+
+        # Repeat edge_index over num_rows to get block diagonal adjacency matrix by adding num_xs to everything
+        edge_idx = []
+        for i in np.arange(num_rows):
+            edge_idx.append(base_edge_idx + i * num_xs)
+
+        edge_idx = torch.cat(edge_idx, dim=-1)
+
+        return edge_idx
+
+    def forward(self, xs, pos_enc, weight_list: tuple[list[list[torch.Tensor]], list]):
+        """
+        :param xs:              shape = [BS, num_rows, num_xs]
+        :param pos_enc:         shape = [BS, num_xs, enc_dim]
+        :param weight_list:     shape[0] = [BS, num_layers, tensor[4]]
+                                shape[1] = [BS, tensor[1]]
+
+        :return output:         shape = [BS, num_rows, num_xs, 2]
+        """
+        bs, num_rows, num_cols = xs.shape
+        lin_weights = weight_list
+
+        # Flatten xs and append on positional encoding
+        pos_enc = pos_enc.unsqueeze(1).repeat(1, num_rows, 1, 1).view(bs, num_rows * num_cols, -1)
+        xs = xs.view(bs, num_rows * num_cols, 1)
+        xs = torch.cat([xs, pos_enc], dim=-1)
+
+        # Edges are fully connected graph for each row. Rows are processed independently.
+        edge_idx = self.graph_matrix(num_rows, num_cols)
+
+
+        output = []
+        # Forward each batch separately
+        for final_weight, x in zip(lin_weights, xs):
+            # Forward each GAT layer
+            for layer in self.gat_layers:
+                x = layer(x, edge_idx)
+
+            # Sum GAT node outputs for final predictions.
+            x = x.view(num_rows, num_cols, -1)
+            x = x.sum(-2)
+
+            # Final linear classification layer
+            x = F.linear(x, final_weight)
+            output.append(x)
+
+        output = torch.stack(output)
+        return output
+
+
 class ModelHolder(nn.Module):
-    def __init__(self, cfg_all, device="cpu"):
+    def __init__(self, cfg_all):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
         self.reparam_weight = cfg["reparam_weight"]
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
 
-        gat_heads = cfg["gat_heads"]
-        gat_hid_dim = cfg["gat_hid_dim"]
-        gat_in_dim = cfg["gat_in_dim"]
-        gat_out_dim = cfg["gat_out_dim"]
-        gat_layers = cfg["gat_layers"]
-
-        gat_shapes = [(gat_in_dim, gat_hid_dim, gat_heads)] + [(gat_hid_dim, gat_hid_dim, gat_heads) for _ in range(gat_layers - 2)] + [(gat_hid_dim, gat_out_dim, gat_heads)]
-
         self.d2v_model = SetSetModel(cfg=cfg)
-        self.weight_model = WeightGenerator(cfg=cfg, out_sizes=gat_shapes)
-        self.gnn_model = GNN(device=device)
+        self.weight_model = WeightGenerator(cfg=cfg)
+        self.gnn_model = GNN2(cfg_dims=cfg)
 
     # Forward Meta set and train
     def forward_meta(self, pairs_meta):
@@ -378,10 +386,8 @@ class ModelHolder(nn.Module):
         return cross_entropy
 
 
-def main(all_cfgs, device="cpu", nametag=None, train_split=None):
+def main(all_cfgs, device="cpu", nametag=None):
     save_holder = None
-
-    # all_cfgs = get_config()
 
 
     cfg = all_cfgs["DL_params"]
@@ -466,7 +472,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     eps = cfg["eps"]
     decay = cfg["decay"]
 
-    model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
+    model = ModelHolder(cfg_all=all_cfgs)
 
     optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
     # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
@@ -507,7 +513,8 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
-            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad}
+
+            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad and not p.grad is None}
 
             optim.step()
             optim.zero_grad()
@@ -563,7 +570,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
             save_grads[name] = torch.div(abs_grad, val_interval)
 
         print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        print(model.weight_model.l_norm.data.detach(), model.weight_model.w_norm.data.detach())
+        print(model.weight_model.l_norm.data.detach())
 
         # Save stats
         if save_holder is None:
@@ -578,7 +585,8 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
 if __name__ == "__main__":
 
-    tag = input("Description: ")
+
+    tag = ""# input("Description: ")
 
     dev = torch.device("cpu")
     for test_no in range(5):
@@ -586,8 +594,7 @@ if __name__ == "__main__":
         print("---------------------------------")
         print("Starting test number", test_no)
 
-        group_no = 0 if test_no == 0 else test_no + 1
-        main(all_cfgs=get_config(), device=dev, nametag=tag, train_split=[0, group_no])
+        main(all_cfgs=get_config(), device=dev, nametag=tag)
 
     print("")
     print(tag)

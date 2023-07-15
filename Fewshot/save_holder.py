@@ -98,7 +98,7 @@ class SaveLoader:
         grad_mean, grad_std = {}, {}
         for epoch_grads in grad_list:
             for name, abs_grad in epoch_grads.items():
-                mean, std = torch.std_mean(abs_grad, correction=0)
+                mean, std = torch.std_mean(abs_grad, unbiased=False)
                 mean, std = mean.item(), std.item()
                 if "norm" in name:
                     continue
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     import re
 
     BASEDIR = "."
-    SAVE_NO = -2
+    SAVE_NO = 4
 
     def sort_key(filename):
         match = re.compile(r'(\d+)').search(filename)
@@ -143,7 +143,8 @@ if __name__ == "__main__":
         else:
             return filename
 
-    saves = os.listdir(f'{BASEDIR}/saves')
+    saves = [f for f in os.listdir(f'{BASEDIR}/saves') if os.path.isdir(f'{BASEDIR}/saves/{f}')]
+    saves = [f for f in saves if f.startswith("save_")]
     saves = sorted(saves, key=sort_key)
     save_dir = f'{BASEDIR}/saves/{saves[SAVE_NO]}'
     print(save_dir)
