@@ -1,9 +1,7 @@
-import torch
 from main import *
-from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
+from old.dataloader import d2v_pairer
 from config import get_config
-import time, os, toml, random, pickle, warnings
+import os, toml, random, pickle, warnings
 import numpy as np
 from scipy import stats
 from abc import ABC, abstractmethod
@@ -20,7 +18,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'

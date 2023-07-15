@@ -1,8 +1,8 @@
-from datasets.dataset import DataLoader
+from datasets.old.dataset import DataLoader
 # from GAtt_Func import GATConv_func
 
 import torch
-from torch_geometric.nn import GATConv, GCNConv
+from torch_geometric.nn import GATConv
 import numpy as np
 import torch.nn as nn
 

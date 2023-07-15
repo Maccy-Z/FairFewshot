@@ -1,4 +1,4 @@
-from datasets.dataset import DataLoader
+from datasets.old.dataset import DataLoader
 from Fewshot.GAtt_Func import GATConvFunc
 
 import torch

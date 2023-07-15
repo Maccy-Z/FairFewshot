@@ -5,11 +5,10 @@ import numpy as np
 import itertools
 import time
 import toml
-from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-from AllDataloader import SplitDataloader
+from AllDataloader import SplitDataloader, d2v_pairer
 from torch.optim.lr_scheduler import StepLR
 
 

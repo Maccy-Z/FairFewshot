@@ -1,5 +1,5 @@
 import pickle
-from Fewshot.comparison_base2 import main as baselines
+from old.comparison_base2 import main as baselines
 
 
 save_no = 13
