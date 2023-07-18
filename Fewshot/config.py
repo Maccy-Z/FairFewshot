@@ -1,5 +1,23 @@
 import toml
 import argparse
+import dataclasses
+
+@dataclasses.dataclass(frozen=True)
+class Config:
+    # Dataloader params
+    min_row_per_label: int = 20     # Minimum number of rows in dataset
+    min_cols: int = 5               # Minimum number of dataset columns
+
+    N_meta: int = 10                # N rows in meta
+    N_target: int = 9              # N rows in target
+
+    col_fmt: str = 'uniform'        # How to sample number of columns per batch
+    normalise: bool = True          # Normalise predictors
+    sample_fmt: str = 'balanced'    # Sample rows randomly or balance labels
+
+    def __post_init__(self):
+        assert self.min_row_per_label >= self.N_meta + self.N_target
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ds-group', type=int)   
@@ -48,7 +66,7 @@ def write_toml():
                            "decay": 1e-4},
 
                  "DL_params": {"bs": 3,
-                               "num_rows": 10,
+                               "num_meta": 10,
                                "num_targets": 10,
                                "ds_group": 0,          # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
