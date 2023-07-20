@@ -8,7 +8,7 @@ import time
 
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
-from config import get_config
+from config import get_config, Config
 from AllDataloader import SplitDataloader, d2v_pairer
 from torch.optim.lr_scheduler import StepLR
 
@@ -160,7 +160,7 @@ class WeightGenerator(nn.Module):
 
 
         # Weights for final linear classificaion layer
-        self.num_classes = 2
+        self.num_classes = 10
         #print(self.out_sizes[-1][-2])
         self.gat_out_dim = self.gat_out_dim * self.gat_heads
         lin_out_dim = self.gat_out_dim * self.num_classes
@@ -244,7 +244,7 @@ class GNN2(nn.Module):
 
         # Flatten xs and append on positional encoding
         pos_enc = pos_enc.unsqueeze(1).repeat(1, num_rows, 1, 1).view(bs, num_rows * num_cols, -1)
-        xs = xs.view(bs, num_rows * num_cols, 1)
+        xs = xs.reshape(bs, num_rows * num_cols, 1)
         xs = torch.cat([xs, pos_enc], dim=-1)
 
         # Edges are fully connected graph for each row. Rows are processed independently.
@@ -323,18 +323,11 @@ class ModelHolder(nn.Module):
 
 def main(all_cfgs, device="cpu", nametag=None):
     save_holder = None
-
+    cfg2 = Config()
 
     cfg = all_cfgs["DL_params"]
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
-    num_targets = cfg["num_targets"]
-    ds_group = cfg["ds_group"]
-    num_cols = cfg.get("num_cols")
-    decrease_col_prob = cfg.get("decrease_col_prob")
-    num_1s = cfg.get("num_1s")
-    binarise = cfg["binarise"]
-    split_file = cfg.get("split_file")
 
     cfg = all_cfgs["Settings"]
     ds = cfg["dataset"]
@@ -343,64 +336,17 @@ def main(all_cfgs, device="cpu", nametag=None):
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "total":
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
-        )
-        val_dl = SplitDataloader(
-            bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
-        )
-        print("Training data names:", dl)
-        print("\nTest data names:", val_dl)
+    dl = SplitDataloader(
+        bs=bs, ds_group=cfg2.ds_group, ds_split="train"
+    )
+    val_dl = SplitDataloader(
+        bs=1, ds_group=cfg2.ds_group, ds_split="test"
+    )
 
-    elif ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{split_file}"
-        print(num_cols)
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, 
-            num_1s=num_1s,
-            num_cols=num_cols['train'],
-            decrease_col_prob=decrease_col_prob,
-            ds_group=ds_group, ds_split="train",
-            split_file=split_file
-        )
-        print("Training data names:", dl.all_datasets)
+    print()
+    print("Training data names:", dl)
+    print("\nTest data names:", val_dl)
 
-        val_dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, 
-            num_1s=num_1s,
-            num_cols=num_cols['val'],
-            decrease_col_prob=decrease_col_prob, 
-            ds_group=ds_group, ds_split="test",
-            split_file=split_file
-        )
-        print("Testing data names:", val_dl.all_datasets)
-        
-    elif ds == "custom":
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=['abalone', 'adult', 'annealing', 'audiology-std', 'balance-scale', 'balloons', 'bank', 'car', 'cardiotocography-10clases', 'chess-krvk', 'chess-krvkp', 'congressional-voting', 'conn-bench-sonar-mines-rocks', 'conn-bench-vowel-deterding', 'connect-4', 'contrac', 'credit-approval', 'cylinder-bands', 'ecoli', 'energy-y1', 'energy-y2', 'flags', 'glass', 'haberman-survival', 'hayes-roth', 'hill-valley', 'image-segmentation', 'ionosphere', 'iris', 'led-display', 'lenses', 'letter', 'libras', 'low-res-spect', 'magic', 'miniboone', 'molec-biol-promoter', 'molec-biol-splice', 'monks-1', 'monks-2', 'monks-3', 'mushroom', 'musk-1', 'musk-2', 'nursery', 'oocytes_merluccius_nucleus_4d', 'oocytes_merluccius_states_2f', 'oocytes_trisopterus_nucleus_2f', 'oocytes_trisopterus_states_5b', 'optical', 'ozone', 'page-blocks', 'pendigits', 'pima', 'pittsburg-bridges-MATERIAL', 'pittsburg-bridges-REL-L', 'pittsburg-bridges-SPAN', 'pittsburg-bridges-T-OR-D', 'pittsburg-bridges-TYPE', 'planning', 'plant-margin', 'plant-shape', 'plant-texture', 'ringnorm', 'seeds', 'semeion', 'soybean', 'spambase', 'statlog-australian-credit', 'statlog-german-credit', 'statlog-image', 'statlog-landsat', 'statlog-shuttle', 'statlog-vehicle', 'steel-plates', 'synthetic-control', 'teaching', 'tic-tac-toe', 'titanic', 'trains', 'twonorm', 'vertebral-column-3clases', 'wall-following', 'waveform', 'waveform-noise', 'wine', 'wine-quality-red', 'wine-quality-white', 'yeast', 'zoo'], ds_split="train"
-        )
-        val_dl = SplitDataloader(
-            bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=['acute-inflammation', 'acute-nephritis', 'arrhythmia',
-            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag',
-            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases',
-            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland',
-            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
-            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic',
-            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf',
-            'statlog-heart', 'thyroid', 'vertebral-column-2clases'], ds_split="test"
-        )
-        print("Training data names:", dl)
-        print("\nTest data names:", val_dl)
-
-    else:
-        raise Exception("Invalid dataset")
 
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
@@ -425,20 +371,21 @@ def main(all_cfgs, device="cpu", nametag=None):
 
         # Train loop
         model.train()
-        for xs, ys, _ in itertools.islice(dl, val_interval):
+        for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(dl, val_interval):
 
-            xs, ys = xs.to(device), ys.to(device)
-            # Train loop
-            # xs.shape = [bs, num_rows+num_targets, num_cols]
-            xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # Splicing like this changes the tensor's stride. Fix here:
-            xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-            ys_target = ys_target.view(-1)
+            # xs, ys = xs.to(device), ys.to(device)
+            # # Train loop
+            # # xs.shape = [bs, num_rows+num_targets, num_cols]
+            # xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+            # ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+            # # Splicing like this changes the tensor's stride. Fix here:
+            # xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+            # ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+            #
 
             # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
+            ys_target = ys_target.view(-1)
+            pairs_meta = d2v_pairer(xs_meta, ys_meta.unsqueeze(-1))
             # First pass with the meta-set, train d2v and get embedding.
 
             embed_meta, pos_enc = model.forward_meta(pairs_meta)

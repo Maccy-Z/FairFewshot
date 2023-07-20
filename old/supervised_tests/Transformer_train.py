@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from datasets.old.dataset import DataLoader
+from old.old.dataset import DataLoader
 import numpy as np
 
 torch.manual_seed(0)

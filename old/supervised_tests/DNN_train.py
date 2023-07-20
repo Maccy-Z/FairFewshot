@@ -1,4 +1,4 @@
-from datasets.old.dataset import DataLoader
+from old.old.dataset import DataLoader
 # from GAtt_Func import GATConv_func
 
 import torch

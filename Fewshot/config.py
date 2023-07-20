@@ -1,5 +1,4 @@
 import toml
-import argparse
 import dataclasses
 
 @dataclasses.dataclass(frozen=True)
@@ -15,13 +14,12 @@ class Config:
     normalise: bool = True          # Normalise predictors
     sample_fmt: str = 'balanced'    # Sample rows randomly or balance labels
 
+    DS_DIR: str = './datasets'
+    ds_group: str = '0'             # Datasets to sample from. List or filename
+
     def __post_init__(self):
         assert self.min_row_per_label >= self.N_meta + self.N_target
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--ds-group', type=int)   
-args = parser.parse_args()
 
 def get_config(cfg_file=None):
     if cfg_file is None:
