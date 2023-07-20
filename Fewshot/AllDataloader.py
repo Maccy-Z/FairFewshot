@@ -140,16 +140,17 @@ class MyDataSet:
             metas.append(meta_rows)
             targets.append(target_rows)
 
+
         metas, targets = np.concatenate(metas), np.concatenate(targets)
-        metas, targets = metas[:, pred_cols], targets[:, pred_cols]
-        meta_pred, meta_label = metas[:, :-1], metas[:, -1]
-        target_pred, target_label = targets[:, :-1], targets[:, -1]
+
+        meta_label, target_label = metas[:, -1], targets[:, -1]
+        meta_pred, target_pred= metas[:, pred_cols], targets[:, pred_cols]
 
         if cfg.normalise:
             all_data = np.concatenate([meta_pred, target_pred])
             mean, std = np.mean(all_data, axis=0), np.std(all_data, axis=0)
-            meta_pred = (meta_pred - mean) / std + 1e-8
-            target_pred = (target_pred - mean) / std + 1e-8
+            meta_pred = (meta_pred - mean) /(std + 1e-8)
+            target_pred = (target_pred - mean) / (std + 1e-8)
 
         return meta_pred, meta_label, target_pred, target_label
 
@@ -223,7 +224,6 @@ class SplitDataloader:
             if cfg.col_fmt == 'all' or self.ds_split == "test":
                 datasets = RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
                 num_cols = min([d.tot_cols for d in datasets]) - 1
-                print(datasets, num_cols)
 
             elif cfg.col_fmt == 'uniform':
                 datasets = RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
@@ -238,6 +238,7 @@ class SplitDataloader:
 
             meta_pred, meta_label = np.stack(meta_pred), np.stack(meta_label)
             target_pred, target_label = np.stack(target_pred), np.stack(target_label)
+
 
             xs_meta, xs_target = to_tensor(meta_pred), to_tensor(target_pred)
             ys_meta, ys_target = to_tensor(meta_label, dtype=torch.int64), to_tensor(target_label, dtype=torch.int64)
@@ -254,7 +255,7 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     dl = SplitDataloader(
-        bs=2, ds_group="1", ds_split="train")
+        bs=2, ds_group=["adult"], ds_split="train")
 
     for mp, ml, tp, tl, datanames in islice(dl, 10):
         print(mp.shape, ml.shape)

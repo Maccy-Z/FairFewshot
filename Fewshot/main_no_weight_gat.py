@@ -12,6 +12,7 @@ from config import get_config, Config
 from AllDataloader import SplitDataloader, d2v_pairer
 from torch.optim.lr_scheduler import StepLR
 
+N_CLASS = 10
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -160,10 +161,9 @@ class WeightGenerator(nn.Module):
 
 
         # Weights for final linear classificaion layer
-        self.num_classes = 10
         #print(self.out_sizes[-1][-2])
         self.gat_out_dim = self.gat_out_dim * self.gat_heads
-        lin_out_dim = self.gat_out_dim * self.num_classes
+        lin_out_dim = self.gat_out_dim * N_CLASS
         self.w_gen_out = nn.Sequential(
             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
             nn.ReLU(),
@@ -190,7 +190,7 @@ class WeightGenerator(nn.Module):
             if self.learn_norm:
                 lin_weights = lin_weights * self.l_norm
 
-        lin_weights = lin_weights.view(-1, self.num_classes, self.gat_out_dim)
+        lin_weights = lin_weights.view(-1, N_CLASS, self.gat_out_dim)
 
         return lin_weights
 
@@ -317,7 +317,7 @@ class ModelHolder(nn.Module):
         return preds_meta
 
     def loss_fn(self, preds, targs):
-        cross_entropy = torch.nn.functional.cross_entropy(preds, targs.long())
+        cross_entropy = torch.nn.functional.cross_entropy(preds, targs)
         return cross_entropy
 
 
@@ -373,25 +373,19 @@ def main(all_cfgs, device="cpu", nametag=None):
         model.train()
         for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(dl, val_interval):
 
-            # xs, ys = xs.to(device), ys.to(device)
-            # # Train loop
-            # # xs.shape = [bs, num_rows+num_targets, num_cols]
-            # xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            # ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # # Splicing like this changes the tensor's stride. Fix here:
-            # xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            # ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-            #
-
             # Reshape for dataset2vec
             ys_target = ys_target.view(-1)
+
+            ys_meta = torch.clip(ys_meta, 0, N_CLASS-1)
+            ys_target = torch.clip(ys_target, 0, N_CLASS-1)
+
             pairs_meta = d2v_pairer(xs_meta, ys_meta.unsqueeze(-1))
             # First pass with the meta-set, train d2v and get embedding.
-
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
+
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
@@ -418,24 +412,22 @@ def main(all_cfgs, device="cpu", nametag=None):
         model.eval()
         epoch_accs, epoch_losses = [], []
         save_ys_targ, save_pred_labs = [], []
-        for xs, ys, _ in itertools.islice(val_dl, val_duration):
-            xs, ys = xs.to(device), ys.to(device)
-            # xs.shape = [bs, num_rows+1, num_cols]
+        for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(val_dl, val_duration):
 
-            xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # Splicing like this changes the tensor's stride. Fix here:
-            xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+            # Reshape for dataset2vec
             ys_target = ys_target.view(-1)
+
+            ys_meta = torch.clip(ys_meta, 0, N_CLASS - 1)
+            ys_target = torch.clip(ys_target, 0, N_CLASS - 1)
 
             # Reshape for dataset2vec
             pairs_meta = d2v_pairer(xs_meta, ys_meta)
 
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-                loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
+
+                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
+                loss = model.loss_fn(ys_pred_targ, ys_target)#torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
             # Accuracy recording
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
@@ -481,3 +473,4 @@ if __name__ == "__main__":
     print("")
     print(tag)
     print("Training Completed")
+
