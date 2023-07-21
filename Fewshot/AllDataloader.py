@@ -121,6 +121,7 @@ class MyDataSet:
 
 
     def sample(self, num_cols):
+        num_cols = 7
         # Columns to sample from
         pred_cols = RNG.choice(self.tot_cols - 1, size=num_cols, replace=False)
 
