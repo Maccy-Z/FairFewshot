@@ -13,7 +13,6 @@ from AllDataloader import SplitDataloader, d2v_pairer
 from torch.optim.lr_scheduler import StepLR
 
 cfg2 = Config()
-N_CLASS = 10
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -269,12 +268,13 @@ class GNN2(nn.Module):
         output = torch.mean(output, dim=-2)
         return output
 
+
 class ProtoNet(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.gnn_model = GNN2(cfg_dims=cfg)
-
         self.lin_1 = torch.nn.Linear(16, cfg2.proto_dim)
+
 
     # From observations, generates latent embeddings
     def to_embedding(self, xs, pos_enc):
@@ -289,25 +289,24 @@ class ProtoNet(nn.Module):
 
         embed_metas = self.to_embedding(xs_meta, pos_enc)
 
-        # Need to seperate out batches
+        # Seperate out batches
         self.batch_protos = []
         for embed_meta, ys_meta in zip(embed_metas, ys_metas, strict=True):
-
             labels = torch.unique(ys_meta)
             embed_protos = [embed_meta[ys_meta == i] for i in labels]
 
             prototypes = {}
             for embed_proto, label in zip(embed_protos, labels, strict=True):
                 prototype = torch.mean(embed_proto, dim=0)
-                prototypes[label] = prototype
+                prototypes[label.item()] = prototype
 
             self.batch_protos.append(prototypes)
 
+
     # Compare targets to prototypes
-    def forward(self, xs_targ, pos_enc):
+    def forward(self, xs_targ, pos_enc, max_N_label):
         targ_embeds = self.to_embedding(xs_targ, pos_enc)
 
-        # TODO: Handle classes properly. Different batchs can have different numbers of classes.
         # Loop over batches
         all_probs = []
         for protos, targ_embed in zip(self.batch_protos, targ_embeds, strict=True):
@@ -315,10 +314,12 @@ class ProtoNet(nn.Module):
             # tile prototype: [1, 2, 3 ,1, 2, 3]
             # repeat targets: [1, 1, 2, 2, 3, 3]
 
+            labels, prototypes = protos.keys(), protos.values()
+            labels, prototypes = list(labels), list(prototypes)
+
             N_class = len(protos)
             N_targs = len(targ_embed)
 
-            prototypes = list(protos.values())
             prototypes = torch.stack(prototypes)
             prototypes = torch.tile(prototypes, (N_targs, 1))
 
@@ -328,10 +329,14 @@ class ProtoNet(nn.Module):
             distances = -torch.norm(test - prototypes, dim=-1)
             distances = distances.reshape(N_targs, N_class)
             probs = torch.nn.Softmax(dim=-1)(distances)
-            all_probs.append(probs)
+
+            # Probs are in order of protos.keys(). Map to true classes.
+            true_probs = torch.zeros([cfg2.N_target, max_N_label], dtype=torch.float32)
+            true_probs[:, labels] = probs
+
+            all_probs.append(true_probs)
 
         all_probs = torch.concatenate(all_probs)
-
         return all_probs
 
 
@@ -344,7 +349,7 @@ class ModelHolder(nn.Module):
         self.reparam_pos_enc = cfg["reparam_pos_enc"]
 
         self.d2v_model = SetSetModel(cfg=cfg)
-        self.weight_model = WeightGenerator(cfg=cfg)
+        # self.weight_model = WeightGenerator(cfg=cfg)
         self.protonet = ProtoNet(cfg=cfg)
 
     # Forward Meta set and train
@@ -355,11 +360,12 @@ class ModelHolder(nn.Module):
         self.protonet.gen_prototypes(xs_meta, ys_meta, pos_enc)
         return embed_meta, pos_enc
 
-    def forward_target(self, xs_target, embed_meta, pos_enc):
+    def forward_target(self, xs_target, embed_meta, pos_enc, max_N_label):
         # weights_target = self.weight_model(embed_meta)
         #preds_meta = self.gnn_model(xs_target, pos_enc)
-        preds = self.protonet.forward(xs_target, pos_enc)
-        return preds
+        preds = self.protonet.forward(xs_target, pos_enc, max_N_label)
+
+        return preds.view(-1, max_N_label)
 
     def loss_fn(self, preds, targs):
         cross_entropy = torch.nn.functional.cross_entropy(preds, targs)
@@ -415,19 +421,16 @@ def main(all_cfgs, device="cpu", nametag=None):
 
         # Train loop
         model.train()
-        for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(dl, val_interval):
+        for xs_meta, ys_meta, xs_target, ys_target, max_N_label in itertools.islice(dl, val_interval):
 
             # Reshape for dataset2vec
             ys_target = ys_target.reshape(-1)
-
-            ys_meta = torch.clip(ys_meta, 0, N_CLASS-1)
-            ys_target = torch.clip(ys_target, 0, N_CLASS-1)
 
             # First pass with the meta-set, train d2v and get embedding.
             embed_meta, pos_enc = model.forward_meta(xs_meta, ys_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc, max_N_label) # TODO: Handle number of classes.
 
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
@@ -455,47 +458,47 @@ def main(all_cfgs, device="cpu", nametag=None):
         model.eval()
         epoch_accs, epoch_losses = [], []
         save_ys_targ, save_pred_labs = [], []
-        for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(val_dl, val_duration):
-
-            # Reshape for dataset2vec
-            ys_target = ys_target.view(-1)
-
-            ys_meta = torch.clip(ys_meta, 0, N_CLASS - 1)
-            ys_target = torch.clip(ys_target, 0, N_CLASS - 1)
-
-            # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
-
-            with torch.no_grad():
-                embed_meta, pos_enc = model.forward_meta(pairs_meta)
-
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
-                loss = model.loss_fn(ys_pred_targ, ys_target)#torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
-
-            # Accuracy recording
-            predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-            accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
-
-            epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-            save_ys_targ.append(ys_target)
-            save_pred_labs.append(predicted_labels)
-
-        val_losses.append(epoch_losses), val_accs.append(epoch_accs)
+        # for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(val_dl, val_duration):
+        #
+        #     # Reshape for dataset2vec
+        #     ys_target = ys_target.view(-1)
+        #
+        #     ys_meta = torch.clip(ys_meta, 0, N_CLASS - 1)
+        #     ys_target = torch.clip(ys_target, 0, N_CLASS - 1)
+        #
+        #     # Reshape for dataset2vec
+        #     pairs_meta = d2v_pairer(xs_meta, ys_meta)
+        #
+        #     with torch.no_grad():
+        #         embed_meta, pos_enc = model.forward_meta(pairs_meta)
+        #
+        #         ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
+        #         loss = model.loss_fn(ys_pred_targ, ys_target)#torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
+        #
+        #     # Accuracy recording
+        #     predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+        #     accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
+        #
+        #     epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+        #     save_ys_targ.append(ys_target)
+        #     save_pred_labs.append(predicted_labels)
+        #
+        # val_losses.append(epoch_losses), val_accs.append(epoch_accs)
 
         # Average gradients
         for name, abs_grad in save_grads.items():
             save_grads[name] = torch.div(abs_grad, val_interval)
-
-        print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        print(model.weight_model.l_norm.data.detach())
-
-        # Save stats
-        if save_holder is None:
-            save_holder = SaveHolder(".", nametag=nametag)
-        history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
-        save_holder.save_model(model, optim, epoch=epoch)
-        save_holder.save_history(history)
-        save_holder.save_grads(save_grads)
+        #
+        # print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        # print(model.weight_model.l_norm.data.detach())
+        #
+        # # Save stats
+        # if save_holder is None:
+        #     save_holder = SaveHolder(".", nametag=nametag)
+        # history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
+        # save_holder.save_model(model, optim, epoch=epoch)
+        # save_holder.save_history(history)
+        # save_holder.save_grads(save_grads)
 
         # optim_sched.step()
 

@@ -15,11 +15,11 @@ class Config:
     sample_fmt: str = 'balanced'    # Sample rows randomly or balance labels
 
     DS_DIR: str = './datasets'
-    ds_group: str = 'adult'             # Datasets to sample from. List or filename
+    ds_group: str = '0'             # Datasets to sample from. List or filename
 
 
     # Model parameters
-    proto_dim: float = 19
+    proto_dim: int = 19
 
     def __post_init__(self):
         assert self.min_row_per_label >= self.N_meta + self.N_target

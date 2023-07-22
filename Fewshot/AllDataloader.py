@@ -121,7 +121,6 @@ class MyDataSet:
 
 
     def sample(self, num_cols):
-        num_cols = 7
         # Columns to sample from
         pred_cols = RNG.choice(self.tot_cols - 1, size=num_cols, replace=False)
 
@@ -244,9 +243,10 @@ class SplitDataloader:
             xs_meta, xs_target = to_tensor(meta_pred), to_tensor(target_pred)
             ys_meta, ys_target = to_tensor(meta_label, dtype=torch.int64), to_tensor(target_label, dtype=torch.int64)
 
-            datanames = [str(d) for d in datasets]
+            # Get maximum number of labels in batch
+            max_N_label = max([d.num_labels for d in datasets]) + 1
 
-            yield xs_meta, ys_meta, xs_target, ys_target, datanames
+            yield xs_meta, ys_meta, xs_target, ys_target, max_N_label
 
     def __repr__(self):
         return str(self.all_datasets)
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     dl = SplitDataloader(
-        bs=2, ds_group=["adult"], ds_split="train")
+        bs=2, ds_group="0", ds_split="train")
 
     for mp, ml, tp, tl, datanames in islice(dl, 10):
         print(mp.shape, ml.shape)
