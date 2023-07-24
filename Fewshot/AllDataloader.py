@@ -9,8 +9,7 @@ import toml
 from config import Config
 
 cfg = Config()
-RNG = np.random.default_rng()
-
+RNG = cfg.RNG
 
 def d2v_pairer(xs, ys):
     #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])

@@ -1,4 +1,4 @@
-from main import *
+from old.main import *
 import os, toml, random
 import numpy as np
 from abc import ABC

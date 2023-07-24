@@ -7,7 +7,7 @@ import torch
 from Fewshot.AllDataloader import SplitDataloader
 from old.dataloader import d2v_pairer
 import toml
-from Fewshot.main import GATConvFunc, ModelHolder, get_config
+from old.main import GATConvFunc, ModelHolder, get_config
 import networkx as nx
 from matplotlib import pyplot as plt
 import torch.nn as nn

@@ -1,4 +1,4 @@
-from main_no_weight_gat import *
+from old.main_no_weight_gat import *
 from old.dataloader import d2v_pairer
 from config import get_config
 import os, toml, random, pickle, warnings

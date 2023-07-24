@@ -1,10 +1,8 @@
 import os
 import torch
 import pickle
-import datetime
 from matplotlib import pyplot as plt
 import shutil
-import numpy as np
 
 
 # Save into file. Automatically make a new folder for every new save.
@@ -54,7 +52,7 @@ class SaveHolder:
 
 
 # Needs to be imported after SaveHolder or there will be a circular import
-from main import *
+from old.main import *
 
 
 class SaveLoader:

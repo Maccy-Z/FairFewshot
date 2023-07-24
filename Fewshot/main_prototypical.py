@@ -430,8 +430,7 @@ def main(all_cfgs, device="cpu", nametag=None):
             embed_meta, pos_enc = model.forward_meta(xs_meta, ys_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc, max_N_label) # TODO: Handle number of classes.
-
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc, max_N_label) 
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
@@ -452,6 +451,7 @@ def main(all_cfgs, device="cpu", nametag=None):
             else:
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
+
         print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
 
         # Validation loop
@@ -508,13 +508,12 @@ if __name__ == "__main__":
 
     tag = ""# input("Description: ")
 
-    dev = torch.device("cpu")
     for test_no in range(5):
 
         print("---------------------------------")
         print("Starting test number", test_no)
 
-        main(all_cfgs=get_config(), device=dev, nametag=tag)
+        main(all_cfgs=get_config(), nametag=tag)
 
     print("")
     print(tag)
