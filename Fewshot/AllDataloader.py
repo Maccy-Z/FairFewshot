@@ -8,9 +8,6 @@ from itertools import islice
 import toml
 from config import Config
 
-cfg = Config()
-RNG = cfg.RNG
-
 def d2v_pairer(xs, ys):
     #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
     bs, num_rows, num_xs = xs.shape
@@ -43,9 +40,10 @@ def sample(n, k):
 
 
 class MyDataSet:
-    def __init__(self, ds_name, split, dtype=torch.float32, device="cpu"):
-        self.ds_name = ds_name
+    def __init__(self, cfg, ds_name, split, dtype=torch.float32, device="cpu"):
+        self.cfg, self.RNG = cfg, cfg.RNG
 
+        self.ds_name = ds_name
         self.device = device
         self.dtype = dtype
 
@@ -121,17 +119,17 @@ class MyDataSet:
 
     def sample(self, num_cols):
         # Columns to sample from
-        pred_cols = RNG.choice(self.tot_cols - 1, size=num_cols, replace=False)
+        pred_cols = self.RNG.choice(self.tot_cols - 1, size=num_cols, replace=False)
 
         # Uniformly divide labels to fit n_meta / target.
-        sample_meta = RNG.permutation(sample(cfg.N_meta, self.num_labels))
-        sample_target = RNG.permutation(sample(cfg.N_target, self.num_labels))
+        sample_meta = self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
+        sample_target = self.RNG.permutation(sample(self.cfg.N_target, self.num_labels))
 
         # Draw number of samples from each label.
         metas, targets = [], []
         for (label, label_rows), N_meta, N_target in zip(self.data.items(), sample_meta, sample_target, strict=True):
             # Draw rows and shuffle to make meta and target batch
-            rows = RNG.choice(label_rows, size=N_meta + N_target, replace=False)
+            rows = self.RNG.choice(label_rows, size=N_meta + N_target, replace=False)
 
             meta_rows = rows[:N_meta]
             target_rows = rows[N_meta:]
@@ -145,7 +143,7 @@ class MyDataSet:
         meta_label, target_label = metas[:, -1], targets[:, -1]
         meta_pred, target_pred= metas[:, pred_cols], targets[:, pred_cols]
 
-        if cfg.normalise:
+        if self.cfg.normalise:
             all_data = np.concatenate([meta_pred, target_pred])
             mean, std = np.mean(all_data, axis=0), np.std(all_data, axis=0)
             meta_pred = (meta_pred - mean) /(std + 1e-8)
@@ -163,8 +161,7 @@ class MyDataSet:
 
 class SplitDataloader:
     def __init__(
-            self, bs, ds_group=-1, ds_split="train", device="cpu",
-            split_file='./datasets/grouped_datasets/splits'):
+            self, cfg, bs, ds_group, ds_split="train", device="cpu"):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -175,22 +172,20 @@ class SplitDataloader:
         :param ds_split: If ds_group is int >= 0, the test or train split.
         """
 
+        self.cfg, self.RNG = cfg, cfg.RNG
         self.bs = bs
-        self.ds_group = ds_group
         self.ds_split = ds_split
-        self.split_file = split_file
-
         self.device = device
 
         ds_dir = f'{cfg.DS_DIR}/data/'
 
         # All datasets
-        if self.ds_group is None:
+        if ds_group is None:
             ds_names = [f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')]
             print(ds_names)
         # Specific datasets
-        elif isinstance(self.ds_group, list):
-            ds_names = self.ds_group
+        elif isinstance(ds_group, list):
+            ds_names = ds_group
         # Premade splits
         elif isinstance(ds_group, str):
             with open(f'{cfg.DS_DIR}/splits/{ds_group}', "r") as f:
@@ -201,7 +196,7 @@ class SplitDataloader:
         self.all_datasets = []
         for ds_name in ds_names:
             try:
-                ds = MyDataSet(ds_name, device=self.device, split="all")
+                ds = MyDataSet(cfg, ds_name, device=self.device, split="all")
                 self.all_datasets.append(ds)
 
             except ValueError as e:
@@ -220,14 +215,14 @@ class SplitDataloader:
         while True:
 
             # Number of columns to sample dataset. Testing always uses full dataset
-            if cfg.col_fmt == 'all' or self.ds_split == "test":
-                datasets = RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
+            if self.cfg.col_fmt == 'all' or self.ds_split == "test":
+                datasets = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
                 num_cols = min([d.tot_cols for d in datasets]) - 1
 
-            elif cfg.col_fmt == 'uniform':
-                datasets = RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
+            elif self.cfg.col_fmt == 'uniform':
+                datasets = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
                 max_num_cols = min([d.tot_cols for d in datasets]) - 1
-                num_cols = RNG.integers(2, max_num_cols)
+                num_cols = self.RNG.integers(2, max_num_cols)
 
             else:
                 raise Exception("Invalid num_cols")
@@ -253,9 +248,10 @@ class SplitDataloader:
 
 if __name__ == "__main__":
     torch.manual_seed(0)
+    cfg = Config()
+    RNG = cfg.RNG
 
-    dl = SplitDataloader(
-        bs=2, ds_group="0", ds_split="train")
+    dl = SplitDataloader(cfg, bs=2, ds_group="0", ds_split="train")
 
     for mp, ml, tp, tl, datanames in islice(dl, 10):
         print(mp.shape, ml.shape)
