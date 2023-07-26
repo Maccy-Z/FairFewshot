@@ -1,4 +1,4 @@
-#%%
+# %%
 import torch
 import numpy as np
 import pandas as pd
@@ -8,24 +8,26 @@ from itertools import islice
 import toml
 from config import Config
 
-def d2v_pairer(xs, ys):
-    #    # torch.Size([2, 5, 10]) torch.Size([2, 5, 1])
-    bs, num_rows, num_xs = xs.shape
 
-    xs = xs.reshape(bs * num_rows, num_xs)
-    ys = ys.reshape(bs * num_rows, 1)
+def d2v_pairer(batch_xs, batch_ys):
+    # xs.shape = [bs][N_meta, N_cols], ys.shape = [bs][N_meta]
 
-    pair_flat = torch.empty(bs * num_rows, num_xs, 2, device=xs.device)
-    for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
-        # Only allow 1D for ys
-        ys_k = ys_k.repeat(num_xs)
-        pairs = torch.stack([xs_k, ys_k], dim=-1)
+    batch_pairs = []
+    for xs, ys in zip(batch_xs, batch_ys):
+        N_meta, N_cols = xs.shape
+        # xs = xs.reshape(bs * N_meta, N_cols)
+        # ys = ys.reshape(bs * N_meta, 1)
 
-        pair_flat[k] = pairs
+        pair_flat = torch.empty(N_meta, N_cols, 2)
+        for k, (xs_k, ys_k) in enumerate(zip(xs, ys)):
+            # Only allow 1D for ys
+            ys_k = ys_k.repeat(N_cols)
+            pairs = torch.stack([xs_k, ys_k], dim=-1)
 
-    pairs = pair_flat.view(bs, num_rows, num_xs, 2)
+            pair_flat[k] = pairs
 
-    return pairs
+        batch_pairs.append(pair_flat)
+    return batch_pairs
 
 
 def to_tensor(array: np.array, device=torch.device('cpu'), dtype=torch.float32):
@@ -35,7 +37,7 @@ def to_tensor(array: np.array, device=torch.device('cpu'), dtype=torch.float32):
 # Sample n items from k catagories. Return samples per catagory.
 def sample(n, k):
     q, r = divmod(n, k)
-    counts = [q+1]*r + [q]*(k-r)
+    counts = [q + 1] * r + [q] * (k - r)
     return counts
 
 
@@ -92,65 +94,72 @@ class MyDataSet:
         labels = targets[idx]
 
         data = np.concatenate((preds, labels), axis=-1)
-        data = to_tensor(data, device=device)
-        self.tot_cols = data.shape[-1]
-        self.tot_rows = data.shape[0]
+        data = to_tensor(data)
+        self.tot_rows, self.tot_cols = data.shape[0], data.shape[-1]
 
         labels, position = np.unique(data[:, -1], return_inverse=True)
         labels = labels.astype(int)
-        self.num_labels = len(labels)
 
         # Sort data by label
         self.data = {}
 
+        # Include labels that have enough entries. If there are less than 2 valid labels, discard dataset.
         for label in labels:
             mask = (position == label)
             label_data = data[mask]
-            self.data[label] = label_data
 
-            # Check dataset is large enough
             num_label_row = len(label_data)
             if cfg.min_row_per_label > num_label_row:
-                raise ValueError(f'Not enough labels for class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
+                print(f'Not enough labels for class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
+            else:
+                self.data[label] = label_data
+
+        self.num_labels = len(self.data)
+        self.max_labels = max(self.data.keys()) + 1     # These are different if an intermediate label is removed.
+
+        if self.num_labels < 2:
+            raise ValueError(f'Not enough labels. {self.num_labels} labels for dataset {self.ds_name}')
 
         if self.tot_cols < cfg.min_cols:
             raise ValueError(f'Not enough columns. Require {cfg.min_cols}, has {self.tot_cols}')
 
-
-    def sample(self, num_cols):
+    def sample(self, N_cols):
         # Columns to sample from
-        pred_cols = self.RNG.choice(self.tot_cols - 1, size=num_cols, replace=False)
+
+        pred_cols = self.RNG.choice(self.tot_cols - 1, size=N_cols, replace=False)
+        # pred_cols = torch.randperm(self.tot_cols - 1)[:num_cols]
 
         # Uniformly divide labels to fit n_meta / target.
-        sample_meta = self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
+        sample_meta = [self.cfg.N_meta for _ in range(self.num_labels)]  # self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
         sample_target = self.RNG.permutation(sample(self.cfg.N_target, self.num_labels))
+
+        # counts = torch.tensor(sample(self.cfg.N_target, self.num_labels))
+        # sample_target = counts[torch.randperm(counts.shape[0])]
 
         # Draw number of samples from each label.
         metas, targets = [], []
         for (label, label_rows), N_meta, N_target in zip(self.data.items(), sample_meta, sample_target, strict=True):
             # Draw rows and shuffle to make meta and target batch
-            rows = self.RNG.choice(label_rows, size=N_meta + N_target, replace=False)
-
+            idx = torch.randperm(label_rows.size(0), generator=self.cfg.T_RNG)[: N_meta + N_target]
+            # rows = self.RNG.choice(label_rows, size=N_meta + N_target, replace=False)
+            rows = label_rows[idx]
             meta_rows = rows[:N_meta]
             target_rows = rows[N_meta:]
 
             metas.append(meta_rows)
             targets.append(target_rows)
 
-
-        metas, targets = np.concatenate(metas), np.concatenate(targets)
-
-        meta_label, target_label = metas[:, -1], targets[:, -1]
-        meta_pred, target_pred= metas[:, pred_cols], targets[:, pred_cols]
+        metas, targets = torch.cat(metas), torch.cat(targets)
+        ys_meta, ys_target = metas[:, -1], targets[:, -1]
+        xs_meta, xs_target = metas[:, pred_cols], targets[:, pred_cols]
 
         if self.cfg.normalise:
-            all_data = np.concatenate([meta_pred, target_pred])
-            mean, std = np.mean(all_data, axis=0), np.std(all_data, axis=0)
-            meta_pred = (meta_pred - mean) /(std + 1e-8)
-            target_pred = (target_pred - mean) / (std + 1e-8)
+            all_data = torch.cat([xs_meta, xs_target])
+            std, mean = torch.std_mean(all_data, dim=0)
+            xs_meta = (xs_meta - mean) / (std + 1e-8)
+            xs_target = (xs_target - mean) / (std + 1e-8)
 
-        return meta_pred, meta_label, target_pred, target_label
-
+        return xs_meta, ys_meta.to(int), xs_target, ys_target.to(int)
 
     def __repr__(self):
         return self.ds_name
@@ -161,11 +170,11 @@ class MyDataSet:
 
 class SplitDataloader:
     def __init__(
-            self, cfg, bs, ds_group, ds_split="train", device="cpu"):
+            self, cfg, bs, datasets, ds_split="train", device="cpu"):
         """
 
         :param bs: Number of datasets to sample from each batch
-        :param ds_group: Which datasets to sample from.
+        :param datasets: Which datasets to sample from.
             If None: All datasets
             If -1, sample all available datasets
             If strings, sample from that specified dataset(s).
@@ -180,15 +189,15 @@ class SplitDataloader:
         ds_dir = f'{cfg.DS_DIR}/data/'
 
         # All datasets
-        if ds_group is None:
+        if datasets is None:
             ds_names = [f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')]
             print(ds_names)
         # Specific datasets
-        elif isinstance(ds_group, list):
-            ds_names = ds_group
+        elif isinstance(datasets, list):
+            ds_names = datasets
         # Premade splits
-        elif isinstance(ds_group, str):
-            with open(f'{cfg.DS_DIR}/splits/{ds_group}', "r") as f:
+        elif isinstance(datasets, str):
+            with open(f'{cfg.DS_DIR}/splits/{datasets}', "r") as f:
                 ds_names = toml.load(f)[ds_split]
         else:
             raise Exception("Invalid ds_group")
@@ -216,29 +225,28 @@ class SplitDataloader:
 
             # Number of columns to sample dataset. Testing always uses full dataset
             if self.cfg.col_fmt == 'all' or self.ds_split == "test":
-                datasets = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
-                num_cols = min([d.tot_cols for d in datasets]) - 1
+                sample_ds = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
+                N_cols = min([d.tot_cols for d in sample_ds]) - 1
 
             elif self.cfg.col_fmt == 'uniform':
-                datasets = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
-                max_num_cols = min([d.tot_cols for d in datasets]) - 1
-                num_cols = self.RNG.integers(2, max_num_cols)
+                sample_ds = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
+                max_num_cols = min([d.tot_cols for d in sample_ds]) - 1
+                N_cols = self.RNG.integers(2, max_num_cols)
 
             else:
                 raise Exception("Invalid num_cols")
 
-            meta_pred, meta_label, target_pred, target_label = list(zip(*[
-                ds.sample(num_cols=num_cols) for ds in datasets]))
+            xs_meta, ys_meta, xs_target, ys_target = list(zip(*[
+                ds.sample(N_cols=N_cols) for ds in sample_ds]))
 
-            meta_pred, meta_label = np.stack(meta_pred), np.stack(meta_label)
-            target_pred, target_label = np.stack(target_pred), np.stack(target_label)
-
-
-            xs_meta, xs_target = to_tensor(meta_pred), to_tensor(target_pred)
-            ys_meta, ys_target = to_tensor(meta_label, dtype=torch.int64), to_tensor(target_label, dtype=torch.int64)
+            # xs_meta, ys_meta = torch.stack(xs_meta), torch.stack(ys_meta)
+            # xs_target, ys_target = torch.stack(xs_target), torch.stack(ys_target)
+            #
+            # xs_meta, xs_target = to_tensor(meta_pred), to_tensor(target_pred)
+            # ys_meta, ys_target = to_tensor(meta_label, dtype=torch.int64), to_tensor(target_label, dtype=torch.int64)
 
             # Get maximum number of labels in batch
-            max_N_label = max([d.num_labels for d in datasets]) + 1
+            max_N_label = max([d.max_labels for d in sample_ds])
 
             yield xs_meta, ys_meta, xs_target, ys_target, max_N_label
 
@@ -247,13 +255,15 @@ class SplitDataloader:
 
 
 if __name__ == "__main__":
-    torch.manual_seed(0)
+    # torch.manual_seed(0)
     cfg = Config()
     RNG = cfg.RNG
 
-    dl = SplitDataloader(cfg, bs=2, ds_group="0", ds_split="train")
+    dl = SplitDataloader(cfg, bs=2, datasets="0", ds_split="train")
 
     for mp, ml, tp, tl, datanames in islice(dl, 10):
+        mp, ml = torch.stack(mp), torch.stack(ml)
+        tp, tl = torch.stack(tp), torch.stack(tl)
         print(mp.shape, ml.shape)
         print(tp.shape, tl.shape)
         print()

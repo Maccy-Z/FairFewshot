@@ -1,3 +1,5 @@
+import torch.random
+
 import toml
 import dataclasses
 import numpy as np
@@ -5,11 +7,11 @@ import numpy as np
 @dataclasses.dataclass
 class Config:
     # Dataloader params
-    min_row_per_label: int = 20     # Minimum number of rows in dataset
+    min_row_per_label: int = 15     # Minimum number of rows in dataset
     min_cols: int = 5               # Minimum number of dataset columns
 
-    N_meta: int = 10                # N rows in meta
-    N_target: int = 10              # N rows in target
+    N_meta: int = 3                # N rows in meta
+    N_target: int = 5               # N rows in target
 
     col_fmt: str = 'uniform'        # How to sample number of columns per batch
     normalise: bool = True          # Normalise predictors
@@ -18,15 +20,18 @@ class Config:
     DS_DIR: str = './datasets'
     ds_group: str = '0'             # Datasets to sample from. List or filename
 
-
     # Model parameters
     proto_dim: int = 19
+
+    # RNGs
+    seed: int = 0
 
     def __post_init__(self):
         assert self.min_row_per_label >= self.N_meta + self.N_target
 
-        self.RNG = np.random.default_rng(seed=0)
-
+        self.RNG = np.random.default_rng(seed=self.seed)
+        self.T_RNG = torch.Generator()
+        self.T_RNG.manual_seed(self.seed)
 
 
 def get_config(cfg_file=None):
