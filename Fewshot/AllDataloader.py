@@ -113,6 +113,7 @@ class MyDataSet:
             num_label_row = len(label_data)
             if cfg.min_row_per_label > num_label_row:
                 print(f'Not enough labels for {self}, class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
+                raise ValueError("isodjf")
             else:
                 self.data[label] = label_data
 

@@ -7,7 +7,7 @@ import numpy as np
 @dataclasses.dataclass
 class Config:
     # Dataloader params
-    min_row_per_label: int = 15     # Minimum number of rows in dataset
+    min_row_per_label: int = 20     # Minimum number of rows in dataset
     min_cols: int = 5               # Minimum number of dataset columns
 
     fix_per_label: bool = False      # Fix N_meta per label instead of total
@@ -22,10 +22,10 @@ class Config:
     ds_group: str = '0'             # Datasets to sample from. List or filename
 
     # Model parameters
-    proto_dim: int = 16
+    proto_dim: int = 19
 
     # RNGs
-    seed: int = 0
+    seed: int = 10
 
     def __post_init__(self):
         #assert self.min_row_per_label >= self.N_meta + self.N_target
