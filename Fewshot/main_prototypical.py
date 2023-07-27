@@ -14,17 +14,6 @@ from torch.optim.lr_scheduler import StepLR
 cfg2 = Config()
 
 
-# Run vectorised function on a batch/list of xs.
-def batch_forward(batch_xs: list, fn: callable):
-    splits = [len(x) for x in batch_xs]
-
-    xs = torch.cat(batch_xs)
-    xs = fn(xs, slices=splits)
-    # batch_xs = torch.split(xs, splits)
-
-    return xs
-
-
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
         super().__init__()
@@ -92,7 +81,6 @@ class SetSetModel(nn.Module):
 
     def forward_layers(self, x, splits):
         # x.shape = [BS*[N_rows], N_cols, 2]
-
         # f network
         x, _ = self.fs(x)  # [BS*[N_rows], N_cols, h_size]
 
@@ -116,7 +104,7 @@ class SetSetModel(nn.Module):
         xs = torch.cat(xs)
         pos_encs = self.forward_layers(xs, splits=splits)
 
-        return None, pos_encs
+        return pos_encs
 
 
 #
@@ -194,7 +182,7 @@ class GNN2(nn.Module):
             self.gat_layers.append(pyg.nn.GATConv(gat_hid_dim * gat_heads, gat_hid_dim, heads=gat_heads))
         self.gat_layers.append(pyg.nn.GATConv(gat_hid_dim * gat_heads, gat_out_dim, heads=gat_heads))
 
-        self.lin_1 = torch.nn.Linear(24, cfg2.proto_dim)
+        self.lin_1 = torch.nn.Linear(gat_out_dim, cfg2.proto_dim)
 
     # Generate additional fixed embeddings / graph
     def graph_matrix(self, N_rows, N_col):
@@ -209,17 +197,7 @@ class GNN2(nn.Module):
         offsets = torch.arange(tot_repeats).view(-1, 1, 1) * N_col
 
         edge_idx = edge_idx + offsets
-        # print(edge_idx.shape)
-        # print(edge_idx)
-        #
-        # # Repeat edge_index over block diagonal adjacency matrix by adding num_xs to everything
-        # batch_edge_idx = []
-        # for N_row in N_rows:
-        #     edge_idx = []
-        #     for i in np.arange(N_row):
-        #         edge_idx.append(base_edge_idx + i * N_col)
-        #
-        # edge_idx = torch.cat(edge_idx, dim=-1)
+
         edge_idx = edge_idx.permute(1, 0, 2)
         edge_idx = edge_idx.reshape(2, -1)
 
@@ -227,9 +205,9 @@ class GNN2(nn.Module):
 
     def forward(self, batch_xs, batch_pos_enc):
         """
-        :param xs:              shape = [BS][N_row, N_col]
-        :param pos_enc:         shape = [BS][N_row, enc_dim]
-        :return output:         shape = [BS][N_row, N_col]
+        :param batch_xs:              shape = [BS][N_row, N_col]
+        :param batch_pos_enc:         shape = [BS][N_row, enc_dim]
+        :return output:               shape = [BS][N_row, N_col]
         """
         N_rows, batch_inputs = [], []
         for xs, pos_enc in zip(batch_xs, batch_pos_enc):
@@ -255,14 +233,14 @@ class GNN2(nn.Module):
         for layer in self.gat_layers:
             xs = layer(xs, edge_idx)
 
-        xs = self.lin_1(xs)
-
         # Sum GAT node outputs for final predictions.
         xs = xs.view(-1, N_col, xs.size(-1))
         xs = xs.split(N_rows)
         batch_outputs = []
         for x in xs:
             x = torch.mean(x, dim=-2)
+            x = self.lin_1(x)
+
             batch_outputs.append(x)
 
         return batch_outputs
@@ -277,7 +255,6 @@ class ProtoNet(nn.Module):
     def to_embedding(self, xs, pos_enc):
         # Pass through GNN -> average -> final linear
         embeddings = self.gnn_model(xs, pos_enc)
-        # embeddings = self.lin_1(xs)
         return embeddings
 
     # Given meta embeddings and labels, generate prototypes
@@ -341,9 +318,6 @@ class ModelHolder(nn.Module):
         super().__init__()
         cfg = cfg_all["NN_dims"]
 
-        self.reparam_weight = cfg["reparam_weight"]
-        self.reparam_pos_enc = cfg["reparam_pos_enc"]
-
         self.d2v_model = SetSetModel(cfg=cfg)
         # self.weight_model = WeightGenerator(cfg=cfg)
         self.protonet = ProtoNet(cfg=cfg)
@@ -351,12 +325,12 @@ class ModelHolder(nn.Module):
     # Forward Meta set and train
     def forward_meta(self, xs_meta, ys_meta):
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
-        embed_meta, pos_enc = self.d2v_model(pairs_meta)
+        pos_enc = self.d2v_model(pairs_meta)
 
         self.protonet.gen_prototypes(xs_meta, ys_meta, pos_enc)
-        return embed_meta, pos_enc
+        return pos_enc
 
-    def forward_target(self, xs_target, embed_meta, pos_enc, max_N_label):
+    def forward_target(self, xs_target, pos_enc, max_N_label):
         # weights_target = self.weight_model(embed_meta)
         # preds_meta = self.gnn_model(xs_target, pos_enc)
         preds = self.protonet.forward(xs_target, pos_enc, max_N_label)
@@ -419,15 +393,13 @@ def main(all_cfgs, device="cpu", nametag=None):
         model.train()
         for xs_meta, ys_meta, xs_target, ys_target, max_N_label in itertools.islice(dl, val_interval):
             # First pass with the meta-set, train d2v and get embedding.
-            embed_meta, pos_enc = model.forward_meta(xs_meta, ys_meta)
+            pos_enc = model.forward_meta(xs_meta, ys_meta)
 
             # Second pass using previous embedding and train weight encoder
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc, max_N_label)
+            ys_pred_targ = model.forward_target(xs_target, pos_enc, max_N_label)
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
-
-            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad and not p.grad is None}
 
             optim.step()
             optim.zero_grad()
@@ -440,11 +412,13 @@ def main(all_cfgs, device="cpu", nametag=None):
 
             accs.append(accuracy), losses.append(loss.item())
 
-            if save_grads is None:
-                save_grads = grads
-            else:
-                for name, abs_grad in grads.items():
-                    save_grads[name] += abs_grad
+            # grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad and not p.grad is None}
+
+            # if save_grads is None:
+            #     save_grads = grads
+            # else:
+            #     for name, abs_grad in grads.items():
+            #         save_grads[name] += abs_grad
 
         print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
 
@@ -480,8 +454,8 @@ def main(all_cfgs, device="cpu", nametag=None):
         # val_losses.append(epoch_losses), val_accs.append(epoch_accs)
 
         # Average gradients
-        for name, abs_grad in save_grads.items():
-            save_grads[name] = torch.div(abs_grad, val_interval)
+        # for name, abs_grad in save_grads.items():
+        #     save_grads[name] = torch.div(abs_grad, val_interval)
         #
         # print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
         # print(model.weight_model.l_norm.data.detach())

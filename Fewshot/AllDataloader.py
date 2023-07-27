@@ -42,6 +42,8 @@ def sample(n, k):
 
 
 class MyDataSet:
+    cfg: Config
+
     def __init__(self, cfg, ds_name, split, dtype=torch.float32, device="cpu"):
         self.cfg, self.RNG = cfg, cfg.RNG
 
@@ -110,12 +112,12 @@ class MyDataSet:
 
             num_label_row = len(label_data)
             if cfg.min_row_per_label > num_label_row:
-                print(f'Not enough labels for class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
+                print(f'Not enough labels for {self}, class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
             else:
                 self.data[label] = label_data
 
         self.num_labels = len(self.data)
-        self.max_labels = max(self.data.keys()) + 1     # These are different if an intermediate label is removed.
+        self.max_labels = max(self.data.keys()) + 1  # These are different if an intermediate label is removed.
 
         if self.num_labels < 2:
             raise ValueError(f'Not enough labels. {self.num_labels} labels for dataset {self.ds_name}')
@@ -130,7 +132,10 @@ class MyDataSet:
         # pred_cols = torch.randperm(self.tot_cols - 1)[:num_cols]
 
         # Uniformly divide labels to fit n_meta / target.
-        sample_meta = [self.cfg.N_meta for _ in range(self.num_labels)]  # self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
+        if self.cfg.fix_per_label:
+            sample_meta = [self.cfg.N_meta for _ in range(self.num_labels)]
+        else:
+            sample_meta = self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
         sample_target = self.RNG.permutation(sample(self.cfg.N_target, self.num_labels))
 
         # counts = torch.tensor(sample(self.cfg.N_target, self.num_labels))
@@ -247,7 +252,6 @@ class SplitDataloader:
 
             # Get maximum number of labels in batch
             max_N_label = max([d.max_labels for d in sample_ds])
-
             yield xs_meta, ys_meta, xs_target, ys_target, max_N_label
 
     def __repr__(self):

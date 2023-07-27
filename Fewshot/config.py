@@ -10,24 +10,25 @@ class Config:
     min_row_per_label: int = 15     # Minimum number of rows in dataset
     min_cols: int = 5               # Minimum number of dataset columns
 
-    N_meta: int = 3                # N rows in meta
-    N_target: int = 5               # N rows in target
+    fix_per_label: bool = False      # Fix N_meta per label instead of total
+    N_meta: int = 10                 # N rows in meta
+    N_target: int = 10               # N rows in target
 
     col_fmt: str = 'uniform'        # How to sample number of columns per batch
     normalise: bool = True          # Normalise predictors
-    sample_fmt: str = 'balanced'    # Sample rows randomly or balance labels
+    # sample_fmt: str = 'balanced'    # Sample rows randomly or balance labels
 
     DS_DIR: str = './datasets'
     ds_group: str = '0'             # Datasets to sample from. List or filename
 
     # Model parameters
-    proto_dim: int = 19
+    proto_dim: int = 16
 
     # RNGs
     seed: int = 0
 
     def __post_init__(self):
-        assert self.min_row_per_label >= self.N_meta + self.N_target
+        #assert self.min_row_per_label >= self.N_meta + self.N_target
 
         self.RNG = np.random.default_rng(seed=self.seed)
         self.T_RNG = torch.Generator()
@@ -49,9 +50,6 @@ def write_toml():
                              "d2v_layers": [4, 2, 4],   # layers of d2v. first 3 are d2v dims, last positional encoder
                              "pos_depth": 2,            # Depth of positional encoder.
                              "pos_enc_dim": 15,          # Dimension of the positional encoder output
-                             "load_d2v": False,          # Load pretrained datset2vec
-                             "freeze_d2v": False,       # Continue training datset2vec
-                             "model_load": "model_3",  # Which D2V to load from
 
                              "weight_hid_dim": 64,      # Weight generator hidden dimension
                              "gen_layers": 1,           # Weight deocder layers
@@ -61,8 +59,6 @@ def write_toml():
                              "gat_hid_dim": 128,        # Hidden dimension of GAT
                              "gat_out_dim": 16,         # Output of GAT
 
-                             "reparam_weight": False,   # Reparametrise outputs
-                             "reparam_pos_enc": False,
 
                              "weight_bias": "off",     # Zero: zero init. # Off, disable bias completely # Anything else: default init
                              "pos_enc_bias": "zero",
