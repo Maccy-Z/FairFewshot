@@ -3,6 +3,7 @@ import torch
 import pickle
 from matplotlib import pyplot as plt
 import shutil
+import numpy as np
 
 
 # Save into file. Automatically make a new folder for every new save.
@@ -23,7 +24,8 @@ class SaveHolder:
         print(self.save_dir)
         os.mkdir(self.save_dir)
 
-        shutil.copy(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
+        shutil.copy2(f'{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
+        shutil.copy2(f'{base_dir}/Fewshot/config.py', f'{self.save_dir}/config.py')
         if nametag is not None:
             with open(f'{self.save_dir}/tag.txt', 'w') as f:
                 f.write(nametag)
@@ -49,10 +51,6 @@ class SaveHolder:
         self.grads.append(grads)
         with open(f'{self.save_dir}/grads.pkl', 'wb') as f:
             pickle.dump(self.grads, f)
-
-
-# Needs to be imported after SaveHolder or there will be a circular import
-from old.main import *
 
 
 class SaveLoader:

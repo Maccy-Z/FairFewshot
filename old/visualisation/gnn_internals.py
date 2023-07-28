@@ -4,7 +4,7 @@ import sys
 sys.path.append("/mnt/storage_ssd/FairFewshot")
 
 import torch
-from Fewshot.AllDataloader import SplitDataloader
+from Fewshot.dataloader import SplitDataloader
 from old.dataloader import d2v_pairer
 import toml
 from old.main import GATConvFunc, ModelHolder, get_config

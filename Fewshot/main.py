@@ -5,11 +5,10 @@ import numpy as np
 import itertools
 import time
 
-from old.GAtt_Func import GATConvFunc
+from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
-from config import get_config, Config
-from AllDataloader import SplitDataloader, d2v_pairer
-from torch.optim.lr_scheduler import StepLR
+from config import Config
+from dataloader import SplitDataloader, d2v_pairer
 
 cfg2 = Config()
 
@@ -44,29 +43,20 @@ class ResBlock(nn.Module):
 
 # Dataset2vec model
 class SetSetModel(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg: Config):
         super().__init__()
 
-        h_size = cfg["set_h_dim"]
-        out_size = cfg["set_out_dim"]
+        h_size = cfg.d2v_h_dim
+        f_depth = cfg.f_depth
 
-        pos_enc_bias = cfg["pos_enc_bias"]
-        pos_enc_dim = cfg["pos_enc_dim"]
-        pos_depth = cfg["pos_depth"]
-
-        model_depths = cfg["d2v_layers"]
-        f_depth, g_depth, h_depth = model_depths
+        pos_enc_bias = cfg.pos_enc_bias
+        pos_enc_dim = cfg.pos_enc_dim
+        pos_depth = cfg.pos_enc_depth
 
         self.relu = nn.ReLU()
 
         # f network
         self.fs = ResBlock(2, h_size, h_size, n_blocks=f_depth)
-
-        # g network
-        self.gs = ResBlock(h_size, h_size, h_size, n_blocks=g_depth)
-
-        # h network
-        self.hs = ResBlock(h_size, h_size, out_size, n_blocks=h_depth, out_relu=False)
 
         # Positional embedding Network
         self.ps = nn.ModuleList([])
@@ -76,7 +66,7 @@ class SetSetModel(nn.Module):
         self.p_out = nn.Linear(h_size, pos_enc_dim, bias=(pos_enc_bias != "off"))
 
         if pos_enc_bias == "zero":
-            # print(f'Positional encoding bias init to 0')
+            print(f'Positional encoding bias init to 0')
             self.p_out.bias.data.fill_(0)
 
     def forward_layers(self, x, splits):
@@ -108,15 +98,15 @@ class SetSetModel(nn.Module):
 
 
 class GNN2(nn.Module):
-    def __init__(self, cfg_dims):
+    def __init__(self, cfg: Config):
         super().__init__()
         self.GATConv = GATConvFunc()
 
-        gat_heads = cfg_dims["gat_heads"]
-        gat_hid_dim = cfg_dims["gat_hid_dim"]
-        gat_in_dim = cfg_dims["gat_in_dim"]
-        gat_out_dim = cfg_dims["gat_out_dim"]
-        gat_layers = cfg_dims["gat_layers"]
+        gat_heads = cfg.gat_heads
+        gat_hid_dim = cfg.gat_hid_dim
+        gat_in_dim = cfg.gat_in_dim
+        gat_out_dim = cfg.gat_out_dim
+        gat_layers = cfg.gat_layers
 
         self.gat_layers = nn.ModuleList([])
         self.gat_layers.append(pyg.nn.GATConv(gat_in_dim, gat_hid_dim, heads=gat_heads))
@@ -191,7 +181,7 @@ class GNN2(nn.Module):
 class ProtoNet(nn.Module):
     def __init__(self, cfg):
         super().__init__()
-        self.gnn_model = GNN2(cfg_dims=cfg)
+        self.gnn_model = GNN2(cfg=cfg)
 
     # From observations, generates latent embeddings
     def to_embedding(self, xs, pos_enc):
@@ -256,12 +246,10 @@ class ProtoNet(nn.Module):
 
 
 class ModelHolder(nn.Module):
-    def __init__(self, cfg_all):
+    def __init__(self, cfg):
         super().__init__()
-        cfg = cfg_all["NN_dims"]
 
         self.d2v_model = SetSetModel(cfg=cfg)
-        # self.weight_model = WeightGenerator(cfg=cfg)
         self.protonet = ProtoNet(cfg=cfg)
 
     # Forward Meta set and train
@@ -285,45 +273,28 @@ class ModelHolder(nn.Module):
         return cross_entropy
 
 
-def main(all_cfgs, device="cpu", nametag=None):
+def main(cfg2, device="cpu", nametag=None):
     save_holder = None
 
-    cfg = all_cfgs["DL_params"]
-    bs = cfg["bs"]
-    num_rows = cfg["num_rows"]
-
-    cfg = all_cfgs["Settings"]
-    ds = cfg["dataset"]
-    num_epochs = cfg["num_epochs"]
-
-    val_interval = cfg["val_interval"]
-    val_duration = cfg["val_duration"]
-
     dl = SplitDataloader(cfg2,
-                         bs=bs, datasets=cfg2.ds_group, ds_split="train"
+                         bs=cfg2.bs, datasets=cfg2.ds_group, testing=False
                          )
     val_dl = SplitDataloader(cfg2,
-                             bs=1, datasets=cfg2.ds_group, ds_split="test"
+                             bs=1, datasets=cfg2.ds_group, testing=True
                              )
 
     print()
     print("Training data names:", dl)
     print("\nTest data names:", val_dl)
 
-    cfg = all_cfgs["Optim"]
-    lr = cfg["lr"]
-    eps = cfg["eps"]
-    decay = cfg["decay"]
+    model = ModelHolder(cfg=cfg2)
 
-    model = ModelHolder(cfg_all=all_cfgs)
-
-    optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
-    # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
+    optim = torch.optim.AdamW(model.parameters(), lr=cfg2.lr, eps=cfg2.eps, weight_decay=cfg2.w_decay)
 
     accs, losses = [], []
     val_accs, val_losses = [], []
     st = time.time()
-    for epoch in range(num_epochs):
+    for epoch in range(cfg2.epochs):
         duration = time.time() - st
         st = time.time()
         print()
@@ -333,7 +304,7 @@ def main(all_cfgs, device="cpu", nametag=None):
 
         # Train loop
         model.train()
-        for xs_meta, ys_meta, xs_target, ys_target, max_N_label in itertools.islice(dl, val_interval):
+        for xs_meta, ys_meta, xs_target, ys_target, max_N_label in itertools.islice(dl, cfg2.ep_len):
             # First pass with the meta-set, train d2v and get embedding.
             pos_enc = model.forward_meta(xs_meta, ys_meta)
 
@@ -342,75 +313,59 @@ def main(all_cfgs, device="cpu", nametag=None):
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
-
             optim.step()
             optim.zero_grad()
 
-            ys_target = torch.cat(ys_target)
-
             # Accuracy recording
+            ys_target = torch.cat(ys_target)
             predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-            accuracy = (predicted_labels == ys_target.flatten()).sum().item() / len(ys_target.flatten())
+            accuracy = torch.eq(predicted_labels, ys_target).sum().item() / len(ys_target)
 
             accs.append(accuracy), losses.append(loss.item())
 
-            # grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad and not p.grad is None}
+            # Save train gradients
+            grads = {n: torch.abs(p.grad) for n, p in model.named_parameters() if p.requires_grad and not p.grad is None}
+            if save_grads is None:
+                save_grads = grads
+            else:
+                for name, abs_grad in grads.items():
+                    save_grads[name] += abs_grad
 
-            # if save_grads is None:
-            #     save_grads = grads
-            # else:
-            #     for name, abs_grad in grads.items():
-            #         save_grads[name] += abs_grad
-
-        print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
+        print(f"Training accuracy : {np.mean(accs[-cfg2.ep_len:]) * 100:.2f}%")
 
         # Validation loop
         model.eval()
         epoch_accs, epoch_losses = [], []
-        save_ys_targ, save_pred_labs = [], []
-        # for xs_meta, ys_meta, xs_target, ys_target, _ in itertools.islice(val_dl, val_duration):
-        #
-        #     # Reshape for dataset2vec
-        #     ys_target = ys_target.view(-1)
-        #
-        #     ys_meta = torch.clip(ys_meta, 0, N_CLASS - 1)
-        #     ys_target = torch.clip(ys_target, 0, N_CLASS - 1)
-        #
-        #     # Reshape for dataset2vec
-        #     pairs_meta = d2v_pairer(xs_meta, ys_meta)
-        #
-        #     with torch.no_grad():
-        #         embed_meta, pos_enc = model.forward_meta(pairs_meta)
-        #
-        #         ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_CLASS)
-        #         loss = model.loss_fn(ys_pred_targ, ys_target)#torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
-        #
-        #     # Accuracy recording
-        #     predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-        #     accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
-        #
-        #     epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-        #     save_ys_targ.append(ys_target)
-        #     save_pred_labs.append(predicted_labels)
-        #
-        # val_losses.append(epoch_losses), val_accs.append(epoch_accs)
+        for xs_meta, ys_meta, xs_target, ys_target, max_N_label in itertools.islice(dl, cfg2.ep_len):
+
+            with torch.no_grad():
+                pos_enc = model.forward_meta(xs_meta, ys_meta)
+                ys_pred_targ = model.forward_target(xs_target, pos_enc, max_N_label)
+                loss = model.loss_fn(ys_pred_targ, ys_target)
+
+
+            # Accuracy recording
+            ys_target = torch.cat(ys_target)
+            predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+            accuracy = torch.eq(predicted_labels, ys_target).sum().item() / len(ys_target)
+
+            epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+
+        val_losses.append(epoch_losses), val_accs.append(epoch_accs)
+        print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
 
         # Average gradients
-        # for name, abs_grad in save_grads.items():
-        #     save_grads[name] = torch.div(abs_grad, val_interval)
-        #
-        # print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-        # print(model.weight_model.l_norm.data.detach())
-        #
-        # # Save stats
-        # if save_holder is None:
-        #     save_holder = SaveHolder(".", nametag=nametag)
-        # history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
-        # save_holder.save_model(model, optim, epoch=epoch)
-        # save_holder.save_history(history)
-        # save_holder.save_grads(save_grads)
+        for name, abs_grad in save_grads.items():
+            save_grads[name] = torch.div(abs_grad, cfg2.ep_len)
 
-        # optim_sched.step()
+        # Save stats
+        if save_holder is None:
+            save_holder = SaveHolder(".", nametag=nametag)
+        history = {"accs": accs, "loss": losses, "val_accs": val_accs, "val_loss": val_losses, "epoch_no": epoch}
+        save_holder.save_model(model, optim, epoch=epoch)
+        save_holder.save_history(history)
+        save_holder.save_grads(save_grads)
+
 
 
 if __name__ == "__main__":
@@ -421,7 +376,7 @@ if __name__ == "__main__":
         print("---------------------------------")
         print("Starting test number", test_no)
 
-        main(all_cfgs=get_config(), nametag=tag)
+        main(cfg2=Config(), nametag=tag)
 
     print("")
     print(tag)

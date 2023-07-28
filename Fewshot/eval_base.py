@@ -1,58 +1,47 @@
-from old.main import *
+# Get accuracies from precomputed models
+
+from main import *
 import os, toml, random
 import numpy as np
 from abc import ABC
 import pandas as pd
 from collections import defaultdict
 
+from precompute_batches import load_batch
 
 import sys
+
 sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-#from STUNT_interface import STUNT_utils, MLPProto
+# from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
 
-class Model(ABC):
+class PreModel(ABC):
     # Process batch of data
     def __init__(self, model_name):
         self.model_name = model_name
 
+    def get_accuracy(self, ds_name, num_rows):
+        with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
+            lines = f.read()
 
-    def get_accuracy(self, ds_name, num_rows, num_cols, num_1s=None):
-        if num_1s is None:
-            with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
-                lines = f.read()
+        lines = lines.split("\n")
 
-            lines = lines.split("\n")
+        for config in lines:
+            if config.startswith(f'{self.model_name},{num_rows}'):
+                config = config.split(",")
 
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
-                    config = config.split(",")
+                mean, std = float(config[-2]), float(config[-1])
+                return mean, std
 
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
-
-        else:
-            with open(f'./datasets/data/{ds_name}/base_fix_num_1s.dat', "r") as f:
-                lines = f.read()
-
-            lines = lines.split("\n")[1:]
-
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols},{num_1s}'):
-                    config = config.split(",")
-
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
-
-        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
+        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}")
 
     def __repr__(self):
         return self.model_name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
+def get_results_by_dataset(test_data_names, models, N_meta):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -65,7 +54,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
         model_acc_std = defaultdict(list)
         for model in models:
             try:
-                mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3, num_1s=num_1s)
+                mean_acc, std_acc = model.get_accuracy(data_name, N_meta)
             except FileNotFoundError as e:
                 print(e)
                 continue
@@ -86,12 +75,12 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
                 std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
 
             result = pd.DataFrame({
-                        'data_name': data_name,
-                        'model': str(model_name),
-                        'num_cols': -1,
-                        'acc': mean_acc,
-                        'std': std_acc
-                        }, index=[0])
+                'data_name': data_name,
+                'model': str(model_name),
+                'num_cols': -1,
+                'acc': mean_acc,
+                'std': std_acc
+            }, index=[0])
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
@@ -105,59 +94,20 @@ def main(load_no, num_rows, save_ep=None, num_1s=None):
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
+    split_name = "0"
+    splits = toml.load(f'./datasets/splits/{split_name}')
 
-    if ds == "my_split":
-        exit(2)
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
+    test_splits = splits["test"]
+    print(splits)
+    print("Testing group:", split_name)
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
+    N_target = 5
 
-    elif ds == "total":
-        ds_group = save_ep
-        fold_no, split_no = ds_group
-
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        print("Testing group:", ds_group)
-
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-
-        print("Test datasets:", test_data_names)
-    else:
-        raise Exception("Invalid data split")
-
-    num_targets = 5
-    binarise = cfg["binarise"]
-
-    models = [Model("LR"), Model("R_Forest"), Model("CatBoost"),
+    models = [PreModel("LR"), PreModel("R_Forest"), PreModel("CatBoost"),
               ]
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models,
-        num_rows=num_rows, num_1s=num_1s
-    )
-
+        test_splits, models, N_meta=num_rows)
 
     # Results for each dataset
     detailed_results = unseen_results.copy()
@@ -174,13 +124,11 @@ def main(load_no, num_rows, save_ep=None, num_1s=None):
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
 
-
     # Aggreate results
     agg_results = unseen_results.copy()
 
     # Move flat to first column
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-
 
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
@@ -219,5 +167,5 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for i in [0,1,2,3]:
+    for i in [0, 1, 2, 3]:
         col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1])

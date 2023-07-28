@@ -4,7 +4,7 @@ import toml
 import os
 import sys
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-from Fewshot.AllDataloader import MyDataSet, SplitDataloader
+from Fewshot.dataloader import MyDataSet, SplitDataloader
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.model_selection import train_test_split
 import pandas as pd

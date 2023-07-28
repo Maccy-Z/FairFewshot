@@ -21,8 +21,11 @@ for ds in datasets:
     delete_if_exists(f'{data_dir}/{ds}/base_fix_num_1s.dat')
     delete_if_exists(f'{data_dir}/{ds}/baselines.dat')
 
-    for f in os.listdir(f'{data_dir}/{ds}/batches'):
-        delete_if_exists(f'{data_dir}/{ds}/batches/{f}')
+    try:
+        for f in os.listdir(f'{data_dir}/{ds}/batches'):
+            delete_if_exists(f'{data_dir}/{ds}/batches/{f}')
+    except FileNotFoundError as e:
+        print(e)
 
 
 

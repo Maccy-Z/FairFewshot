@@ -1,5 +1,5 @@
 from old.old.dataset import DataLoader
-from old.GAtt_Func import GATConvFunc
+from Fewshot.GAtt_Func import GATConvFunc
 
 import torch
 import numpy as np

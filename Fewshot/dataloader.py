@@ -1,11 +1,10 @@
-# %%
 import torch
 import numpy as np
 import pandas as pd
 import os
-import toml
 from itertools import islice
 import toml
+
 from config import Config
 
 
@@ -113,7 +112,6 @@ class MyDataSet:
             num_label_row = len(label_data)
             if cfg.min_row_per_label > num_label_row:
                 print(f'Not enough labels for {self}, class {label}, require {cfg.min_row_per_label}, has {num_label_row}')
-                raise ValueError("isodjf")
             else:
                 self.data[label] = label_data
 
@@ -139,15 +137,11 @@ class MyDataSet:
             sample_meta = self.RNG.permutation(sample(self.cfg.N_meta, self.num_labels))
         sample_target = self.RNG.permutation(sample(self.cfg.N_target, self.num_labels))
 
-        # counts = torch.tensor(sample(self.cfg.N_target, self.num_labels))
-        # sample_target = counts[torch.randperm(counts.shape[0])]
-
         # Draw number of samples from each label.
         metas, targets = [], []
         for (label, label_rows), N_meta, N_target in zip(self.data.items(), sample_meta, sample_target, strict=True):
             # Draw rows and shuffle to make meta and target batch
             idx = torch.randperm(label_rows.size(0), generator=self.cfg.T_RNG)[: N_meta + N_target]
-            # rows = self.RNG.choice(label_rows, size=N_meta + N_target, replace=False)
             rows = label_rows[idx]
             meta_rows = rows[:N_meta]
             target_rows = rows[N_meta:]
@@ -175,10 +169,8 @@ class MyDataSet:
 
 
 class SplitDataloader:
-    def __init__(
-            self, cfg, bs, datasets, ds_split="train", device="cpu"):
+    def __init__(self, cfg, bs, datasets, testing, device="cpu"):
         """
-
         :param bs: Number of datasets to sample from each batch
         :param datasets: Which datasets to sample from.
             If None: All datasets
@@ -186,10 +178,10 @@ class SplitDataloader:
             If strings, sample from that specified dataset(s).
         :param ds_split: If ds_group is int >= 0, the test or train split.
         """
-
+        assert isinstance(testing, bool)
         self.cfg, self.RNG = cfg, cfg.RNG
         self.bs = bs
-        self.ds_split = ds_split
+        self.testing = testing
         self.device = device
 
         ds_dir = f'{cfg.DS_DIR}/data/'
@@ -204,7 +196,8 @@ class SplitDataloader:
         # Premade splits
         elif isinstance(datasets, str):
             with open(f'{cfg.DS_DIR}/splits/{datasets}', "r") as f:
-                ds_names = toml.load(f)[ds_split]
+                split = "test" if testing else "train"
+                ds_names = toml.load(f)[split]
         else:
             raise Exception("Invalid ds_group")
 
@@ -230,7 +223,7 @@ class SplitDataloader:
         while True:
 
             # Number of columns to sample dataset. Testing always uses full dataset
-            if self.cfg.col_fmt == 'all' or self.ds_split == "test":
+            if self.cfg.col_fmt == 'all' or self.testing:
                 sample_ds = self.RNG.choice(self.all_datasets, size=self.bs)  # Allow repeats.
                 N_cols = min([d.tot_cols for d in sample_ds]) - 1
 
@@ -264,7 +257,7 @@ if __name__ == "__main__":
     cfg = Config()
     RNG = cfg.RNG
 
-    dl = SplitDataloader(cfg, bs=2, datasets="0", ds_split="train")
+    dl = SplitDataloader(cfg, bs=2, datasets="0", testing=False)
 
     for mp, ml, tp, tl, datanames in islice(dl, 10):
         mp, ml = torch.stack(mp), torch.stack(ml)

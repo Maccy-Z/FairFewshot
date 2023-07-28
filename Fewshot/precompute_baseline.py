@@ -1,61 +1,17 @@
 import torch
-from eval_model import TabnetModel, FTTrModel, BasicModel, STUNT
-from AllDataloader import SplitDataloader
 import pickle
 import os
 import csv
+
+from eval_model import TabnetModel, FTTrModel, BasicModel, STUNT
+from dataloader import SplitDataloader
+from precompute_batches import load_batch
 data_dir = './datasets/data'
-
-
-def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
-    if num_1s is None:
-        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
-            batch = pickle.load(f)
-    else:
-        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
-            batch = pickle.load(f)
-
-    if batch is None:
-        raise IndexError(f"Batch not found for file {ds_name}")
-    return batch
-
-def get_batch(dl, num_rows):
-    xs, ys, model_id = next(iter(dl))
-    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-    # ys_target = ys_target.view(-1)
-
-    return xs_meta, xs_target, ys_meta, ys_target
-
-# Get batch and save to disk. All columns.
-def save_batch(ds_name, num_batches, num_targets):
-    if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
-        os.makedirs(f"{data_dir}/{ds_name}/batches")
-
-    num_1s = 4
-
-    for num_rows in [10]:
-        try:
-            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, num_1s={"meta": num_1s}, binarise=True)
-            batch = get_batch(dl, num_rows=num_rows)
-
-            # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
-                pickle.dump(batch, f)
-
-
-        except IndexError as e:
-            print(e)
-            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
-                pickle.dump(None, f)
 
 
 def main_append(f, num_targets):
 
-    models = [BasicModel("R_Forest")
-              ]
+    models = [BasicModel("R_Forest")]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
@@ -64,7 +20,7 @@ def main_append(f, num_targets):
         for num_rows in [3,5,10,15]:
             for num_cols in [-3,]:
                 try:
-                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+                    batch = load_batch(ds_name=f, N_meta=num_rows, N_target=num_targets)
                 except IndexError as e:
                     print(e)
                     break
