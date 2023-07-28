@@ -1,5 +1,5 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
+from eval_model import TabnetModel, FTTrModel, BasicModel, STUNT
 from AllDataloader import SplitDataloader
 import pickle
 import os

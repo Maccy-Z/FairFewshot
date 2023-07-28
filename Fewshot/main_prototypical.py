@@ -5,7 +5,7 @@ import numpy as np
 import itertools
 import time
 
-from GAtt_Func import GATConvFunc
+from old.GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config, Config
 from AllDataloader import SplitDataloader, d2v_pairer
@@ -106,64 +106,6 @@ class SetSetModel(nn.Module):
 
         return pos_encs
 
-
-#
-# # Generates weights from dataset2vec model outputs.
-# class WeightGenerator(nn.Module):
-#     def __init__(self, cfg):
-#         """
-#         :param in_dim: Dim of input from dataset2vec
-#         :param hid_dim: Internal hidden size
-#         :param out_sizes: List of params for GATConv layers [num_layers][in_dim, out_dim, heads]
-#             Each GATConv layer requires:
-#                 linear_weight = (out_dim * heads, in_dim)
-#                 src = (1, heads, out_dim)
-#                 dst = (1, heads, out_dim)
-#                 bias = (out_dim * heads)
-#         """
-#         super().__init__()
-#
-#         self.gen_in_dim = cfg["set_out_dim"]
-#         self.gen_hid_dim = cfg["weight_hid_dim"]
-#         self.gen_layers = cfg["gen_layers"]
-#         self.norm_lin, self.norm_weights = cfg["norm_lin"], cfg["norm_weights"]
-#         self.learn_norm = cfg["learn_norm"]
-#         self.gat_heads = cfg["gat_heads"]
-#         self.gat_out_dim = cfg["gat_out_dim"]
-#         weight_bias = cfg["weight_bias"]
-#
-#         # Weights for final linear classificaion layer
-#         # print(self.out_sizes[-1][-2])
-#         self.gat_out_dim = self.gat_out_dim * self.gat_heads
-#         lin_out_dim = self.gat_out_dim * N_CLASS
-#         self.w_gen_out = nn.Sequential(
-#             nn.Linear(self.gen_in_dim, self.gen_hid_dim),
-#             nn.ReLU(),
-#             nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias != "off"))
-#         )
-#         if weight_bias == "zero":
-#             print("Weight bias init to 0")
-#             self.w_gen_out[-1].bias.data.fill_(0)
-#
-#         # learned normalisation
-#         # Long term average: tensor([0.5807]) tensor([1.1656, 2.0050, 2.2350, 0.1268])
-#         if self.learn_norm:
-#             if self.norm_lin:
-#                 self.l_norm = torch.nn.Parameter(torch.tensor([0.75]))
-#
-#     def forward(self, d2v_embed):
-#         # d2v_embed.shape = [BS, d2v_out]
-#
-#         # Weights for linear layer
-#         lin_weights = self.w_gen_out(d2v_embed)
-#         if self.norm_lin:
-#             lin_weights = F.normalize(lin_weights, dim=-1)
-#             if self.learn_norm:
-#                 lin_weights = lin_weights * self.l_norm
-#
-#         lin_weights = lin_weights.reshape(-1, N_CLASS, self.gat_out_dim)
-#
-#         return lin_weights
 
 class GNN2(nn.Module):
     def __init__(self, cfg_dims):

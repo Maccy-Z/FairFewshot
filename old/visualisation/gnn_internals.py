@@ -136,7 +136,7 @@ def main(save_no, ds_name="adult"):
     save_dir = f'{BASEDIR}/saves/save_{save_no}'
 
 
-    cfg = toml.load(os.path.join(save_dir, '../defaults.toml'))["DL_params"]
+    cfg = toml.load(os.path.join(save_dir, '../../Fewshot/defaults.toml'))["DL_params"]
 
 
     num_rows = 50 # cfg["num_rows"]
