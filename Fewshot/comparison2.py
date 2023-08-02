@@ -20,7 +20,7 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 
 import sys
-sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
+sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
@@ -45,13 +45,22 @@ class Model(ABC):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
 
+        print(xs_metas.shape, xs_targets.shape)
+        N_targ = 15
+        xs_metas = torch.rand([200, 10, N_targ])
+        xs_targets = torch.rand([200, 5, N_targ])
+        ys_metas = torch.randint(2, [200, 10])
+        ys_targets = torch.randint(2, [200, 5])
+
+        st = time.time()
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
-            # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
 
             accs.append(a)
 
+        print(time.time() - st)
+        exit(6)
         accs = np.concatenate(accs)
 
         mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
@@ -413,7 +422,7 @@ def main(load_no, num_rows, num_1s=None):
 
     result_dir = f'{BASEDIR}/Results'
     files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f) for f in files])
+    existing_results = sorted([int(f) for f in files if f.isdigit()])
 
     result_no = existing_results[-1] + 1
 
@@ -428,43 +437,32 @@ def main(load_no, num_rows, num_1s=None):
     print()
     print(ds_group)
 
-    if ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
+    # Split
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
-    elif ds == "total":
-        fold_no, split_no = ds_group
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-
-        # print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
+    fold_no, split_no = ds_group
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    if split_no == -1:
+        get_splits = range(6)
     else:
-        raise Exception("Invalid data split")
+        get_splits = [split_no]
+
+    test_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
+
+    train_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["train"]
+        train_data_names += ds_name
+
+    # print("Train datases:", train_data_names)
+    print("Test datasets:", test_data_names)
+
 
     num_targets = 5
 
-    models = [BasicModel("R_Forest"), BasicModel("LR")]
+    models = [BasicModel("LR")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
@@ -562,4 +560,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[10], num_rows=10)
+    col_accs = main(load_no=[15], num_rows=10)
