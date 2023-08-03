@@ -26,18 +26,25 @@ from STUNT_interface import STUNT_utils, MLPProto
 BASEDIR = '.'
 
 
-def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
-    if num_1s is None:
-        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+def load_batch(ds_name, only):
+    if only :
+        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
             batch = pickle.load(f)
     else:
-        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/3_class", "rb") as f:
             batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
     return batch
 
+def get_batch(dl, num_rows):
+    xs, ys, model_id = next(iter(dl))
+    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+    return xs_meta, xs_target, ys_meta, ys_target
 
 class Model(ABC):
     # Process batch of data
@@ -45,22 +52,14 @@ class Model(ABC):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
 
-        print(xs_metas.shape, xs_targets.shape)
-        N_targ = 15
-        xs_metas = torch.rand([200, 10, N_targ])
-        xs_targets = torch.rand([200, 5, N_targ])
-        ys_metas = torch.randint(2, [200, 10])
-        ys_targets = torch.randint(2, [200, 5])
-
-        st = time.time()
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
+            # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
 
             accs.append(a)
 
-        print(time.time() - st)
-        exit(6)
+
         accs = np.concatenate(accs)
 
         mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
@@ -195,7 +194,7 @@ class FTTrModel(Model):
             categories=(),  # tuple containing the number of unique values within each category
             num_continuous=xs_meta.shape[-1],  # number of continuous values
             dim=24,  # dimension, paper set at 32
-            dim_out=2,  # binary prediction, but could be anything
+            dim_out=3,  # binary prediction, but could be anything
             depth=4,  # depth, paper recommended 6
             heads=2,  # heads, paper recommends 8
             attn_dropout=0.1,  # post-attention dropout
@@ -305,8 +304,7 @@ class FLAT(Model):
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
-        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
-
+        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 3), dim=1)
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
@@ -376,7 +374,10 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
+            batch = load_batch(ds_name=data_name, only=True)
+            # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
+            # batch = get_batch(dl, num_rows=num_rows)
+
         except IndexError as e :
             print(e)
             continue
@@ -435,11 +436,11 @@ def main(load_no, num_rows, num_1s=None):
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
     print()
-    print(ds_group)
 
     # Split
-
+    print(ds_group)
     fold_no, split_no = ds_group
+    #fold_no = 0
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
     if split_no == -1:
         get_splits = range(6)
@@ -460,9 +461,7 @@ def main(load_no, num_rows, num_1s=None):
     print("Test datasets:", test_data_names)
 
 
-    num_targets = 5
-
-    models = [BasicModel("LR")]
+    models = [FLAT(21), BasicModel("LR"), BasicModel("KNN"), BasicModel("SVC")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
@@ -472,6 +471,7 @@ def main(load_no, num_rows, num_1s=None):
              #  # STUNT(),
              #  ]
 
+    num_targets = 5
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows, num_targets=num_targets, num_1s=num_1s
@@ -560,4 +560,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[15], num_rows=10)
+    col_accs = main(load_no=[21], num_rows=10)

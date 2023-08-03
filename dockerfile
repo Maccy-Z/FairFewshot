@@ -14,6 +14,7 @@ RUN pip install torch_geometric==2.3
 RUN pip install pytorch-tabnet tab-transformer-pytorch catboost networkx[default]
 RUN pip install seaborn
 RUN pip install toml
+RUN pip install tabpfn
 
 # RUN pip3 install reqs tensorboard black
 

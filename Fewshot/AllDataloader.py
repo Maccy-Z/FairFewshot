@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 DATADIR = './datasets'
 
 
+N_class = 3
+
 def to_tensor(array: np.array, device, dtype=torch.float32):
     return torch.from_numpy(array).to(device).to(dtype)
 
@@ -103,88 +105,36 @@ class MyDataSet:
         self.ds_cols = self.data.shape[-1]
         self.ds_rows = self.data.shape[0]
 
-        # Binarise labels:
-        if self.binarise:
-            self.data[:, -1] = one_vs_all(self.data[:, -1])
-            # Sort based on label
-            ones = (self.data[:, -1] == 1)
-            self.ones = self.data[ones]
-            self.zeros = self.data[torch.logical_not(ones)]
 
-            self.num_1s = self.ones.shape[0]
-            self.num_0s = self.zeros.shape[0]
+        row_probs = np.zeros(self.ds_rows)
 
-            if self.num_0s < self.tot_rows or self.num_1s < self.tot_rows:
-                print("WARN: Discarding dataset due to lack of labels", self.ds_name)
-                self.ds_rows = 0
-        else:
-            assert False
-            # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
-            row_probs = np.ones(self.ds_rows)
+        col_data = self.data[:, -1]
+        unique_lab, unique_idx, counts = np.unique(
+            col_data, return_counts=True, return_inverse=True)
 
-            col_data = self.data[:, -1]
-            unique_lab, unique_idx, counts = np.unique(
-                col_data, return_counts=True, return_inverse=True)
-            if np.max(counts) / self.ds_rows > 0.5:
-                max_prob = self.ds_rows / np.max(counts) - 1
+        # if len(counts) < 3:
+        #     self.ds_rows = 0
 
-                # Some cols have all entries identical.
-                if max_prob == 0:
-                    pass
-                    # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
-                    # print(np.max(counts) / self.tot_rows)
-                else:
-                    top_idx = (unique_idx == np.argmax(counts))
-                    row_probs[top_idx] = max_prob
+        sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
+        largest_labels = sorted_indices[:N_class]
 
-            row_probs = row_probs / np.sum(row_probs)
+        for l in largest_labels:
+            top_idx = (unique_idx == l)
+            row_probs[top_idx] = 1 / counts[l]
 
-            self.row_probs = row_probs.T
+
+        row_probs = row_probs / np.sum(row_probs)
+
+        self.row_probs = row_probs.T
 
 
     def sample(self, num_cols, num_1s=None):
         targ_col = -1
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
-        if self.binarise:
-            # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
-            if isinstance(num_1s, dict):
-                meta_1s = num_1s['meta']
-                meta_1s = np.random.choice([meta_1s, self.num_rows - meta_1s], size=1)
-            elif num_1s is None:
-                if self.num_rows == 1:
-                    meta_1s = np.random.binomial(1, 0.5)
-                else:
-                    meta_1s = min(max(np.random.binomial(self.num_rows, 0.5), 1), self.num_rows - 1)
-            else:
-                TypeError("num_1s must be either None or a dictionary")
 
-            target_1s = np.random.binomial(self.num_targets, 0.5)
-
-            meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
-
-            meta_0s_row = np.random.choice(
-                self.num_0s, size=meta_0s, replace=False)
-            meta_1s_row = np.random.choice(
-                self.num_1s, size=meta_1s, replace=False)
-
-            rem_0 = np.setdiff1d(np.arange(self.num_0s), meta_0s_row)
-            rem_1 = np.setdiff1d(np.arange(self.num_1s), meta_1s_row)
-            targ_0s_row = np.random.choice(rem_0, size=target_0s, replace=False)
-            targ_1s_row = np.random.choice(rem_1, size=target_1s, replace=False)
-
-            meta_rows = torch.cat(
-                (self.zeros[meta_0s_row], self.ones[meta_1s_row]))
-            targ_rows = torch.cat(
-                (self.zeros[targ_0s_row], self.ones[targ_1s_row]))
-
-            # Join meta and target. Split apart later.
-            select_data = torch.cat([meta_rows, targ_rows])
-
-        else:
-            assert False
-            rows = np.random.choice(
-                self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
-            select_data = self.data[rows]
+        rows = np.random.choice(
+            self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
+        select_data = self.data[rows]
 
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
@@ -195,8 +145,11 @@ class MyDataSet:
         s = xs.std(0, unbiased=False, keepdim=True)
         xs -= m
         xs /= (s + 10e-4)
-        if not self.binarise:
-            ys = one_vs_all(ys)
+
+        unique_values = torch.unique(ys)
+        mapping = {unique_values[i].item(): i for i in range(len(unique_values))}
+
+        ys = torch.tensor([mapping[v.item()] for v in ys])
         return xs, ys
 
 
@@ -379,10 +332,10 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=1, num_rows=5, binarise=True, num_targets=5, 
-        decrease_col_prob=-1, num_cols=-3, ds_group=0, ds_split="train",
+        bs=1, num_rows=5, binarise=False, num_targets=5,
+        decrease_col_prob=-1, num_cols=-3, ds_group="page-blocks", ds_split="train",
         num_1s={'meta': 1, 'target': 0}
     )
 
-    for xs, ys, datanames in islice(dl, 10):
-        print(ys[:, :5].sum(), ys[:, 5:].sum())
+    for xs, ys, datanames in islice(dl, 5):
+        print(ys)

@@ -169,7 +169,7 @@ class WeightGenerator(nn.Module):
             self.add_module(f'weight_gen_{i}', model)
 
         # Weights for final linear classificaion layer
-        self.num_classes = 2
+        self.num_classes = 3
         self.gat_out_dim = self.out_sizes[-1][-2]
         lin_out_dim = self.gat_out_dim * self.num_classes
         self.w_gen_out = nn.Sequential(
@@ -410,11 +410,11 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
+            binarise=False, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
+            binarise=False, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
         )
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
@@ -508,7 +508,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 3)
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
@@ -550,7 +550,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 3)
                 loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
             # Accuracy recording
@@ -586,7 +586,7 @@ if __name__ == "__main__":
     tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(5):
+    for test_no in range(1):
 
         print("---------------------------------")
         print("Starting test number", test_no)

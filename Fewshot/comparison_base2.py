@@ -21,7 +21,7 @@ class Model(ABC):
 
 
     def get_accuracy(self, ds_name, num_rows, num_cols):
-        with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
+        with open(f'./datasets/data/{ds_name}/3_class.dat', "r") as f:
             lines = f.read()
 
         lines = lines.split("\n")[1:]
@@ -93,7 +93,7 @@ def main(num_rows):
 
     #print("Test datasets:", test_data_names)
 
-    models = [Model("LR"), Model("CatBoost"), Model("R_Forest"),  Model("KNN"), Model("TabNet"), Model("FTTransformer")
+    models = [Model("LR"), Model("CatBoost"),# Model("R_Forest"),  Model("KNN"), Model("TabNet"), Model("FTTransformer")
               ]
 
     unseen_results = get_results_by_dataset(
