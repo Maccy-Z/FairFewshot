@@ -112,8 +112,8 @@ class MyDataSet:
         unique_lab, unique_idx, counts = np.unique(
             col_data, return_counts=True, return_inverse=True)
 
-        # if len(counts) < 3:
-        #     self.ds_rows = 0
+        if len(counts) < 3:
+            self.ds_rows = 0
 
         sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
         largest_labels = sorted_indices[:N_class]
@@ -333,9 +333,9 @@ if __name__ == "__main__":
 
     dl = SplitDataloader(
         bs=1, num_rows=5, binarise=False, num_targets=5,
-        decrease_col_prob=-1, num_cols=-3, ds_group="page-blocks", ds_split="train",
+        decrease_col_prob=-1, num_cols=-3, ds_group="pendigits", ds_split="train",
         num_1s={'meta': 1, 'target': 0}
     )
 
     for xs, ys, datanames in islice(dl, 5):
-        print(ys)
+        print(xs.shape)

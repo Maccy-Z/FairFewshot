@@ -362,7 +362,7 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_1s=None):
+def get_results_by_dataset(test_data_names, models):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -375,6 +375,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         print(data_name)
         try:
             batch = load_batch(ds_name=data_name, only=True)
+            print(batch)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
             # batch = get_batch(dl, num_rows=num_rows)
 
@@ -461,7 +462,7 @@ def main(load_no, num_rows, num_1s=None):
     print("Test datasets:", test_data_names)
 
 
-    models = [FLAT(21), BasicModel("LR"), BasicModel("KNN"), BasicModel("SVC")]
+    models = [FLAT(23), BasicModel("LR")]#, BasicModel("KNN"), BasicModel("SVC")]
     #[FLAT(num) for num in load_no] + \
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
@@ -474,7 +475,6 @@ def main(load_no, num_rows, num_1s=None):
     num_targets = 5
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, num_1s=num_1s
     )
 
 
@@ -485,10 +485,10 @@ def main(load_no, num_rows, num_1s=None):
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
 
-    # results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets")
-    # print(results.to_string())
+    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
+    print("======================================================")
+    print("Test accuracy on unseen datasets")
+    print(results.to_string())
 
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
@@ -560,4 +560,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
 
-    col_accs = main(load_no=[21], num_rows=10)
+    col_accs = main(load_no=[23], num_rows=10)

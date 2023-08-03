@@ -10,7 +10,6 @@ from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
 from AllDataloader import SplitDataloader
-from torch.optim.lr_scheduler import StepLR
 
 
 class ResBlock(nn.Module):
@@ -586,7 +585,7 @@ if __name__ == "__main__":
     tag = input("Description: ")
 
     dev = torch.device("cpu")
-    for test_no in range(1):
+    for test_no in range(3):
 
         print("---------------------------------")
         print("Starting test number", test_no)
