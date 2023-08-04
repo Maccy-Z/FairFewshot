@@ -22,7 +22,7 @@ from ds_base import InfModel, ff_block
 
 import sys
 
-sys.path.append('/home/maccyz/Documents/FairFewshot/STUNT_main')
+sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
@@ -30,7 +30,7 @@ BASEDIR = '.'
 
 def load_batch(ds_name, only):
     if only:
-        with open(f"./datasets/data/{ds_name}/batches/15_5_-3", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/5_5_-3", "rb") as f:
             batch = pickle.load(f)
     else:
         assert False
@@ -460,34 +460,33 @@ def get_results_by_dataset(test_data_names, models):
     return results
 
 
-def main(ds_split, num_rows, num_1s=None):
-    # dir_path = f'{BASEDIR}/saves'
-    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    # load_no = [existing_saves[num] for num in load_no]
-    # load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+def main(load_no, num_rows):
+    dir_path = f'{BASEDIR}/saves'
+    files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    load_no = [existing_saves[num] for num in load_no]
+    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
-    # result_dir = f'{BASEDIR}/Results'
-    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    # existing_results = sorted([int(f) for f in files if f.isdigit()])
-    #
-    # result_no = existing_results[-1] + 1
-    #
-    # result_dir = f'{result_dir}/{result_no}'
-    # print(result_dir)
-    # os.mkdir(result_dir)
-    #
-    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    # cfg = all_cfg["DL_params"]
-    # ds = all_cfg["Settings"]["dataset"]
-    # ds_group = cfg["ds_group"]
-    # print()
+    result_dir = f'{BASEDIR}/Results'
+    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    existing_results = sorted([int(f) for f in files if f.isdigit()])
 
-    # Split
-    # print(ds_group)
-    # fold_no, split_no = ds_group
+    result_no = existing_results[-1] + 1
 
-    fold_no = ds_split
+    result_dir = f'{result_dir}/{result_no}'
+    print(result_dir)
+    os.mkdir(result_dir)
+
+    #Split
+    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    cfg = all_cfg["DL_params"]
+    ds = all_cfg["Settings"]["dataset"]
+    ds_group = cfg["ds_group"]
+    print()
+    print(ds_group)
+    fold_no, split_no = ds_group
+
+    #fold_no = ds_split
 
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
 
@@ -506,7 +505,7 @@ def main(ds_split, num_rows, num_1s=None):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("SVC"), BasicModel("TabPFN")]  # + [FLAT(num) for num in load_no] +
+    models = [BasicModel("SVC")] +  [FLAT(num) for num in load_no]
     # [FLAT_MAML(num) for num in load_no] + \
     #  [
     #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
@@ -598,4 +597,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(ds_split=0, num_rows=10)
+    main(load_no=[8], num_rows=10)

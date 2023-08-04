@@ -32,23 +32,23 @@ def get_batch(dl, num_rows):
     return xs_meta, xs_target, ys_meta, ys_target
 
 # Get batch and save to disk. All columns.
-def save_batch(ds_name, num_batches, num_targets):
+def save_batch(ds_name, num_batches):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [10]:
+    for num_rows in [15]:
         try:
-            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
+            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=5, num_cols=-3, binarise=False)
             batch = get_batch(dl, num_rows=num_rows)
 
             # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/3_class", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/3_class_{num_rows}", "wb") as f:
                 pickle.dump(batch, f)
 
 
         except IndexError as e:
             print(e)
-            with open(f"{data_dir}/{ds_name}/batches/3_class", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/3_class_{num_rows}", "wb") as f:
                 pickle.dump(None, f)
 
 
@@ -136,6 +136,6 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        # save_batch(f, num_bs, num_targs)
+        save_batch(f, num_bs)
         # main_append(f, num_targets=num_targs)
-        main(f)
+        # main(f)
