@@ -18,6 +18,8 @@ from sklearn.ensemble import RandomForestClassifier
 from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
+from tabpfn import TabPFNClassifier
+from ds_base import InfModel, ff_block
 
 import sys
 sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
@@ -28,9 +30,10 @@ BASEDIR = '.'
 
 def load_batch(ds_name, only):
     if only :
-        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/10_5_-3", "rb") as f:
             batch = pickle.load(f)
     else:
+        assert False
         with open(f"./datasets/data/{ds_name}/batches/3_class", "rb") as f:
             batch = pickle.load(f)
 
@@ -240,11 +243,15 @@ class BasicModel(Model):
 
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
+
+            case "TabPFN":
+                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=32)
             case _:
                 raise Exception("Invalid model specified")
 
         self.name = name
         self.identical_batch = False
+        self.pfn_error = False
 
     def fit(self, xs_meta, ys_meta):
         ys_meta = ys_meta.flatten().numpy()
@@ -265,11 +272,18 @@ class BasicModel(Model):
                 self.identical_batch = True
                 mode = stats.mode(ys_meta, keepdims=False)[0]
                 self.pred_val = mode
+            except ValueError as e:
+                # TabPFN cant do more than 100 attributes
+                self.pfn_error = True
+                mode = stats.mode(ys_meta, keepdims=False)[0]
+                self.pred_val = mode
+                print(e)
 
     def get_acc(self, xs_target, ys_target):
         xs_target = xs_target.numpy()
-        if self.identical_batch:
+        if self.identical_batch or self.pfn_error:
             predictions = np.ones_like(ys_target) * self.pred_val
+            self.pfn_error = False
         else:
             predictions = self.model.predict(xs_target)
 
@@ -362,6 +376,36 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
+class Iwata(Model):
+    def __init__(self, load_no):
+        save_dir = f'{BASEDIR}/ds_saves/{load_no}'
+        print(f'Loading model at {save_dir = }')
+
+        self.model = torch.load(f'{save_dir}/model.pt')
+
+
+    def fit(self, xs_meta, ys_meta):
+        xs_meta, ys_meta = xs_meta.unsqueeze(-1).unsqueeze(0), ys_meta.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)
+
+        with torch.no_grad():
+            self.model.forward_meta(xs_meta, ys_meta)
+
+    def get_acc(self, xs_target, ys_target) -> np.array:
+        xs_target = xs_target.unsqueeze(-1).unsqueeze(0)
+        with torch.no_grad():
+
+            ys_pred_target = self.model.forward_target(xs_target)
+
+        ys_pred_target_labels = torch.argmax(ys_pred_target, dim=-1)
+
+        ys_target = ys_target.squeeze().flatten()
+
+        return (ys_pred_target_labels == ys_target).numpy()
+
+    def __repr__(self):
+        return "Iwata"
+
+
 def get_results_by_dataset(test_data_names, models):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -375,7 +419,6 @@ def get_results_by_dataset(test_data_names, models):
         print(data_name)
         try:
             batch = load_batch(ds_name=data_name, only=True)
-            print(batch)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
             # batch = get_batch(dl, num_rows=num_rows)
 
@@ -462,8 +505,7 @@ def main(load_no, num_rows, num_1s=None):
     print("Test datasets:", test_data_names)
 
 
-    models = [FLAT(23), BasicModel("LR")]#, BasicModel("KNN"), BasicModel("SVC")]
-    #[FLAT(num) for num in load_no] + \
+    models = [BasicModel("LR"), Iwata(15)] #+ [FLAT(num) for num in load_no] +
              # [FLAT_MAML(num) for num in load_no] + \
              #  [
              #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
@@ -559,5 +601,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-
-    col_accs = main(load_no=[23], num_rows=10)
+    main(load_no=[0], num_rows=10)

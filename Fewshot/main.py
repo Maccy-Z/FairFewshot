@@ -378,6 +378,7 @@ class ModelHolder(nn.Module):
         return preds_meta
 
     def loss_fn(self, preds, targs):
+        print(preds.shape, targs.shape)
         cross_entropy = torch.nn.functional.cross_entropy(preds, targs.long())
         return cross_entropy
 
