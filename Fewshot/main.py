@@ -420,7 +420,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
         print("\nTest data names:", val_dl)
 
     elif ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{split_file}"
+        split_file = f"./overlapdatasets/grouped_datasets/{split_file}"
         print(num_cols)
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
@@ -586,7 +586,7 @@ if __name__ == "__main__":
     #tag = args.nametag
 
     dev = torch.device("cpu")
-    for test_no in range(3):
+    for test_no in range(1):
         random.seed(test_no)
         np.random.seed(test_no)
         torch.manual_seed(test_no)

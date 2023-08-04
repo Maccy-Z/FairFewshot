@@ -1,19 +1,20 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
+#from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
+from comparison2 import BasicModel
 from AllDataloader import SplitDataloader
 from utils import load_batch, get_batch
 import pickle
 import os
 import csv
 
-data_dir = './datasets/data'
+data_dir = './overlapdatasets/data'
 
 # Get batch and save to disk. All columns.
 def save_batch(ds_name, num_batches, num_targets, tag=None):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [2, 6, 10]:
+    for num_rows in [3, 5, 10]:
         try:
             dl = SplitDataloader(
                 ds_group=ds_name, 
@@ -30,6 +31,7 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
             file_name = f'{num_rows}_{num_targets}_{-3}'
             if tag:
                 file_name += f'_{tag}'
+            print(file_name)
             with open(f"{data_dir}/{ds_name}/batches/{file_name}", "wb") as f:
                 pickle.dump(batch, f)
 
@@ -41,17 +43,18 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
 
 def main(f, num_targets, batch_tag=None):
     models = [
-              BasicModel("SVC"), BasicModel("LR") , BasicModel("CatBoost"), 
-              BasicModel("R_Forest"),  BasicModel("KNN"),
-              STUNT(),
-              TabnetModel(),
-              FTTrModel(),
+              BasicModel("SVC"), BasicModel("LR") ,# BasicModel("CatBoost"), 
+              #BasicModel("R_Forest"),  
+              BasicModel("KNN"),
+              #STUNT(),
+              #TabnetModel(),
+              #FTTrModel(),
     ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
-        for num_rows in [2, 6, 10]:
+        for num_rows in [3, 5, 10]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(
@@ -86,26 +89,26 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 167
-    num_targs = 6
+    num_bs = 200
+    num_targs = 5
 
-    # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
-    files = [
-            'acute-inflammation', 'acute-nephritis', 'arrhythmia',
-            'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
-            'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
-            'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
-            'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
-            'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic', 
-            'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
-            'statlog-heart', 'thyroid', 'vertebral-column-2clases'
-    ]
+    files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    # files = [
+    #         'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+    #         'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
+    #         'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
+    #         'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
+    #         'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
+    #         'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic', 
+    #         'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
+    #         'statlog-heart', 'thyroid', 'vertebral-column-2clases'
+    # ]
     print(len(files))
     for f in files:
         print("---------------------")
         print(f)
-        #save_batch(f, num_bs, num_targs, tag='binomial_v2')
+        # save_batch(f, num_bs, num_targs, tag='overlap')
         try:
-            main(f, num_targets=num_targs, batch_tag='binomial_v2')
+            main(f, num_targets=num_targs, batch_tag='overlap')
         except(FileNotFoundError):
             print(f"No batch file for {f} found")

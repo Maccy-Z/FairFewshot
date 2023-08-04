@@ -20,8 +20,8 @@ from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
 from utils import load_batch
 
-#sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-sys.path.insert(0, '/home/andrija/FairFewshot')
+sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
+#sys.path.insert(0, '/home/andrija/FairFewshot')
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
 BASEDIR = '.'
@@ -434,14 +434,14 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
     print(ds_group)
 
     if eval_all:
-        all_data_names = os.listdir('./datasets/data')
+        all_data_names = os.listdir('./overlapdatasets/data')
         all_data_names.remove('info.json')
         if '.DS_Store' in all_data_names:
             all_data_names.remove('.DS_Store')
         test_data_names = all_data_names
 
     elif ds == "my_split":
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
+        split_file = f"./overlapdatasets/grouped_datasets/{cfg['split_file']}"
         with open(split_file) as f:
             split = toml.load(f)
         train_data_names = split[str(ds_group)]["train"]
@@ -452,7 +452,7 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
 
     elif ds == "total":
         fold_no, split_no = ds_group
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+        splits = toml.load(f'./overlapdatasets/grouped_datasets/splits_{fold_no}')
         if split_no == -1:
             get_splits = range(6)
         else:
@@ -476,8 +476,8 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
 
     binarise = cfg["binarise"]
 
-    models = [FLAT(num) for num in load_no]
-            #  [FLAT_MAML(num) for num in load_no] + \
+    models = [FLAT(num) for num in load_no] + \
+              [FLAT_MAML(num) for num in load_no]
             #  [
             #   BasicModel("LR"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
             #   TabnetModel(),
@@ -571,16 +571,16 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [5]:
-        for i in range(10):
-            load_no_ls = [30 + 3 * i + j for j in range(3)]
-            batch_tag = None
-            save_tag = f'{i}all_fold_{num_row}_rows'
+    for num_row in [3, 5, 10]:
+        for i in range(6 * 7):
+            load_no_ls = [i]
+            batch_tag = 'overlap'
+            save_tag = f'{i}_overlap'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
                 num_targets=5, 
                 batch_tag=batch_tag, 
                 save_tag=save_tag,
-                eval_all=True
+                eval_all=False
             )
