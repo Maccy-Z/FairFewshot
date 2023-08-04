@@ -1,4 +1,4 @@
-#%%
+# %%
 import torch
 import numpy as np
 import pandas as pd
@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 DATADIR = './datasets'
 
-
 N_class = 3
+
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
     return torch.from_numpy(array).to(device).to(dtype)
@@ -39,7 +39,7 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, binarise, split, 
+            self, ds_name, num_rows, num_targets, binarise, split,
             dtype=torch.float32, device="cpu"):
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -51,7 +51,6 @@ class MyDataSet:
         self.dtype = dtype
 
         self.train, self.valid, self.test = False, False, False
-
 
         """
         Dataset format: {folder}_py.dat             predictors
@@ -105,7 +104,6 @@ class MyDataSet:
         self.ds_cols = self.data.shape[-1]
         self.ds_rows = self.data.shape[0]
 
-
         row_probs = np.zeros(self.ds_rows)
 
         col_data = self.data[:, -1]
@@ -122,11 +120,9 @@ class MyDataSet:
             top_idx = (unique_idx == l)
             row_probs[top_idx] = 1 / counts[l]
 
-
         row_probs = row_probs / np.sum(row_probs)
 
         self.row_probs = row_probs.T
-
 
     def sample(self, num_cols, num_1s=None):
         targ_col = -1
@@ -152,7 +148,6 @@ class MyDataSet:
         ys = torch.tensor([mapping[v.item()] for v in ys])
         return xs, ys
 
-
     def __repr__(self):
         return self.ds_name
 
@@ -165,7 +160,7 @@ class SplitDataloader:
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            num_1s = None, decrease_col_prob=-1):
+            num_1s=None, decrease_col_prob=-1):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -242,10 +237,10 @@ class SplitDataloader:
             raise Exception("Invalid ds_group")
 
         self.all_datasets = [
-            MyDataSet(name, num_rows=self.num_rows, 
-                        num_targets=self.num_targets,
-                        binarise=self.binarise, 
-                        device=self.device, split="all")
+            MyDataSet(name, num_rows=self.num_rows,
+                      num_targets=self.num_targets,
+                      binarise=self.binarise,
+                      device=self.device, split="all")
             for name in ds_names]
 
         valid_datasets = []
@@ -256,10 +251,8 @@ class SplitDataloader:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
 
-
         if len(self.all_datasets) == 0:
             raise IndexError(f"No datasets with enough rows. Required: {self.tot_rows}")
-
 
         ds_len = [ds.ds_cols for ds in self.all_datasets]
         self.min_ds_cols = min(ds_len)
@@ -290,7 +283,7 @@ class SplitDataloader:
 
                 else:
                     num_cols_range = self.num_cols
-                
+
                 if self.decrease_col_prob == -1:
                     num_cols = np.random.choice(
                         list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]

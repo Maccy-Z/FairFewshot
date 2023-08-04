@@ -30,7 +30,7 @@ BASEDIR = '.'
 
 def load_batch(ds_name, only):
     if only:
-        with open(f"./datasets/data/{ds_name}/batches/15_5_-3", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
             batch = pickle.load(f)
     else:
         assert False

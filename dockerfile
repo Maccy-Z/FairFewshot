@@ -2,7 +2,6 @@
 FROM pytorch/pytorch:latest
 ARG DEBIAN_FRONTEND=noninteractive
 
-
 RUN apt update
 #RUN apt install -y python-pip git
 

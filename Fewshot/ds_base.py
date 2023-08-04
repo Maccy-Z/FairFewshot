@@ -6,13 +6,13 @@ import itertools
 from AllDataloader2 import SplitDataloader
 import os
 
+
 class ff_block(nn.Module):
     def __init__(self, in_dim):
         super().__init__()
         self.l1 = nn.Linear(in_dim, 32)
         self.l2 = nn.Linear(32, 32)
         self.l3 = nn.Linear(32, 32)
-
 
     def forward(self, xs):
         xs = self.l1(xs)
@@ -84,13 +84,13 @@ class InfModel(nn.Module):
         cs = torch.cat([us, ys], dim=-1)
         cs = self.f_c(cs)
         cs = torch.mean(cs, dim=-3)
-        cs = self.g_c(cs)   # cs.shape = [BS, 1, 32]
+        cs = self.g_c(cs)  # cs.shape = [BS, 1, 32]
 
         us = torch.tile(us, (1, 1, i, 1))
         vs = torch.cat([us, xs], dim=-1)
         vs = self.f_v(vs)
         vs = torch.mean(vs, dim=-3)
-        vs = self.g_v(vs)   # vs.shape = [BS, i, 32]
+        vs = self.g_v(vs)  # vs.shape = [BS, i, 32]
 
         self.vs, self.cs = vs, cs
 
@@ -100,7 +100,7 @@ class InfModel(nn.Module):
         fz = torch.cat([vs, xs], dim=-1)
         fz = self.f_z(fz)
         fz = torch.mean(fz, dim=-2)
-        zs = self.g_z(fz)   # zs.shape = [BS, N, 32]
+        zs = self.g_z(fz)  # zs.shape = [BS, N, 32]
 
         self.batch_protos = []
         for z_batch, y_batch in zip(zs, ys_int.squeeze(dim=-1), strict=True):
@@ -113,7 +113,6 @@ class InfModel(nn.Module):
 
             self.batch_protos.append(protos)
 
-
     def forward_target(self, xs):
         # xs.shape = [BS, n, i, 1]
         n = xs.shape[1]
@@ -123,7 +122,7 @@ class InfModel(nn.Module):
         fz = torch.cat([vs, xs], dim=-1)
         fz = self.f_z(fz)
         fz = torch.mean(fz, dim=-2)
-        zs = self.g_z(fz)       # zs.shape = [BS, N, 32]
+        zs = self.g_z(fz)  # zs.shape = [BS, N, 32]
 
         batch_probs = []
         for bs_zs, protos in zip(zs, self.batch_protos):
@@ -141,7 +140,6 @@ class InfModel(nn.Module):
 
 
 def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
-
     model.forward_meta(meta_xs, meta_ys)
 
     probs = model.forward_target(targ_xs)
@@ -159,34 +157,34 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
 
     return accuracy, loss.item()
 
+
 def main():
-    files = [f for f in os.listdir("./ds_saves") if os.path.isdir(f'{"./ds_saves"}/{f}')]
+    files = [f for f in os.listdir("./iwata") if os.path.isdir(f'{"./iwata"}/{f}')]
     existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
     # print(files, existing_saves)
     save_no = existing_saves[-1] + 1
-    save_dir = f'./ds_saves/{save_no}'
+    save_dir = f'./iwata/{save_no}'
     print("Making new save folder at: ")
     print(save_dir)
     os.mkdir(save_dir)
 
-
     model = InfModel()
     optim = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
-    num_rows, num_targets = 10, 10
+    num_rows, num_targets = 10, 15
 
     dl = SplitDataloader(
-        bs=37, num_rows=3, num_targets=29,
-        binarise=True, num_cols=-2, ds_group=tuple([0, 1]), ds_split="train"
+        bs=37, num_rows=num_rows, num_targets=num_targets,
+        binarise=True, num_cols=-2, ds_group=tuple([0, -1]), ds_split="train"
     )
 
-    for epoch in range(100):
+    for epoch in range(50):
         print()
         st = time.time()
 
         # Train loop
         model.train()
-        for xs, ys, _ in itertools.islice(dl, 172):
+        for xs, ys, _ in itertools.islice(dl, 100):
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -201,16 +199,15 @@ def main():
 
             acc, loss = fit(optim, model, xs_meta, ys_meta, xs_target, ys_target)
 
-        print(acc, loss)
+        print(f'{acc:.3g}')
 
         duration = time.time() - st
         print(f'{epoch = }, {duration = :.2g}s')
 
         torch.save(model, f'{save_dir}/model.pt')
 
+    with open(f'{save_dir}/finish', "w") as f:
+        f.write("finish")
+
 if __name__ == "__main__":
     main()
-
-
-
-
