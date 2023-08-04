@@ -8,8 +8,9 @@ data_dir = './datasets/data'
 
 
 def load_batch(ds_name, only):
+    only = True
     if only :
-        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/10_5_-3", "rb") as f:
             batch = pickle.load(f)
     else:
         with open(f"./datasets/data/{ds_name}/batches/3_class", "rb") as f:
@@ -78,10 +79,10 @@ def main_append(f, num_targets):
 
 def main(fn):
 
-    models = [
-              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"), BasicModel("SVC"),
-              # TabnetModel(),
-              FTTrModel(),
+    models = [BasicModel("TabPFN")
+              # BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"), BasicModel("SVC"),
+              # # TabnetModel(),
+              # FTTrModel(),
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
@@ -97,29 +98,29 @@ def main(fn):
         mean_acc, std_acc = model.get_accuracy(batch)
         model_accs.append([model, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{fn}/3_class.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{fn}/base_tabpfn.dat', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
-    model_accs = []
-    for model in models:
-        print(model)
-
-        try:
-            batch = load_batch(ds_name=fn, only=True)
-        except IndexError as e:
-            print(e)
-            break
-        mean_acc, std_acc = model.get_accuracy(batch)
-        model_accs.append([model, mean_acc, std_acc])
-
-    with open(f'{data_dir}/{fn}/3_class_only.dat', 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
-        for row in model_accs:
-            writer.writerow(row)
+    # model_accs = []
+    # for model in models:
+    #     print(model)
+    #
+    #     try:
+    #         batch = load_batch(ds_name=fn, only=True)
+    #     except IndexError as e:
+    #         print(e)
+    #         break
+    #     mean_acc, std_acc = model.get_accuracy(batch)
+    #     model_accs.append([model, mean_acc, std_acc])
+    #
+    # with open(f'{data_dir}/{fn}/3_class_only.dat', 'w', newline='') as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+    #     for row in model_accs:
+    #         writer.writerow(row)
 
 if __name__ == "__main__":
     import numpy as np

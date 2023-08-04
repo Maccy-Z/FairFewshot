@@ -21,31 +21,19 @@ class Model(ABC):
 
 
     def get_accuracy(self, ds_name, num_rows, num_cols, num_1s=None):
-        if num_1s is None:
-            with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
-                lines = f.read()
+        with open(f'./datasets/data/{ds_name}/3_class_only.dat', "r") as f:
+            lines = f.read()
 
-            lines = lines.split("\n")
+        lines = lines.split("\n")
 
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
-                    config = config.split(",")
+        for config in lines:
+            if config.startswith(f'{self.model_name}'):
+                config = config.split(",")
 
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
+                mean, std = float(config[-2]), float(config[-1])
+                return mean, std
 
-        else:
-            with open(f'./datasets/data/{ds_name}/base_fix_num_1s.dat', "r") as f:
-                lines = f.read()
 
-            lines = lines.split("\n")[1:]
-
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols},{num_1s}'):
-                    config = config.split(",")
-
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
 
         raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
 
@@ -68,7 +56,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
             try:
                 mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3, num_1s=num_1s)
             except FileNotFoundError as e:
-                print(e)
+                #print(e)
                 continue
 
             model_acc_std[str(model)].append([mean_acc, std_acc])
@@ -111,47 +99,35 @@ def main(load_no, num_rows, save_ep=None, num_1s=None):
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
 
-    if ds == "my_split":
-        exit(2)
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
+    ds_group = save_ep
+    fold_no, split_no = ds_group
 
-    elif ds == "total":
-        ds_group = save_ep
-        fold_no, split_no = ds_group
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    print("Testing group:", ds_group)
 
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        print("Testing group:", ds_group)
-
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-
-        print("Test datasets:", test_data_names)
+    if split_no == -1:
+        get_splits = range(6)
     else:
-        raise Exception("Invalid data split")
+        get_splits = [split_no]
+
+    test_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
+
+    train_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["train"]
+        train_data_names += ds_name
+
+    print("Test datasets:", test_data_names)
+
 
     num_targets = 5
     binarise = cfg["binarise"]
 
-    models = [Model("LR"), Model("R_Forest"), Model("CatBoost"),
+    models = [Model("LR"), Model("SVC"),Model("FTTransformer")
               ]
 
     unseen_results = get_results_by_dataset(
