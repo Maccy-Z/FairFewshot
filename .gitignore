@@ -7,3 +7,6 @@ saves/
 *.pdf
 /Results/
 /iwata/
+.idea/
+.iml
+*.py[cod]
