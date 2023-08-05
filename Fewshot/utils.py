@@ -7,7 +7,7 @@ from AllDataloader import MyDataSet
 
 BASEDIR = '.'
 #DATADIR = f'{BASEDIR}/datasets/max_data'
-DATADIR = f'{BASEDIR}/overlapdatasets_all/data'
+DATADIR = f'{BASEDIR}/overlapdatasets_all_cleveland/data'
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))

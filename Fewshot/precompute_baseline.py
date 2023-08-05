@@ -7,7 +7,7 @@ import pickle
 import os
 import csv
 
-data_dir = './overlapdatasets_all/data'
+data_dir = './overlapdatasets_all_cleveland/data'
 
 # Get batch and save to disk. All columns.
 def save_batch(ds_name, num_batches, num_targets, tag=None):

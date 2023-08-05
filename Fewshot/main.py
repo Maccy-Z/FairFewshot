@@ -420,7 +420,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
         print("\nTest data names:", val_dl)
 
     elif ds == "my_split":
-        split_file = f"./overlapdatasets_all/grouped_datasets/{split_file}"
+        split_file = f"./overlapdatasets_all_cleveland/grouped_datasets/{split_file}"
         print(num_cols)
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,

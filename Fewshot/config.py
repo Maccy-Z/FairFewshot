@@ -57,7 +57,7 @@ def write_toml():
                                "split_file" : 'overlapping_splits', #'heart_splits'
                                },
 
-                 "Settings": {"num_epochs": 11,      # Number of train epochs
+                 "Settings": {"num_epochs": 16,      # Number of train epochs
                               "val_duration": 100,      # Number of batches of validation
                               "val_interval": 1000,     # Number of batches to train for each epoch
                               "dataset": "my_split",

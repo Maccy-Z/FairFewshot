@@ -434,14 +434,14 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
     print(ds_group)
 
     if eval_all:
-        all_data_names = os.listdir('./overlapdatasets_all/data')
+        all_data_names = os.listdir('./overlapdatasets_all_cleveland/data')
         all_data_names.remove('info.json')
         if '.DS_Store' in all_data_names:
             all_data_names.remove('.DS_Store')
         test_data_names = all_data_names
 
     elif ds == "my_split":
-        split_file = f"./overlapdatasets_all/grouped_datasets/{cfg['split_file']}"
+        split_file = f"./overlapdatasets_all_cleveland/grouped_datasets/{cfg['split_file']}"
         with open(split_file) as f:
             split = toml.load(f)
         train_data_names = split[str(ds_group)]["train"]
@@ -452,7 +452,7 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
 
     elif ds == "total":
         fold_no, split_no = ds_group
-        splits = toml.load(f'./overlapdatasets_all/grouped_datasets/splits_{fold_no}')
+        splits = toml.load(f'./overlapdatasets_all_cleveland/grouped_datasets/splits_{fold_no}')
         if split_no == -1:
             get_splits = range(6)
         else:
