@@ -8,7 +8,7 @@ import toml
 from itertools import islice
 import matplotlib.pyplot as plt
 
-DATADIR = './overlapdatasets'
+DATADIR = './overlapdatasets_all'
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -257,7 +257,7 @@ class SplitDataloader:
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, tuple):
             fold_no, split_no = self.ds_group
-            splits = toml.load(f'./overlapdatasets/grouped_datasets/splits_{fold_no}')
+            splits = toml.load(f'./overlapdatasets_all/grouped_datasets/splits_{fold_no}')
             if split_no == -1:
                 get_splits = range(6)
             else:

@@ -7,7 +7,7 @@ import pickle
 import os
 import csv
 
-data_dir = './overlapdatasets/data'
+data_dir = './overlapdatasets_all/data'
 
 # Get batch and save to disk. All columns.
 def save_batch(ds_name, num_batches, num_targets, tag=None):
@@ -107,8 +107,8 @@ if __name__ == "__main__":
     for f in files:
         print("---------------------")
         print(f)
-        # save_batch(f, num_bs, num_targs, tag='overlap')
-        try:
-            main(f, num_targets=num_targs, batch_tag='overlap')
-        except(FileNotFoundError):
-            print(f"No batch file for {f} found")
+        save_batch(f, num_bs, num_targs, tag='overlap')
+        # try:
+        #     main(f, num_targets=num_targs, batch_tag='overlap')
+        # except(FileNotFoundError):
+        #     print(f"No batch file for {f} found")

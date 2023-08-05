@@ -19,12 +19,13 @@ for name in names:
     }
 
 train = {
-    'heart-hungarian': dataframe_dict['heart-hungarian'],
-    'heart-switzerland': dataframe_dict['heart-va']
+    'heart-cleveland': dataframe_dict['heart-cleveland'],
+    'heart-switzerland': dataframe_dict['heart-va'],
+    'heart-va': dataframe_dict['heart-va'],
 }
 
 test = {
-    'heart-cleveland': dataframe_dict['heart-cleveland']
+    'heart-hungarian': dataframe_dict['heart-hungarian'],
 }
 
 #%%
@@ -44,7 +45,7 @@ def write_files(df_dict, common_columns, other_columns):
     for name, data_df in df_dict.items():
         columns = list(common_columns) + list(other_columns)
         name = f'{name}_{n_overlap}_{seed}'
-        dir = f'overlapdatasets/data/{name}'
+        dir = f'overlapdatasets_all/data/{name}'
         try:
             os.mkdir(dir)
         except(FileExistsError):
@@ -62,7 +63,7 @@ for n_overlap in list(range(0, 13, 2)):
 import os 
 import toml
 
-base_dir = "overlapdatasets/grouped_datasets"
+base_dir = "overlapdatasets_all/grouped_datasets"
 
 dataset_splits = {}
 
