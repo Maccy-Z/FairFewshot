@@ -6,7 +6,7 @@
 
 for n_overlap in 12 10 8 4 6 2 0
 do
-    for seed in {0..5}
+    for seed in 5
     do
         i=$((n_overlap * 10 + seed))
         python Fewshot/config.py --ds-group $i
@@ -15,3 +15,4 @@ do
 done
 
 python Fewshot/comparison2.py
+
