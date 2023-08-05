@@ -8,5 +8,6 @@ saves/
 /Results/
 /iwata/
 .idea/
-.iml
+*.iml
+*.xml
 *.py[cod]
