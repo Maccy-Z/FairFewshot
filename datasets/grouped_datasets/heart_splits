@@ -1,0 +1,15 @@
+[0]
+train = [ "heart-switzerland", "heart-cleveland", "heart-va"]
+test = ["heart-hungarian"]
+
+[1]
+train = [ "heart-hungarian", "heart-switzerland", "heart-cleveland"]
+test = ["heart-va"]
+
+[2]
+train = ["heart-va", "heart-hungarian", "heart-switzerland"]
+test = ["heart-cleveland"]
+
+[3]
+train = ["heart-cleveland", "heart-va", "heart-hungarian"]
+test = ["heart-switzerland"]
