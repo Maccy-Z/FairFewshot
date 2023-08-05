@@ -36,7 +36,7 @@ def save_batch(ds_name, num_batches):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [15]:
+    for num_rows in [3]:
         try:
             dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=5, num_cols=-3, binarise=False)
             batch = get_batch(dl, num_rows=num_rows)
