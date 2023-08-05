@@ -1,0 +1,167 @@
+[0]
+train = [ "heart-hungarian_0_0", "heart-switzerland_0_0", "heart-va_0_0",]
+test = [ "heart-cleveland_0_0",]
+
+[1]
+train = [ "heart-hungarian_0_1", "heart-switzerland_0_1", "heart-va_0_1",]
+test = [ "heart-cleveland_0_1",]
+
+[2]
+train = [ "heart-hungarian_0_2", "heart-switzerland_0_2", "heart-va_0_2",]
+test = [ "heart-cleveland_0_2",]
+
+[3]
+train = [ "heart-hungarian_0_3", "heart-switzerland_0_3", "heart-va_0_3",]
+test = [ "heart-cleveland_0_3",]
+
+[4]
+train = [ "heart-hungarian_0_4", "heart-switzerland_0_4", "heart-va_0_4",]
+test = [ "heart-cleveland_0_4",]
+
+[5]
+train = [ "heart-hungarian_0_5", "heart-switzerland_0_5", "heart-va_0_5",]
+test = [ "heart-cleveland_0_5",]
+
+[20]
+train = [ "heart-hungarian_2_0", "heart-switzerland_2_0", "heart-va_2_0",]
+test = [ "heart-cleveland_2_0",]
+
+[21]
+train = [ "heart-hungarian_2_1", "heart-switzerland_2_1", "heart-va_2_1",]
+test = [ "heart-cleveland_2_1",]
+
+[22]
+train = [ "heart-hungarian_2_2", "heart-switzerland_2_2", "heart-va_2_2",]
+test = [ "heart-cleveland_2_2",]
+
+[23]
+train = [ "heart-hungarian_2_3", "heart-switzerland_2_3", "heart-va_2_3",]
+test = [ "heart-cleveland_2_3",]
+
+[24]
+train = [ "heart-hungarian_2_4", "heart-switzerland_2_4", "heart-va_2_4",]
+test = [ "heart-cleveland_2_4",]
+
+[25]
+train = [ "heart-hungarian_2_5", "heart-switzerland_2_5", "heart-va_2_5",]
+test = [ "heart-cleveland_2_5",]
+
+[40]
+train = [ "heart-hungarian_4_0", "heart-switzerland_4_0", "heart-va_4_0",]
+test = [ "heart-cleveland_4_0",]
+
+[41]
+train = [ "heart-hungarian_4_1", "heart-switzerland_4_1", "heart-va_4_1",]
+test = [ "heart-cleveland_4_1",]
+
+[42]
+train = [ "heart-hungarian_4_2", "heart-switzerland_4_2", "heart-va_4_2",]
+test = [ "heart-cleveland_4_2",]
+
+[43]
+train = [ "heart-hungarian_4_3", "heart-switzerland_4_3", "heart-va_4_3",]
+test = [ "heart-cleveland_4_3",]
+
+[44]
+train = [ "heart-hungarian_4_4", "heart-switzerland_4_4", "heart-va_4_4",]
+test = [ "heart-cleveland_4_4",]
+
+[45]
+train = [ "heart-hungarian_4_5", "heart-switzerland_4_5", "heart-va_4_5",]
+test = [ "heart-cleveland_4_5",]
+
+[60]
+train = [ "heart-hungarian_6_0", "heart-switzerland_6_0", "heart-va_6_0",]
+test = [ "heart-cleveland_6_0",]
+
+[61]
+train = [ "heart-hungarian_6_1", "heart-switzerland_6_1", "heart-va_6_1",]
+test = [ "heart-cleveland_6_1",]
+
+[62]
+train = [ "heart-hungarian_6_2", "heart-switzerland_6_2", "heart-va_6_2",]
+test = [ "heart-cleveland_6_2",]
+
+[63]
+train = [ "heart-hungarian_6_3", "heart-switzerland_6_3", "heart-va_6_3",]
+test = [ "heart-cleveland_6_3",]
+
+[64]
+train = [ "heart-hungarian_6_4", "heart-switzerland_6_4", "heart-va_6_4",]
+test = [ "heart-cleveland_6_4",]
+
+[65]
+train = [ "heart-hungarian_6_5", "heart-switzerland_6_5", "heart-va_6_5",]
+test = [ "heart-cleveland_6_5",]
+
+[80]
+train = [ "heart-hungarian_8_0", "heart-switzerland_8_0", "heart-va_8_0",]
+test = [ "heart-cleveland_8_0",]
+
+[81]
+train = [ "heart-hungarian_8_1", "heart-switzerland_8_1", "heart-va_8_1",]
+test = [ "heart-cleveland_8_1",]
+
+[82]
+train = [ "heart-hungarian_8_2", "heart-switzerland_8_2", "heart-va_8_2",]
+test = [ "heart-cleveland_8_2",]
+
+[83]
+train = [ "heart-hungarian_8_3", "heart-switzerland_8_3", "heart-va_8_3",]
+test = [ "heart-cleveland_8_3",]
+
+[84]
+train = [ "heart-hungarian_8_4", "heart-switzerland_8_4", "heart-va_8_4",]
+test = [ "heart-cleveland_8_4",]
+
+[85]
+train = [ "heart-hungarian_8_5", "heart-switzerland_8_5", "heart-va_8_5",]
+test = [ "heart-cleveland_8_5",]
+
+[100]
+train = [ "heart-hungarian_10_0", "heart-switzerland_10_0", "heart-va_10_0",]
+test = [ "heart-cleveland_10_0",]
+
+[101]
+train = [ "heart-hungarian_10_1", "heart-switzerland_10_1", "heart-va_10_1",]
+test = [ "heart-cleveland_10_1",]
+
+[102]
+train = [ "heart-hungarian_10_2", "heart-switzerland_10_2", "heart-va_10_2",]
+test = [ "heart-cleveland_10_2",]
+
+[103]
+train = [ "heart-hungarian_10_3", "heart-switzerland_10_3", "heart-va_10_3",]
+test = [ "heart-cleveland_10_3",]
+
+[104]
+train = [ "heart-hungarian_10_4", "heart-switzerland_10_4", "heart-va_10_4",]
+test = [ "heart-cleveland_10_4",]
+
+[105]
+train = [ "heart-hungarian_10_5", "heart-switzerland_10_5", "heart-va_10_5",]
+test = [ "heart-cleveland_10_5",]
+
+[120]
+train = [ "heart-hungarian_12_0", "heart-switzerland_12_0", "heart-va_12_0",]
+test = [ "heart-cleveland_12_0",]
+
+[121]
+train = [ "heart-hungarian_12_1", "heart-switzerland_12_1", "heart-va_12_1",]
+test = [ "heart-cleveland_12_1",]
+
+[122]
+train = [ "heart-hungarian_12_2", "heart-switzerland_12_2", "heart-va_12_2",]
+test = [ "heart-cleveland_12_2",]
+
+[123]
+train = [ "heart-hungarian_12_3", "heart-switzerland_12_3", "heart-va_12_3",]
+test = [ "heart-cleveland_12_3",]
+
+[124]
+train = [ "heart-hungarian_12_4", "heart-switzerland_12_4", "heart-va_12_4",]
+test = [ "heart-cleveland_12_4",]
+
+[125]
+train = [ "heart-hungarian_12_5", "heart-switzerland_12_5", "heart-va_12_5",]
+test = [ "heart-cleveland_12_5",]
