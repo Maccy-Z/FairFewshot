@@ -14,4 +14,4 @@ do
     done
 done
 
-python Fewshot/comparison2.pyadd
+python Fewshot/comparison2.py
