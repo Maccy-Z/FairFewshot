@@ -68,8 +68,6 @@ df = pd.DataFrame.from_dict(all_results, orient="index")
 
 s_all = pd.concat([s0, s1, s2, s3]).reset_index(drop=True)
 
-print(s_all)
-
 for ds, results in all_results.items():
     s = s_all[s_all["data_name"] == ds].squeeze()
 

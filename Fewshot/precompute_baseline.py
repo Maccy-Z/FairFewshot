@@ -7,14 +7,11 @@ import csv
 data_dir = './datasets/data'
 
 
-def load_batch(ds_name, only):
-    only = True
-    if only :
-        with open(f"./datasets/data/{ds_name}/batches/10_5_-3", "rb") as f:
-            batch = pickle.load(f)
-    else:
-        with open(f"./datasets/data/{ds_name}/batches/3_class", "rb") as f:
-            batch = pickle.load(f)
+def load_batch(ds_name, n_meta):
+    batch = None
+
+    with open(f"./datasets/data/{ds_name}/batches/3_class_{n_meta}", "rb") as f:
+        batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -79,26 +76,27 @@ def main_append(f, num_targets):
 
 def main(fn):
 
-    models = [BasicModel("TabPFN")
-              # BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"), BasicModel("SVC"),
-              # # TabnetModel(),
-              # FTTrModel(),
+    models = [BasicModel("TabPFN"),
+              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"), BasicModel("SVC"),
+              # TabnetModel(),
+              FTTrModel(),
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
 
+
     for model in models:
         print(model)
+        for num_rows in [3, 5, 15]:
+            try:
+                batch = load_batch(ds_name=fn, n_meta=num_rows)
+            except IndexError as e:
+                print(e)
+                break
+            mean_acc, std_acc = model.get_accuracy(batch)
+            model_accs.append([model, num_rows, mean_acc, std_acc])
 
-        try:
-            batch = load_batch(ds_name=fn, only=False)
-        except IndexError as e:
-            print(e)
-            break
-        mean_acc, std_acc = model.get_accuracy(batch)
-        model_accs.append([model, mean_acc, std_acc])
-
-    with open(f'{data_dir}/{fn}/base_tabpfn.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{fn}/3_class_base.dat', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
@@ -136,6 +134,6 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        save_batch(f, num_bs)
+        # save_batch(f, num_bs)
         # main_append(f, num_targets=num_targs)
-        # main(f)
+        main(f)

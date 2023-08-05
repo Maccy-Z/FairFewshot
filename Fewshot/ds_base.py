@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import time
 import itertools
-from AllDataloader2 import SplitDataloader
+from AllDataloader import SplitDataloader
 import os
 
+N_class = 3
 
 class ff_block(nn.Module):
     def __init__(self, in_dim):
@@ -104,17 +105,23 @@ class InfModel(nn.Module):
 
         self.batch_protos = []
         for z_batch, y_batch in zip(zs, ys_int.squeeze(dim=-1), strict=True):
-            protos = torch.empty([2, 32])
-            for y_val in [0, 1]:
+            protos = torch.zeros([N_class, 32])
+            for y_val in range(N_class):
                 mask = (y_batch == y_val).squeeze()
+
                 proto_val = z_batch[mask]
+                if proto_val.numel() == 0:
+                    proto_val = torch.zeros([1, 32])
+
                 proto_val = torch.mean(proto_val, dim=0)
                 protos[y_val] = proto_val
+
 
             self.batch_protos.append(protos)
 
     def forward_target(self, xs):
         # xs.shape = [BS, n, i, 1]
+        # print(xs.shape)
         n = xs.shape[1]
 
         vs = self.vs.unsqueeze(1)
@@ -127,11 +134,11 @@ class InfModel(nn.Module):
         batch_probs = []
         for bs_zs, protos in zip(zs, self.batch_protos):
             bs_zs = bs_zs.unsqueeze(-2)
-            bs_zs = torch.tile(bs_zs, [1, 2, 1])
+            bs_zs = torch.tile(bs_zs, [1, N_class, 1])
 
             dist = bs_zs - protos
-            dist = -torch.norm(dist, dim=-1) ** 2
 
+            dist = -torch.norm(dist, dim=-1) ** 2
             batch_probs.append(dist)
 
         batch_probs = torch.stack(batch_probs)
@@ -145,9 +152,9 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
     probs = model.forward_target(targ_xs)
 
     targ_ys = targ_ys.squeeze().flatten()
-    probs = probs.view(-1, 2)
-    loss = F.cross_entropy(probs, targ_ys.long())
+    probs = probs.view(-1, N_class)
 
+    loss = F.cross_entropy(probs, targ_ys.long())
     loss.backward()
     optim.step()
     optim.zero_grad()
@@ -175,16 +182,17 @@ def main():
 
     dl = SplitDataloader(
         bs=37, num_rows=num_rows, num_targets=num_targets,
-        binarise=True, num_cols=-2, ds_group=tuple([0, -1]), ds_split="train"
+        binarise=True, num_cols=-2, ds_group=(0, -1), ds_split="train"
     )
 
-    for epoch in range(50):
+    for epoch in range(75):
         print()
         st = time.time()
 
         # Train loop
         model.train()
         for xs, ys, _ in itertools.islice(dl, 100):
+
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]

@@ -20,28 +20,27 @@ class Model(ABC):
         self.model_name = model_name
 
 
-    def get_accuracy(self, ds_name, num_rows, num_cols, num_1s=None):
-        with open(f'./datasets/data/{ds_name}/3_class_only.dat', "r") as f:
+    def get_accuracy(self, ds_name, num_rows):
+        with open(f'./datasets/data/{ds_name}/3_class_base.dat', "r") as f:
             lines = f.read()
 
         lines = lines.split("\n")
 
         for config in lines:
-            if config.startswith(f'{self.model_name}'):
+            # print(config, self.model_name, num_rows)
+            if config.startswith(f'{self.model_name},{num_rows}'):
                 config = config.split(",")
 
                 mean, std = float(config[-2]), float(config[-1])
                 return mean, std
 
-
-
-        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
+        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}")
 
     def __repr__(self):
         return self.model_name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
+def get_results_by_dataset(test_data_names, models, num_rows=10):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -54,9 +53,9 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
         model_acc_std = defaultdict(list)
         for model in models:
             try:
-                mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3, num_1s=num_1s)
+                mean_acc, std_acc = model.get_accuracy(data_name, num_rows)
             except FileNotFoundError as e:
-                #print(e)
+                print(e)
                 continue
 
             model_acc_std[str(model)].append([mean_acc, std_acc])
@@ -87,29 +86,26 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
     return results
 
 
-def main(load_no, num_rows, save_ep=None, num_1s=None):
-    dir_path = f'{BASEDIR}/saves'
-    files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    load_no = [existing_saves[num] for num in load_no]
-    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+def main(fold_no, num_rows, ):
+    # dir_path = f'{BASEDIR}/saves'
+    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+    # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    # load_no = [existing_saves[num] for num in load_no]
+    # load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+    #
+    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    # cfg = all_cfg["DL_params"]
+    # ds = all_cfg["Settings"]["dataset"]
+    # ds_group = cfg["ds_group"]
 
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
 
-
-    ds_group = save_ep
-    fold_no, split_no = ds_group
+    # ds_group = save_ep
+    # fold_no, split_no = ds_group
 
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-    print("Testing group:", ds_group)
+    #print("Testing group:", ds_group)
 
-    if split_no == -1:
-        get_splits = range(6)
-    else:
-        get_splits = [split_no]
+    get_splits = range(6)
 
     test_data_names = []
     for split in get_splits:
@@ -124,15 +120,13 @@ def main(load_no, num_rows, save_ep=None, num_1s=None):
     print("Test datasets:", test_data_names)
 
 
-    num_targets = 5
-    binarise = cfg["binarise"]
 
-    models = [Model("LR"), Model("SVC"),Model("FTTransformer")
+    models = [Model("LR"), Model("SVC"),Model("FTTransformer"), Model("KNN"), Model("R_Forest"), Model("CatBoost"), Model("TabPFN")
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_1s=num_1s
+        num_rows=num_rows,
     )
 
 
@@ -196,5 +190,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for i in [0,1,2,3]:
-        col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1])
+    main(fold_no=3, num_rows=3)

@@ -39,13 +39,14 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, binarise, split,
+            self, ds_name, num_rows, num_targets, balance, split,
             dtype=torch.float32, device="cpu"):
         self.ds_name = ds_name
         self.num_rows = num_rows
         self.num_targets = num_targets
         self.tot_rows = num_rows + num_targets
-        self.binarise = binarise
+        self.num_meta = num_rows
+        self.balance = balance
 
         self.device = device
         self.dtype = dtype
@@ -116,25 +117,45 @@ class MyDataSet:
         sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
         largest_labels = sorted_indices[:N_class]
 
+        self.wanted_rows = []
         for l in largest_labels:
             top_idx = (unique_idx == l)
             row_probs[top_idx] = 1 / counts[l]
+
+            self.wanted_rows.append(np.where(top_idx))
 
         row_probs = row_probs / np.sum(row_probs)
 
         self.row_probs = row_probs.T
 
-    def sample(self, num_cols, num_1s=None):
-        targ_col = -1
+    def sample(self, num_cols):
+
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
 
-        rows = np.random.choice(
-            self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
+        if self.balance is None:
+            rows = np.random.choice(
+                self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
+        else:
+            rows = []
+
+            class_split = [self.balance, self.balance, self.num_meta - 2 * self.balance]
+            class_split = np.random.permutation(class_split)
+            #print(class_split)
+            for label, num_rows in enumerate(class_split):
+                wanted_row = np.random.choice(self.wanted_rows[label][0], size=num_rows, replace=False)
+                rows.append(wanted_row)
+
+            targ_rows = np.random.choice(
+                self.ds_rows, size=self.num_targets, replace=False, p=self.row_probs)
+
+            rows .append(targ_rows)
+            rows = np.concatenate(rows)
+
         select_data = self.data[rows]
 
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
-        ys = select_data[:, targ_col]
+        ys = select_data[:, -1]
 
         # Normalise xs
         m = xs.mean(0, keepdim=True)
@@ -157,10 +178,9 @@ class MyDataSet:
 
 class SplitDataloader:
     def __init__(
-            self, bs, num_rows, num_targets, binarise=False,
+            self, bs, num_rows, num_targets, balance=None,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
-            split_file='./datasets/grouped_datasets/splits',
-            num_1s=None, decrease_col_prob=-1):
+            split_file='./datasets/grouped_datasets/splits'):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -187,13 +207,12 @@ class SplitDataloader:
         self.tot_rows = num_rows + num_targets
         self.num_rows = num_rows
         self.num_targets = num_targets
-        self.binarise = binarise
+        self.balance = balance
         self.num_cols = num_cols
         self.ds_group = ds_group
         self.ds_split = ds_split
         self.split_file = split_file
-        self.decrease_col_prob = decrease_col_prob
-        self.num_1s = num_1s
+
 
         self.device = device
 
@@ -239,7 +258,7 @@ class SplitDataloader:
         self.all_datasets = [
             MyDataSet(name, num_rows=self.num_rows,
                       num_targets=self.num_targets,
-                      binarise=self.binarise,
+                      balance=self.balance,
                       device=self.device, split="all")
             for name in ds_names]
 
@@ -309,7 +328,7 @@ class SplitDataloader:
             datanames = [str(d) for d in datasets]
 
             xs, ys = list(zip(*[
-                ds.sample(num_cols=num_cols, num_1s=self.num_1s)
+                ds.sample(num_cols=num_cols)
                 for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
@@ -325,10 +344,8 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=1, num_rows=5, binarise=False, num_targets=5,
-        decrease_col_prob=-1, num_cols=-3, ds_group="pendigits", ds_split="train",
-        num_1s={'meta': 1, 'target': 0}
+        bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group="pendigits", ds_split="train",
     )
 
     for xs, ys, datanames in islice(dl, 5):
-        print(xs.shape)
+        print(ys)
