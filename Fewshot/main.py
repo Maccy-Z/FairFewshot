@@ -409,11 +409,11 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     if ds == "total":
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=False, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
+            balance=3, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
         )
         val_dl = SplitDataloader(
             bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=False, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
+            balance=3, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
         )
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
