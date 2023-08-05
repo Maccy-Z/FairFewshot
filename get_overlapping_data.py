@@ -67,7 +67,7 @@ base_dir = "overlapdatasets/grouped_datasets"
 dataset_splits = {}
 
 for n_overlap in list(range(0, 13, 2)):
-    for seed in list(range(5)):
+    for seed in list(range(6)):
         group_no = n_overlap * 10 + seed
 
         trains = [f'{name}_{n_overlap}_{seed}' for name in train.keys()]

@@ -4,11 +4,41 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
+import toml
 sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot/Fewshot')
 from utils import get_num_rows_cols
 
+def is_seen(data_name, ds_group):
+    split_file = f"./datasets/grouped_datasets/med_splits_2"
+    with open(split_file) as f:
+        split = toml.load(f)
+    train_data_names = split[str(ds_group)]["train"]
+    test_data_names = split[str(ds_group)]["test"]
+    if data_name in train_data_names:
+        return True
+    else:
+        return False
+
+def is_medical(data_name):
+    medical = [
+        'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+        'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
+        'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
+        'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
+        'heart-hungarian', 'heart-switzerland', 'heart-va', 'hepatitis', 'horse-colic',
+        'ilpd-indian-liver', 'lung-cancer', 'lymphography', 'mammographic', 
+        'parkinsons', 'post-operative', 'primary-tumor', 'spect', 'spectf', 
+        'statlog-heart', 'thyroid', 'vertebral-column-2clases'
+    ]
+    medical.remove('fertility')
+    medical.remove('lung-cancer')
+    if data_name in medical:
+        return True
+    else:
+        return False
+
 #num_rows = [2, 6, 10] 
-num_rows = [1, 3, 5, 10, 15]
+num_rows = [5]
 # get FLAT results
 flat_results_df = pd.DataFrame()
 for num_row in num_rows:
@@ -16,6 +46,7 @@ for num_row in num_rows:
         #df = pd.read_pickle(f'./results/fixed_kshot_results_v2/results_{num_row}_rows/result_kshot_v2_{i}_fold_{num_row}_rows/raw.pkl')
         #df = pd.read_pickle(f'./results/binomial_results_v2/results_{num_row}_rows/result_binomial_v2_{i}_fold_{num_row}_rows/raw.pkl')
         df = pd.read_pickle(f'./results/med_results_v2/results_{num_row}_rows/result__{i}_fold_{num_row}_rows/raw.pkl')
+        #df = pd.read_pickle(f'./results/all_results/result_{i}all_fold_{num_row}_rows/raw.pkl')
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
 
@@ -35,6 +66,8 @@ for data_name in data_names:
     df['data_name'] = data_name
     base_results_df = pd.concat([base_results_df, df])
 base_results_df
+
+
 #%%
 
 # combine dataframes
@@ -42,7 +75,8 @@ results_df = pd.concat([flat_results_df, base_results_df])
 
 # aggregate results over all datasets
 models = results_df.model.unique()
-flat_models = ['FLAT', 'FLAT_maml']
+#flat_models = ['FLAT', 'FLAT_maml']
+flat_models = ['FLAT']
 baseline_models = [m for m in models if m not in flat_models]
 model_order = baseline_models + flat_models
 
@@ -50,7 +84,7 @@ agg_acc_df = results_df.groupby(['num_rows', 'model'])[['acc']].mean().unstack()
 agg_acc_df = agg_acc_df.droplevel(0, axis=1)
 agg_acc_df = agg_acc_df.loc[:, model_order] * 100
 
-agg_acc_df['FLAT_maml_diff'] = agg_acc_df['FLAT_maml'] - agg_acc_df.loc[:, baseline_models].fillna(0).max(axis=1)
+#agg_acc_df['FLAT_maml_diff'] = agg_acc_df['FLAT_maml'] - agg_acc_df.loc[:, baseline_models].fillna(0).max(axis=1)
 agg_acc_df['FLAT_diff'] = agg_acc_df['FLAT'] - agg_acc_df.loc[:, baseline_models].fillna(0).max(axis=1) 
 
 agg_std_df = results_df.groupby(['num_rows', 'model'])[['std']].apply(lambda x: np.sqrt((x**2).sum()) / len(data_names) * 100).unstack()
@@ -129,4 +163,62 @@ plot_df
 # %%
 single_result_df.loc[:, 'acc'].loc[:, baseline_models].idxmax(axis=1)
 
+# %%
+# Analyse all results
+
+num_rows = [5]
+# get FLAT results
+flat_results_df = pd.DataFrame()
+for num_row in num_rows:
+    for i in range(10):
+        df = pd.read_pickle(f'./results/all_results/result_{i}all_fold_{num_row}_rows/raw.pkl')
+        df['num_rows'] = num_row
+        df['fold'] = i
+        df['seen'] = df['data_name'].apply(lambda x: is_seen(x, i))
+        df['medical'] = df['data_name'].apply(is_medical)
+        flat_results_df = pd.concat([flat_results_df, df])
+
+# %%
+flat_results_df[~flat_results_df.seen & flat_results_df.medical]
+
+#%%
+# get baseline results
+data_names = flat_results_df.data_name.unique()
+base_results_df = pd.DataFrame()
+for data_name in data_names:
+    df = pd.read_csv(f'./datasets/max_data/{data_name}/baselines.dat', header=None)
+    df.columns = ['model', 'num_rows', 'num_cols', 'acc', 'std']
+    df = df[df.model != 'Model']
+    df['num_rows'] = df['num_rows'].astype(int)
+    df['acc'] = df['acc'].astype(float)
+    df['std'] = df['std'].astype(float)
+    df = df[df.num_rows.isin(num_rows)]
+    df['data_name'] = data_name
+    base_results_df = pd.concat([base_results_df, df])
+base_results_df
+
+# %%
+results_df = flat_results_df.loc[:, ['data_name', 'fold', 'seen', 'medical', 'acc']]
+results_df.rename({'acc' : 'FLAT'}, axis=1, inplace=True)
+
+baseline_models = base_results_df.model.unique()
+base_results_df = base_results_df.pivot(index=['data_name'], columns = ['model'], values = ['acc'])
+base_results_df = base_results_df.droplevel(0, axis=1)
+base_results_df.reset_index(inplace=True)
+results_df = results_df.merge(base_results_df, how='left', on='data_name')
+# %%
+results_df[~results_df.seen & results_df.medical].mean() * 100
+#%%
+results_df['FLAT_diff'] = results_df['FLAT'] - results_df.loc[:, baseline_models].max(axis=1)
+for base_mod in baseline_models:
+    results_df[f'FLAT_{base_mod}_diff'] = results_df['FLAT'] - results_df[base_mod]
+results_df
+# %%
+diff_cols = [f'FLAT_{m}_diff' for m in baseline_models]
+(results_df.groupby(['seen', 'medical'])[diff_cols].mean() * 100).round(2)
+
+# %%
+(results_df.groupby(['seen', 'medical'])[diff_cols].mean().mean(axis=1) * 100).round(2)
+# %%
+results_df.groupby(['seen', 'medical'])['FLAT_diff'].mean() * 100
 # %%

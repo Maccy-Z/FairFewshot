@@ -393,7 +393,7 @@ def get_results_by_dataset(
             result = pd.DataFrame({
                         'data_name': data_name,
                         'model': str(model_name),
-                        'num_cols': -1,
+                        'num_cols': -3,
                         'acc': mean_acc,
                         'std': std_acc
                         }, index=[0]) 
@@ -575,7 +575,7 @@ if __name__ == "__main__":
         for i in range(6 * 7):
             load_no_ls = [i]
             batch_tag = 'overlap'
-            save_tag = f'{i}_overlap'
+            save_tag = f'{num_row}_{i}_overlap'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
