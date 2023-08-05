@@ -117,19 +117,25 @@ class MyDataSet:
         sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
         largest_labels = sorted_indices[:N_class]
 
-        self.wanted_rows = []
+        self.wanted_rows, lens = [], []
         for l in largest_labels:
             top_idx = (unique_idx == l)
             row_probs[top_idx] = 1 / counts[l]
 
-            self.wanted_rows.append(np.where(top_idx))
+            self.wanted_rows.append(np.where(top_idx)[0])
+            lens.append(len(np.where(top_idx)[0]))
+
+        if min(lens) < 5:
+            self.ds_rows = 0
 
         row_probs = row_probs / np.sum(row_probs)
 
         self.row_probs = row_probs.T
 
-    def sample(self, num_cols):
+        self.test = len(counts)
 
+    def sample(self, num_cols):
+        # print(self.test, self.min_ds_rows, self)
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
 
         if self.balance is None:
@@ -140,9 +146,10 @@ class MyDataSet:
 
             class_split = [self.balance, self.balance, self.num_meta - 2 * self.balance]
             class_split = np.random.permutation(class_split)
-            #print(class_split)
+
+
             for label, num_rows in enumerate(class_split):
-                wanted_row = np.random.choice(self.wanted_rows[label][0], size=num_rows, replace=False)
+                wanted_row = np.random.choice(self.wanted_rows[label], size=num_rows, replace=False)
                 rows.append(wanted_row)
 
             targ_rows = np.random.choice(
@@ -344,7 +351,7 @@ if __name__ == "__main__":
     random.seed(0)
 
     dl = SplitDataloader(
-        bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group="pendigits", ds_split="train",
+        bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group="congressional-voting", ds_split="train",
     )
 
     for xs, ys, datanames in islice(dl, 5):
