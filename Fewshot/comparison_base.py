@@ -190,4 +190,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(fold_no=3, num_rows=3)
+    main(fold_no=3, num_rows=15)

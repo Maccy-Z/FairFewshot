@@ -28,13 +28,13 @@ from STUNT_interface import STUNT_utils, MLPProto
 BASEDIR = '.'
 
 
-def load_batch(ds_name, only, num_rows):
-    if num_rows != 10:
-        with open(f"./datasets/data/{ds_name}/batches/3_class_{num_rows}", "rb") as f:
-            batch = pickle.load(f)
-    else:
-        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
-            batch = pickle.load(f)
+def load_batch(ds_name, balance):
+    # if num_rows != 10:
+    with open(f"./datasets/data/{ds_name}/batches/3_class_bal_{balance}", "rb") as f:
+        batch = pickle.load(f)
+    # else:
+    #     with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+    #         batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -114,7 +114,7 @@ class STUNT(STUNT_utils, Model):
         with torch.no_grad():
             meta_embed = self.model(xs_meta)
 
-        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 3)
 
     def get_acc(self, xs_target, ys_target):
         self.model.eval()
@@ -299,7 +299,7 @@ class BasicModel(Model):
 
 class FLAT(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/3_class/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -418,9 +418,9 @@ def get_results_by_dataset(test_data_names, models, num_rows, balance):
     for data_name in test_data_names:
         print(data_name)
         try:
-            # batch = load_batch(ds_name=data_name, only=True, num_rows=num_rows)
-            dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=balance)
-            batch = get_batch(dl, num_rows=num_rows)
+            batch = load_batch(ds_name=data_name, balance=balance)
+            # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=balance)
+            # batch = get_batch(dl, num_rows=num_rows)
 
         except IndexError as e:
             print(e)
@@ -462,8 +462,8 @@ def main(load_no, num_rows, fold, balance):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    load_no = [existing_saves[num] for num in load_no]
-    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+    load_no = load_no
+    load_dir = f'{BASEDIR}/saves/3_class/save_{load_no[-1]}'
 
     result_dir = f'{BASEDIR}/Results'
     files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
@@ -485,8 +485,9 @@ def main(load_no, num_rows, fold, balance):
 
     fold_no, split_no = ds_group
     fold_no = fold if fold is not None else fold_no
-
+    print()
     print("Loading from fold:", fold_no)
+    print()
     #fold_no = ds_split
 
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
@@ -506,14 +507,7 @@ def main(load_no, num_rows, fold, balance):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("LR")]  + [FLAT(i) for i in load_no]
-    # [FLAT_MAML(num) for num in load_no] + \
-    #  [
-    #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-    #  # TabnetModel(),
-    #  # FTTrModel(),
-    #  # STUNT(),
-    #  ]
+    models = [BasicModel("LR")]  + [STUNT()]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows=num_rows, balance=balance
@@ -601,4 +595,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[0, 1, 2], num_rows=10, fold=0, balance=3)
+    main(load_no=[3,4,5], num_rows=10, fold=1, balance=1)

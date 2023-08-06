@@ -33,19 +33,20 @@ def save_batch(ds_name, num_batches):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
-    for num_rows in [3]:
+    for num_rows in [10]:
         try:
-            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=5, num_cols=-3, binarise=False)
+            #dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=5, num_cols=-3, binarise=False)
+            dl = SplitDataloader(ds_group=ds_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=3, ds_split="test")
             batch = get_batch(dl, num_rows=num_rows)
 
             # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/3_class_{num_rows}", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/3_class_bal_3", "wb") as f:
                 pickle.dump(batch, f)
 
 
         except IndexError as e:
             print(e)
-            with open(f"{data_dir}/{ds_name}/batches/3_class_{num_rows}", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/3_class_bal_3", "wb") as f:
                 pickle.dump(None, f)
 
 
@@ -96,9 +97,9 @@ def main(fn):
             mean_acc, std_acc = model.get_accuracy(batch)
             model_accs.append([model, num_rows, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{fn}/3_class_base.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{fn}/3_class_base.dat', 'a', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+        # writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
@@ -127,13 +128,11 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 200
-
     files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
     for f in files:
         print("---------------------")
         print(f)
 
-        # save_batch(f, num_bs)
+        save_batch(f, num_batches=200)
         # main_append(f, num_targets=num_targs)
-        main(f)
+        #main(f)

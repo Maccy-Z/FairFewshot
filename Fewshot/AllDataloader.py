@@ -105,18 +105,16 @@ class MyDataSet:
         self.ds_cols = self.data.shape[-1]
         self.ds_rows = self.data.shape[0]
 
-        row_probs = np.zeros(self.ds_rows)
-
         col_data = self.data[:, -1]
         unique_lab, unique_idx, counts = np.unique(
             col_data, return_counts=True, return_inverse=True)
 
-        if len(counts) < 3:
-            self.ds_rows = 0
+
 
         sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
         largest_labels = sorted_indices[:N_class]
 
+        row_probs = np.zeros(self.ds_rows)
         self.wanted_rows, lens = [], []
         for l in largest_labels:
             top_idx = (unique_idx == l)
@@ -126,6 +124,8 @@ class MyDataSet:
             lens.append(len(np.where(top_idx)[0]))
 
         if min(lens) < 5:
+            self.ds_rows = 0
+        if len(counts) < 3:
             self.ds_rows = 0
 
         row_probs = row_probs / np.sum(row_probs)
@@ -181,6 +181,9 @@ class MyDataSet:
 
     def __len__(self):
         return self.ds_rows
+
+    def cols(self):
+        return self.ds_cols
 
 
 class SplitDataloader:
@@ -344,15 +347,64 @@ class SplitDataloader:
     def __repr__(self):
         return str(self.all_datasets)
 
+    def __len__(self):
+        return self.all_datasets[0].cols()
+
 
 if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(
-        bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group="congressional-voting", ds_split="train",
-    )
+    datasets = os.listdir("/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data")
+    datasets = sorted([f for f in datasets if os.path.isdir(f'/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data/{f}')])
+    print(datasets)
 
-    for xs, ys, datanames in islice(dl, 5):
-        print(ys)
+    sizes = []
+    # for ds in ['thyroid', 'synthetic-control', 'nursery', 'libras', 'seeds',
+    #    'statlog-landsat', 'statlog-vehicle', 'audiology-std',
+    #    'congressional-voting', 'acute-inflammation']:
+    for ds in ['thyroid', 'synthetic-control', 'nursery', 'libras', 'seeds', 'statlog-landsat', 'statlog-vehicle', 'audiology-std', 'congressional-voting', 'acute-inflammation', 'monks-3', 'statlog-shuttle', 'teaching', 'plant-shape', 'acute-nephritis', 'oocytes_merluccius_nucleus_4d', 'low-res-spect', 'musk-1', 'oocytes_trisopterus_nucleus_2f', 'image-segmentation', 'connect-4', 'statlog-image', 'wine-quality-white', 'car', 'heart-switzerland', 'glass', 'monks-1', 'ozone', 'molec-biol-splice', 'musk-2', 'wine', 'heart-va', 'zoo', 'wall-following', 'spectf', 'vertebral-column-3clases', 'flags', 'twonorm', 'hayes-roth', 'led-display', 'mushroom', 'breast-cancer-wisc-prog', 'primary-tumor', 'waveform', 'statlog-australian-credit', 'post-operative', 'iris', 'annealing', 'contrac', 'planning', 'monks-2', 'hill-valley', 'cardiotocography-10clases', 'pittsburg-bridges-TYPE', 'horse-colic', 'chess-krvkp', 'cylinder-bands', 'balance-scale', 'ilpd-indian-liver', 'parkinsons', 'breast-cancer-wisc', 'conn-bench-sonar-mines-rocks', 'steel-plates', 'oocytes_trisopterus_states_5b', 'energy-y2', 'adult', 'breast-cancer-wisc-diag', 'oocytes_merluccius_states_2f', 'statlog-heart', 'vertebral-column-2clases', 'dermatology', 'cardiotocography-3clases', 'mammographic', 'pittsburg-bridges-REL-L', 'conn-bench-vowel-deterding', 'ionosphere', 'ecoli', 'page-blocks', 'waveform-noise', 'miniboone', 'plant-texture', 'pittsburg-bridges-SPAN', 'hepatitis', 'chess-krvk', 'heart-cleveland', 'haberman-survival', 'letter', 'bank', 'breast-tissue', 'magic', 'optical', 'spect', 'pima', 'yeast', 'wine-quality-red', 'titanic', 'blood', 'energy-y1', 'heart-hungarian', 'tic-tac-toe', 'abalone', 'spambase', 'echocardiogram', 'lymphography', 'breast-cancer', 'pittsburg-bridges-MATERIAL', 'statlog-german-credit', 'pendigits', 'molec-biol-promoter', 'credit-approval', 'soybean', 'arrhythmia', 'semeion', 'plant-margin', 'ringnorm']:
+        try:
+            dl = SplitDataloader(
+                bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group=ds, ds_split="train",
+            )
+            sizes.append(len(dl))
+
+        except IndexError as e:
+            print(e)
+            pass
+
+    # Acc vs baseline
+    accs = [-0.209, -0.127, -0.12, -0.117, -0.092, -0.091, -0.089, -0.082, -0.081, -0.078, -0.076, -0.07, -0.07, -0.069, -0.064, -0.053, -0.052, -0.051, -0.05, -0.05, -0.043, -0.041, -0.039, -0.038, -0.036, -0.035, -0.034, -0.033, -0.033, -0.031, -0.027, -0.027, -0.026, -0.026, -0.026, -0.025, -0.025, -0.025, -0.022, -0.02, -0.02, -0.017, -0.017, -0.017, -0.016, -0.015, -0.014, -0.014, -0.013, -0.011, -0.01, -0.01, -0.009, -0.008, -0.008, -0.008, -0.007, -0.007, -0.007, -0.006, -0.006, -0.005, -0.004, -0.004, -0.004, -0.003, -0.003, -0.003, -0.002, -0.002, -0.002, -0.0, 0.0, 0.0, 0.0, 0.0, 0.001, 0.001, 0.001, 0.002, 0.002, 0.003, 0.003, 0.004, 0.004, 0.005, 0.005, 0.006, 0.006, 0.007, 0.009, 0.009, 0.01, 0.011, 0.012, 0.013, 0.013, 0.014, 0.016, 0.017, 0.017, 0.018, 0.019, 0.02, 0.02, 0.021, 0.021, 0.022, 0.03, 0.031, 0.033, 0.047, 0.047, 0.052, 0.077]
+    plt.scatter(sizes, accs, marker="x")
+    plt.xlabel("N cols")
+    plt.ylabel("Acc diff vs base")
+    plt.xlim([0, 100])
+    plt.title("Accuracy diff vs baseline")
+    plt.show()
+
+    sizes = []
+    # Acc vs maml
+    for ds in ['audiology-std', 'car', 'statlog-landsat', 'ringnorm', 'congressional-voting', 'twonorm', 'statlog-vehicle', 'acute-nephritis', 'musk-2', 'molec-biol-splice', 'ozone', 'plant-texture', 'tic-tac-toe', 'musk-1', 'statlog-image', 'low-res-spect', 'ionosphere', 'hayes-roth', 'plant-margin', 'wine-quality-white', 'bank', 'cardiotocography-3clases', 'pima', 'plant-shape', 'nursery', 'post-operative', 'libras', 'conn-bench-sonar-mines-rocks', 'magic', 'optical', 'zoo', 'statlog-shuttle', 'image-segmentation', 'oocytes_merluccius_nucleus_4d', 'ecoli', 'monks-3', 'dermatology', 'pendigits', 'oocytes_trisopterus_nucleus_2f', 'mammographic', 'acute-inflammation', 'synthetic-control', 'wine', 'monks-2', 'page-blocks', 'credit-approval', 'echocardiogram', 'breast-cancer-wisc', 'iris', 'steel-plates', 'molec-biol-promoter', 'heart-switzerland', 'connect-4', 'breast-cancer-wisc-diag', 'haberman-survival', 'teaching', 'heart-cleveland', 'heart-hungarian', 'wall-following', 'statlog-australian-credit', 'miniboone', 'energy-y2', 'vertebral-column-3clases', 'waveform-noise', 'ilpd-indian-liver', 'breast-tissue', 'cardiotocography-10clases', 'breast-cancer', 'parkinsons', 'horse-colic', 'monks-1', 'conn-bench-vowel-deterding', 'chess-krvkp', 'statlog-heart', 'hepatitis', 'semeion', 'soybean', 'flags', 'heart-va', 'annealing', 'pittsburg-bridges-TYPE', 'cylinder-bands', 'primary-tumor', 'seeds', 'letter', 'pittsburg-bridges-REL-L', 'waveform', 'planning', 'oocytes_merluccius_states_2f', 'wine-quality-red', 'statlog-german-credit', 'glass', 'chess-krvk', 'titanic', 'energy-y1', 'led-display', 'lymphography', 'spect', 'pittsburg-bridges-MATERIAL', 'yeast', 'breast-cancer-wisc-prog', 'vertebral-column-2clases', 'abalone', 'thyroid', 'hill-valley', 'mushroom', 'adult', 'spectf', 'contrac', 'spambase', 'balance-scale', 'pittsburg-bridges-SPAN', 'oocytes_trisopterus_states_5b', 'blood', 'arrhythmia']:
+        try:
+            dl = SplitDataloader(
+                bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group=ds, ds_split="train",
+            )
+            sizes.append(len(dl))
+
+        except IndexError as e:
+            print(e)
+            pass
+
+    # Acc vs baseline
+    accs = [-0.082, -0.065, -0.062, -0.059, -0.051, -0.043, -0.037, -0.032, -0.032, -0.031, -0.026, -0.024, -0.024, -0.023, -0.021, -0.02, -0.02, -0.017, -0.017, -0.017, -0.016, -0.015, -0.015, -0.014, -0.014, -0.014, -0.013, -0.013, -0.012, -0.012, -0.011, -0.011, -0.011, -0.01, -0.009, -0.009, -0.009, -0.009, -0.009, -0.008, -0.008, -0.008, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.006, -0.005, -0.005, -0.005, -0.005, -0.004, -0.004, -0.004, -0.003, -0.003, -0.001, -0.001, -0.001, -0.001, -0.0, 0.001, 0.001, 0.001, 0.002, 0.002, 0.002, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.005, 0.005, 0.005, 0.006, 0.006, 0.006, 0.006, 0.006, 0.007, 0.007, 0.008, 0.008, 0.008, 0.008, 0.009, 0.01, 0.01, 0.01, 0.011, 0.013, 0.013, 0.014, 0.015, 0.016, 0.016, 0.016, 0.019, 0.019, 0.022, 0.026, 0.031, 0.032]
+    accs = - np.array(accs)
+    plt.scatter(sizes, accs, marker="x")
+    plt.xlabel("N cols")
+    plt.ylabel("Acc diff vs base")
+    plt.xlim([0, 100])
+    plt.title("Diff between FLAT and FLAT_maml")
+    plt.show()
+    # for xs, ys, datanames in islice(dl, 5):
+    #     print(ys)
