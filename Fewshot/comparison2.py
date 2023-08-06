@@ -115,7 +115,7 @@ class STUNT(STUNT_utils, Model):
         with torch.no_grad():
             meta_embed = self.model(xs_meta)
 
-        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 3)
 
     def get_acc(self, xs_target, ys_target):
         self.model.eval()

@@ -10,8 +10,12 @@ data_dir = './datasets/data'
 def load_batch(ds_name, n_meta):
     batch = None
 
-    with open(f"./datasets/data/{ds_name}/batches/3_class_{n_meta}", "rb") as f:
-        batch = pickle.load(f)
+    if n_meta != 10:
+        with open(f"./datasets/data/{ds_name}/batches/3_class_{n_meta}", "rb") as f:
+            batch = pickle.load(f)
+    else:
+        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+            batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -77,10 +81,7 @@ def main_append(f, num_targets):
 
 def main(fn):
 
-    models = [BasicModel("TabPFN"),
-              BasicModel("LR") , BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"), BasicModel("SVC"),
-              # TabnetModel(),
-              FTTrModel(),
+    models = [STUNT(),
               ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
@@ -88,7 +89,7 @@ def main(fn):
 
     for model in models:
         print(model)
-        for num_rows in [3, 5, 15]:
+        for num_rows in [3, 5, 10, 15]:
             try:
                 batch = load_batch(ds_name=fn, n_meta=num_rows)
             except IndexError as e:
@@ -133,6 +134,6 @@ if __name__ == "__main__":
         print("---------------------")
         print(f)
 
-        save_batch(f, num_batches=200)
+        #save_batch(f, num_batches=200)
         # main_append(f, num_targets=num_targs)
-        #main(f)
+        main(f)

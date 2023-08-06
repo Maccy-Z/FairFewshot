@@ -30,7 +30,7 @@ BASEDIR = '.'
 
 def load_batch(ds_name, balance):
     # if num_rows != 10:
-    with open(f"./datasets/data/{ds_name}/batches/3_class_bal_{balance}", "rb") as f:
+    with open(f"./datasets/data/{ds_name}/batches/3_class_15", "rb") as f:
         batch = pickle.load(f)
     # else:
     #     with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
@@ -329,7 +329,7 @@ class FLAT(Model):
 
 class FLAT_MAML(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/3_class/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -350,7 +350,7 @@ class FLAT_MAML(Model):
         optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
         # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
         optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
-        for _ in range(3):
+        for _ in range(4):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
@@ -507,7 +507,7 @@ def main(load_no, num_rows, fold, balance):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("LR")]  + [STUNT()]
+    models = [BasicModel("SVC")]  + [FLAT_MAML(18)]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows=num_rows, balance=balance
@@ -595,4 +595,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[3,4,5], num_rows=10, fold=1, balance=1)
+    main(load_no=[21,22,23], num_rows=15, fold=2, balance=15)
