@@ -130,3 +130,36 @@ plot_df
 single_result_df.loc[:, 'acc'].loc[:, baseline_models].idxmax(axis=1)
 
 # %%
+# Compare the results against the number of rows / classses
+DATADIR = './datasets/data'
+
+data_dim_df = pd.DataFrame(index=results_df.data_name.unique())
+data_dim_df['n_cols'] = data_dim_df['n_classes'] = None
+
+for ds_name in data_dim_df.index:
+    labels = pd.read_csv(f'{DATADIR}/{ds_name}/labels_py.dat', header=None)
+    data = pd.read_csv(f'{DATADIR}/{ds_name}/{ds_name}_py.dat', header=None)
+    n_classes = labels.iloc[:, 0].nunique()
+    n_cols = data.shape[1]
+    data_dim_df.loc[ds_name, 'n_cols'] = n_cols
+    data_dim_df.loc[ds_name, 'n_classes'] = n_classes
+data_dim_df
+
+#%%
+from scipy.stats import ttest_ind
+for baseline in baseline_models:
+    compare_df = results_df[
+        (results_df.model.isin(['FLAT', baseline])) & 
+        (results_df.num_rows == 5)
+    ][['data_name', 'model', 'acc']].pivot(
+        index='data_name', columns='model').droplevel(0, axis=1)
+    compare_df['diff'] = compare_df['FLAT'] - compare_df[baseline]
+
+    compare_df = compare_df.join(data_dim_df)
+
+    # Test the hypothesis that the number of original classes influences the performance
+    a = compare_df[compare_df.n_classes == 2]['diff']
+    b = compare_df[compare_df.n_classes > 2]['diff']
+
+    print(baseline, ttest_ind(a, b).pvalue)
+# %%
