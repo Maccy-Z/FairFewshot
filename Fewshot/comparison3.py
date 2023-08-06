@@ -28,13 +28,13 @@ from STUNT_interface import STUNT_utils, MLPProto
 BASEDIR = '.'
 
 
-def load_batch(ds_name, balance):
-    # if num_rows != 10:
-    with open(f"./datasets/data/{ds_name}/batches/3_class_15", "rb") as f:
-        batch = pickle.load(f)
-    # else:
-    #     with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
-    #         batch = pickle.load(f)
+def load_batch(ds_name, balance, num_rows):
+    if num_rows != 10:
+        with open(f"./datasets/data/{ds_name}/batches/3_class_{num_rows}", "rb") as f:
+            batch = pickle.load(f)
+    else:
+        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+            batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -340,6 +340,12 @@ class FLAT_MAML(Model):
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
+        if xs_meta.shape[1] > 100:
+            print("FF slow dataset")
+            steps = 1
+        else:
+            steps = 4
+
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -350,7 +356,7 @@ class FLAT_MAML(Model):
         optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
         # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
         optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
-        for _ in range(4):
+        for _ in range(steps):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
@@ -418,7 +424,7 @@ def get_results_by_dataset(test_data_names, models, num_rows, balance):
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, balance=balance)
+            batch = load_batch(ds_name=data_name, balance=balance, num_rows=num_rows)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=balance)
             # batch = get_batch(dl, num_rows=num_rows)
 
@@ -507,7 +513,7 @@ def main(load_no, num_rows, fold, balance):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("SVC")]  + [FLAT_MAML(18)]
+    models = [BasicModel("SVC")]  + [FLAT_MAML(n) for n in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows=num_rows, balance=balance
@@ -595,4 +601,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[21,22,23], num_rows=15, fold=2, balance=15)
+    main(load_no=[0,1,2], num_rows=10, fold=0, balance=10)

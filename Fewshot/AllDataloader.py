@@ -371,6 +371,10 @@ if __name__ == "__main__":
             )
             sizes.append(len(dl))
 
+            if ds == "semeion":
+                print(len(dl))
+                exit(5)
+
         except IndexError as e:
             print(e)
             pass
