@@ -28,7 +28,7 @@ from STUNT_interface import STUNT_utils, MLPProto
 BASEDIR = '.'
 
 
-def load_batch(ds_name, balance, num_rows):
+def load_batch(ds_name, num_rows):
     if num_rows != 10:
         with open(f"./datasets/data/{ds_name}/batches/3_class_{num_rows}", "rb") as f:
             batch = pickle.load(f)
@@ -341,7 +341,8 @@ class FLAT_MAML(Model):
 
     def fit(self, xs_meta, ys_meta):
         if xs_meta.shape[1] > 100:
-            print("FF slow dataset")
+
+            # print("FF slow dataset")
             steps = 1
         else:
             steps = 4
@@ -412,7 +413,7 @@ class Iwata(Model):
         return "Iwata"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows, balance):
+def get_results_by_dataset(test_data_names, models, num_rows):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -424,7 +425,7 @@ def get_results_by_dataset(test_data_names, models, num_rows, balance):
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, balance=balance, num_rows=num_rows)
+            batch = load_batch(ds_name=data_name, num_rows=num_rows)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=balance)
             # batch = get_batch(dl, num_rows=num_rows)
 
@@ -464,33 +465,30 @@ def get_results_by_dataset(test_data_names, models, num_rows, balance):
     return results
 
 
-def main(load_no, num_rows, fold, balance):
+def main(load_no, num_rows, fold):
     dir_path = f'{BASEDIR}/saves'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     load_no = load_no
     load_dir = f'{BASEDIR}/saves/3_class/save_{load_no[-1]}'
 
-    result_dir = f'{BASEDIR}/Results'
-    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f) for f in files if f.isdigit()])
-
-    result_no = existing_results[-1] + 1
-
-    result_dir = f'{result_dir}/{result_no}'
-    print(result_dir)
-    os.mkdir(result_dir)
+    # result_dir = f'{BASEDIR}/Results'
+    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    # existing_results = sorted([int(f) for f in files if f.isdigit()])
+    #
+    # result_no = existing_results[-1] + 1
+    #
+    # result_dir = f'{result_dir}/{result_no}'
+    # print(result_dir)
+    # os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
-
-    #Split
-
-
     fold_no, split_no = ds_group
-    fold_no = fold if fold is not None else fold_no
+    #fold_no = fold if fold is not None else fold_no
+
     print()
     print("Loading from fold:", fold_no)
     print()
@@ -505,95 +503,100 @@ def main(load_no, num_rows, fold, balance):
         ds_name = splits[str(split)]["test"]
         test_data_names += ds_name
 
-    train_data_names = []
-    for split in get_splits:
-        ds_name = splits[str(split)]["train"]
-        train_data_names += ds_name
-
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("SVC")]  + [FLAT_MAML(n) for n in load_no]
+    models = [FLAT(n) for n in load_no] + [FLAT_MAML(n) for n in load_no]
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models, num_rows=num_rows, balance=balance
+        test_data_names, models, num_rows=num_rows
     )
 
-    def print_analysis():
-        # Results for each dataset
-        detailed_results = unseen_results.copy()
+    df = unseen_results.copy()
+    FLAT_results = df[df['model'].isin(['FLAT', 'FLAT_maml'])]
+    FLAT_results = FLAT_results.drop(columns=["num_cols", "std"])
 
-        mean, std = detailed_results["acc"], detailed_results["std"]
-        mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
-        detailed_results['acc_std'] = mean_std
+    return FLAT_results
 
-        results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
-        print("======================================================")
-        print("Test accuracy on unseen datasets")
-        print(results.to_string())
-
-        # det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
-        # det_results = det_results.to_string()
-
-        # Aggreate results
-        agg_results = unseen_results.copy()
-
-        # Move flat to first column
-        agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-        new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
-        agg_results = agg_results.reindex(columns=new_column_order)
-
-        # Difference between FLAT and best model
-        agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-        agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
-        agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-        agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
-
-        # Get errors using appropriate formulas.
-        pivot_acc = unseen_results.pivot(
-            columns=['data_name', 'model'], index='num_cols', values=['acc'])
-        pivot_std = unseen_results.pivot(
-            columns=['data_name', 'model'], index='num_cols', values=['std'])
-        model_names = pivot_acc.columns.get_level_values(2).unique()
-        for model_name in model_names:
-
-            model_accs = pivot_acc.loc[:, ("acc", slice(None), model_name)]
-            model_stds = pivot_std.loc[:, ("std", slice(None), model_name)]
-
-            mean_stds = []
-            for i in range(pivot_acc.shape[0]):
-                accs = np.array(model_accs.iloc[i].dropna())
-                std = np.array(model_stds.iloc[i].dropna())
-
-                assert std.shape == accs.shape
-                mean_acc = np.mean(accs)
-                std_acc = np.sqrt(np.sum(std ** 2)) / std.shape[0]
-                mean_std = f'{mean_acc * 100:.2f}±{std_acc * 100:.2f}'
-                mean_stds.append(mean_std)
-
-            agg_results[model_name] = mean_stds
-
-        # print()
-        # print("======================================================")
-        # print("Test accuracy on unseen datasets (aggregated)")
-        print(agg_results["FLAT_diff"].to_string(index=False))
-        # print(agg_results.to_string(index=False))
-        print(agg_results.to_string())
-        # agg_results = agg_results.to_string()
-
-        #
-        # with open(f'{result_dir}/aggregated', "w") as f:
-        #     for line in agg_results:
-        #         f.write(line)
-        #
-        # with open(f'{result_dir}/detailed', "w") as f:
-        #     for line in det_results:
-        #         f.write(line)
-        #
-        # with open(f'{result_dir}/raw.pkl', "wb") as f:
-        #     pickle.dump(unseen_results, f)
-
-    print_analysis()
+    # def print_analysis():
+    #     # Results for each dataset
+    #     detailed_results = unseen_results.copy()
+    #     FLAT_results = detailed_results[detailed_results['model'].isin(['FLAT', 'FLAT_maml'])]
+    #     FLAT_results = FLAT_results.drop(columns=["num_cols", "std"])
+    #     #results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
+    #     print(FLAT_results)
+    #     exit(5)
+    #
+    #     mean, std = detailed_results["acc"], detailed_results["std"]
+    #     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
+    #     detailed_results['acc_std'] = mean_std
+    #
+    #     results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
+    #     print("======================================================")
+    #     print("Test accuracy on unseen datasets")
+    #     print(results.to_string())
+    #     # det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
+    #     # det_results = det_results.to_string()
+    #
+    #     # Aggreate results
+    #     agg_results = unseen_results.copy()
+    #
+    #     # Move flat to first column
+    #     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
+    #     new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
+    #     agg_results = agg_results.reindex(columns=new_column_order)
+    #
+    #     # Difference between FLAT and best model
+    #     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    #     agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
+    #     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
+    #     agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
+    #
+    #     # Get errors using appropriate formulas.
+    #     pivot_acc = unseen_results.pivot(
+    #         columns=['data_name', 'model'], index='num_cols', values=['acc'])
+    #     pivot_std = unseen_results.pivot(
+    #         columns=['data_name', 'model'], index='num_cols', values=['std'])
+    #     model_names = pivot_acc.columns.get_level_values(2).unique()
+    #     for model_name in model_names:
+    #
+    #         model_accs = pivot_acc.loc[:, ("acc", slice(None), model_name)]
+    #         model_stds = pivot_std.loc[:, ("std", slice(None), model_name)]
+    #
+    #         mean_stds = []
+    #         for i in range(pivot_acc.shape[0]):
+    #             accs = np.array(model_accs.iloc[i].dropna())
+    #             std = np.array(model_stds.iloc[i].dropna())
+    #
+    #             assert std.shape == accs.shape
+    #             mean_acc = np.mean(accs)
+    #             std_acc = np.sqrt(np.sum(std ** 2)) / std.shape[0]
+    #             mean_std = f'{mean_acc * 100:.2f}±{std_acc * 100:.2f}'
+    #             mean_stds.append(mean_std)
+    #
+    #         agg_results[model_name] = mean_stds
+    #
+    #     # print()
+    #     # print("======================================================")
+    #     # print("Test accuracy on unseen datasets (aggregated)")
+    #     print(agg_results["FLAT_diff"].to_string(index=False))
+    #     # print(agg_results.to_string(index=False))
+    #     print(agg_results.to_string())
+    #     # agg_results = agg_results.to_string()
+    #
+    #     #
+    #     # with open(f'{result_dir}/aggregated', "w") as f:
+    #     #     for line in agg_results:
+    #     #         f.write(line)
+    #     #
+    #     # with open(f'{result_dir}/detailed', "w") as f:
+    #     #     for line in det_results:
+    #     #         f.write(line)
+    #     #
+    #     # with open(f'{result_dir}/raw.pkl', "wb") as f:
+    #     #     pickle.dump(unseen_results, f)
+    #
+    # print_analysis()
 
 
 if __name__ == "__main__":
@@ -601,4 +604,39 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[0,1,2], num_rows=10, fold=0, balance=10)
+    result_dir = f'{BASEDIR}/Results/3_class'
+    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    existing_results = sorted([int(f) for f in files if f.isdigit()])
+
+    result_no = existing_results[-1] + 1
+
+    result_dir = f'{result_dir}/{result_no}'
+    print()
+    print(f'\033[91m{result_dir = }\033[0m')
+    os.mkdir(result_dir)
+
+
+    cfgs = [([12, 13, 14], 3), ([37, 38, 39], 3), ([15,16,17], 3), ([40,41,42], 3),
+            ([12, 13, 14], 5), ([37, 38, 39], 5), ([15, 16, 17], 5), ([40, 41, 42], 5),
+            ([0, 1, 2], 10), ([3, 4, 5], 10), ([6, 7, 8], 10), ([34,35,36], 10),
+            ([18,19,20], 15), ([43,44,45], 15), ([21,22,23], 15), ([46,47,48], 15)
+    ]
+    # cfgs = [([12], 3)]
+
+    results = []
+    for load_nums, rows in cfgs:
+        try:
+            r = main(load_no=load_nums, num_rows=rows, fold=None)
+            results.append(r)
+            with open(f'{result_dir}/{load_nums}_{rows}.pkl', "wb") as f:
+                pickle.dump(results, f)
+        except Exception as e:
+            print(e)
+
+
+    results = pd.concat(results, axis=0, ignore_index=True)
+
+    print(results.to_string())
+
+    with open(f'{result_dir}/raw.pkl', "wb") as f:
+        pickle.dump(results, f)

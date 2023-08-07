@@ -92,7 +92,7 @@ for ds, results in all_results.items():
         results["FLAT_diff"] = flat_stats["acc"].iloc[0] - max(list(results.values()))
         results["FLAT_maml"] = maml_stats["acc"].iloc[0]
         results["FLAT"] = flat_stats["acc"].iloc[0]
-        results["diff_diff"] = results["FLAT"] - results["FLAT_maml"]
+        results["diff_diff"] = results["FLAT_maml"] - results["FLAT"]
 
 
 df = pd.DataFrame.from_dict(all_results, orient="index")
@@ -106,11 +106,12 @@ cols[b], cols[c] = cols[c], cols[b]
 df = df[cols]
 df = df.round(3)
 
-
-print(df.index.tolist())
+print()
+print(df.to_string())
+#print(df.index.tolist())
 print(df['diff_diff'].tolist())
+print(df["FLAT_diff"].tolist())
 
-# df = df.to_string()
-# print(df)
+
 
 

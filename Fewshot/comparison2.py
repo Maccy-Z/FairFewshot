@@ -28,14 +28,9 @@ from STUNT_interface import STUNT_utils, MLPProto
 BASEDIR = '.'
 
 
-def load_batch(ds_name, only):
-    if only:
-        with open(f"./datasets/data/{ds_name}/batches/5_5_-3", "rb") as f:
-            batch = pickle.load(f)
-    else:
-        assert False
-        with open(f"./datasets/data/{ds_name}/batches/3_class", "rb") as f:
-            batch = pickle.load(f)
+def load_batch(ds_name, num_rows):
+    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_5_-3", "rb") as f:
+        batch = pickle.load(f)
 
     if batch is None:
         raise IndexError(f"Batch not found for file {ds_name}")
@@ -300,7 +295,7 @@ class BasicModel(Model):
 
 class FLAT(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/old_final/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -322,7 +317,7 @@ class FLAT(Model):
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
-        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 3), dim=1)
+        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
@@ -331,7 +326,7 @@ class FLAT(Model):
 
 class FLAT_MAML(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/old_final/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -342,6 +337,14 @@ class FLAT_MAML(Model):
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
+
+        if xs_meta.shape[1] > 100:
+            print("FF slow dataset")
+            steps = 1
+        else:
+            steps = 3
+
+
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -352,7 +355,7 @@ class FLAT_MAML(Model):
         optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
         # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
         optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
-        for _ in range(5):
+        for _ in range(steps):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
@@ -408,7 +411,7 @@ class Iwata(Model):
         return "Iwata"
 
 
-def get_results_by_dataset(test_data_names, models):
+def get_results_by_dataset(test_data_names, models, num_rows):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -420,7 +423,7 @@ def get_results_by_dataset(test_data_names, models):
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, only=True)
+            batch = load_batch(ds_name=data_name, num_rows=num_rows)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
             # batch = get_batch(dl, num_rows=num_rows)
 
@@ -461,21 +464,20 @@ def get_results_by_dataset(test_data_names, models):
 
 
 def main(load_no, num_rows):
-    dir_path = f'{BASEDIR}/saves'
+    dir_path = f'{BASEDIR}/saves/old_final'
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    load_no = [existing_saves[num] for num in load_no]
-    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+    #existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    #load_no = [existing_saves[num] for num in load_no]
+    load_dir = f'{dir_path}/save_{load_no[-1]}'
 
-    result_dir = f'{BASEDIR}/Results'
+    result_dir = f'{BASEDIR}/Results/maml_redo'
     files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
     existing_results = sorted([int(f) for f in files if f.isdigit()])
-
     result_no = existing_results[-1] + 1
 
     result_dir = f'{result_dir}/{result_no}'
     print(result_dir)
-    os.mkdir(result_dir)
+    #os.mkdir(result_dir)
 
     #Split
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
@@ -506,16 +508,10 @@ def main(load_no, num_rows):
     print("Test datasets:", test_data_names)
 
     models = [BasicModel("SVC")] +  [FLAT(num) for num in load_no]
-    # [FLAT_MAML(num) for num in load_no] + \
-    #  [
-    #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-    #  # TabnetModel(),
-    #  # FTTrModel(),
-    #  # STUNT(),
-    #  ]
+
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models,
+        test_data_names, models, num_rows
     )
 
     # Results for each dataset
@@ -579,17 +575,17 @@ def main(load_no, num_rows):
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
-    #
-    # with open(f'{result_dir}/aggregated', "w") as f:
-    #     for line in agg_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/detailed', "w") as f:
-    #     for line in det_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/raw.pkl', "wb") as f:
-    #     pickle.dump(unseen_results, f)
+
+    with open(f'{result_dir}/aggregated', "w") as f:
+        for line in agg_results:
+            f.write(line)
+
+    with open(f'{result_dir}/detailed', "w") as f:
+        for line in det_results:
+            f.write(line)
+
+    with open(f'{result_dir}/raw.pkl', "wb") as f:
+        pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
@@ -597,4 +593,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[8], num_rows=10)
+    main(load_no=[26,27,28,29,30], num_rows=5)

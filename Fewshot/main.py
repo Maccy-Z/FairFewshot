@@ -168,7 +168,7 @@ class WeightGenerator(nn.Module):
             self.add_module(f'weight_gen_{i}', model)
 
         # Weights for final linear classificaion layer
-        self.num_classes = 3
+        self.num_classes = 3 # TODO: This better
         self.gat_out_dim = self.out_sizes[-1][-2]
         lin_out_dim = self.gat_out_dim * self.num_classes
         self.w_gen_out = nn.Sequential(

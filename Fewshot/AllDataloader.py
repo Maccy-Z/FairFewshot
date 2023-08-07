@@ -123,10 +123,10 @@ class MyDataSet:
             self.wanted_rows.append(np.where(top_idx)[0])
             lens.append(len(np.where(top_idx)[0]))
 
-        # if min(lens) < 5:
-        #     self.ds_rows = 0
-        # if len(counts) < 3:
-        #     self.ds_rows = 0
+        if min(lens) < 5:
+            self.ds_rows = 0
+        if len(counts) < 3:
+            self.ds_rows = 0
 
         row_probs = row_probs / np.sum(row_probs)
 
@@ -361,19 +361,14 @@ if __name__ == "__main__":
     print(datasets)
 
     sizes = []
-    # for ds in ['thyroid', 'synthetic-control', 'nursery', 'libras', 'seeds',
-    #    'statlog-landsat', 'statlog-vehicle', 'audiology-std',
-    #    'congressional-voting', 'acute-inflammation']:
+    count = 0
     for ds in ['thyroid', 'synthetic-control', 'nursery', 'libras', 'seeds', 'statlog-landsat', 'statlog-vehicle', 'audiology-std', 'congressional-voting', 'acute-inflammation', 'monks-3', 'statlog-shuttle', 'teaching', 'plant-shape', 'acute-nephritis', 'oocytes_merluccius_nucleus_4d', 'low-res-spect', 'musk-1', 'oocytes_trisopterus_nucleus_2f', 'image-segmentation', 'connect-4', 'statlog-image', 'wine-quality-white', 'car', 'heart-switzerland', 'glass', 'monks-1', 'ozone', 'molec-biol-splice', 'musk-2', 'wine', 'heart-va', 'zoo', 'wall-following', 'spectf', 'vertebral-column-3clases', 'flags', 'twonorm', 'hayes-roth', 'led-display', 'mushroom', 'breast-cancer-wisc-prog', 'primary-tumor', 'waveform', 'statlog-australian-credit', 'post-operative', 'iris', 'annealing', 'contrac', 'planning', 'monks-2', 'hill-valley', 'cardiotocography-10clases', 'pittsburg-bridges-TYPE', 'horse-colic', 'chess-krvkp', 'cylinder-bands', 'balance-scale', 'ilpd-indian-liver', 'parkinsons', 'breast-cancer-wisc', 'conn-bench-sonar-mines-rocks', 'steel-plates', 'oocytes_trisopterus_states_5b', 'energy-y2', 'adult', 'breast-cancer-wisc-diag', 'oocytes_merluccius_states_2f', 'statlog-heart', 'vertebral-column-2clases', 'dermatology', 'cardiotocography-3clases', 'mammographic', 'pittsburg-bridges-REL-L', 'conn-bench-vowel-deterding', 'ionosphere', 'ecoli', 'page-blocks', 'waveform-noise', 'miniboone', 'plant-texture', 'pittsburg-bridges-SPAN', 'hepatitis', 'chess-krvk', 'heart-cleveland', 'haberman-survival', 'letter', 'bank', 'breast-tissue', 'magic', 'optical', 'spect', 'pima', 'yeast', 'wine-quality-red', 'titanic', 'blood', 'energy-y1', 'heart-hungarian', 'tic-tac-toe', 'abalone', 'spambase', 'echocardiogram', 'lymphography', 'breast-cancer', 'pittsburg-bridges-MATERIAL', 'statlog-german-credit', 'pendigits', 'molec-biol-promoter', 'credit-approval', 'soybean', 'arrhythmia', 'semeion', 'plant-margin', 'ringnorm']:
         try:
             dl = SplitDataloader(
                 bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group=ds, ds_split="train",
             )
             sizes.append(len(dl))
-
-            if ds == "semeion":
-                print(len(dl))
-                exit(5)
+            count += 1
 
         except IndexError as e:
             print(e)
@@ -382,7 +377,6 @@ if __name__ == "__main__":
     # Acc vs baseline
     accs = [-0.209, -0.127, -0.12, -0.117, -0.092, -0.091, -0.089, -0.082, -0.081, -0.078, -0.076, -0.07, -0.07, -0.069, -0.064, -0.053, -0.052, -0.051, -0.05, -0.05, -0.043, -0.041, -0.039, -0.038, -0.036, -0.035, -0.034, -0.033, -0.033, -0.031, -0.027, -0.027, -0.026, -0.026, -0.026, -0.025, -0.025, -0.025, -0.022, -0.02, -0.02, -0.017, -0.017, -0.017, -0.016, -0.015, -0.014, -0.014, -0.013, -0.011, -0.01, -0.01, -0.009, -0.008, -0.008, -0.008, -0.007, -0.007, -0.007, -0.006, -0.006, -0.005, -0.004, -0.004, -0.004, -0.003, -0.003, -0.003, -0.002, -0.002, -0.002, -0.0, 0.0, 0.0, 0.0, 0.0, 0.001, 0.001, 0.001, 0.002, 0.002, 0.003, 0.003, 0.004, 0.004, 0.005, 0.005, 0.006, 0.006, 0.007, 0.009, 0.009, 0.01, 0.011, 0.012, 0.013, 0.013, 0.014, 0.016, 0.017, 0.017, 0.018, 0.019, 0.02, 0.02, 0.021, 0.021, 0.022, 0.03, 0.031, 0.033, 0.047, 0.047, 0.052, 0.077]
 
-    print(len(sizes), len(accs))
 
     plt.scatter(sizes, accs, marker="x")
     plt.xlabel("N cols")
