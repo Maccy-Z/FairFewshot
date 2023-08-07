@@ -22,7 +22,7 @@ from ds_base import InfModel, ff_block
 
 import sys
 
-sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
+sys.path.append('/home/maccyz/Documents/FairFewshot/STUNT_main')
 from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
@@ -299,7 +299,7 @@ class BasicModel(Model):
 
 class FLAT(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/3_class/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/3.1_class/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -329,7 +329,7 @@ class FLAT(Model):
 
 class FLAT_MAML(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/3_class/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/3.1_class/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -341,7 +341,6 @@ class FLAT_MAML(Model):
 
     def fit(self, xs_meta, ys_meta):
         if xs_meta.shape[1] > 100:
-
             # print("FF slow dataset")
             steps = 1
         else:
@@ -423,7 +422,7 @@ def get_results_by_dataset(test_data_names, models, num_rows):
 
     # Test on full dataset
     for data_name in test_data_names:
-        print(data_name)
+        print(data_name, end=" ")
         try:
             batch = load_batch(ds_name=data_name, num_rows=num_rows)
             # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=balance)
@@ -462,6 +461,7 @@ def get_results_by_dataset(test_data_names, models, num_rows):
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
+    print()
     return results
 
 
@@ -470,7 +470,7 @@ def main(load_no, num_rows, fold):
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     load_no = load_no
-    load_dir = f'{BASEDIR}/saves/3_class/save_{load_no[-1]}'
+    load_dir = f'{BASEDIR}/saves/3.1_class/save_{load_no[-1]}'
 
     # result_dir = f'{BASEDIR}/Results'
     # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
@@ -487,12 +487,12 @@ def main(load_no, num_rows, fold):
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
     fold_no, split_no = ds_group
-    #fold_no = fold if fold is not None else fold_no
+    # fold_no = fold if fold is not None else fold_no
 
     print()
     print("Loading from fold:", fold_no)
     print()
-    #fold_no = ds_split
+    # fold_no = ds_split
 
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
 
@@ -615,12 +615,11 @@ if __name__ == "__main__":
     print(f'\033[91m{result_dir = }\033[0m')
     os.mkdir(result_dir)
 
-
-    cfgs = [([12, 13, 14], 3), ([37, 38, 39], 3), ([15,16,17], 3), ([40,41,42], 3),
+    cfgs = [([12, 13, 14], 3), ([37, 38, 39], 3), ([15, 16, 17], 3), ([40, 41, 42], 3),
             ([12, 13, 14], 5), ([37, 38, 39], 5), ([15, 16, 17], 5), ([40, 41, 42], 5),
-            ([0, 1, 2], 10), ([3, 4, 5], 10), ([6, 7, 8], 10), ([34,35,36], 10),
-            ([18,19,20], 15), ([43,44,45], 15), ([21,22,23], 15), ([46,47,48], 15)
-    ]
+            ([0, 1, 2], 10), ([3, 4, 5], 10), ([6, 7, 8], 10), ([34, 35, 36], 10),
+            ([18, 19, 20], 15), ([43, 44, 45], 15), ([21, 22, 23], 15), ([46, 47, 48], 15)
+            ]
     # cfgs = [([12], 3)]
 
     results = []
@@ -631,8 +630,9 @@ if __name__ == "__main__":
             with open(f'{result_dir}/{load_nums}_{rows}.pkl', "wb") as f:
                 pickle.dump(results, f)
         except Exception as e:
-            print(e)
-
+            print()
+            print("\033[31mWarning Error: \033[0m")
+            print("\033[31m", e, "\033[0m")
 
     results = pd.concat(results, axis=0, ignore_index=True)
 
