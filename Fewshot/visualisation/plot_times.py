@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+plt.figure(figsize=(4,4))
 
 accs = """0.292	3.5	0.229	0.133	0.0885	25.2	11.4	97.5	30.7	10.1	0.256	17.5
 0.304	3.97	0.245	0.115	0.0894	25.2	12.1	120.8	31.8	9.92	0.289	25.7
@@ -16,7 +17,7 @@ rows = accs.strip().split("\n")
 table = [row.split("\t") for row in rows]
 table = np.array(table, dtype=float).T
 
-ds_names = "FLAT	FLAT-MAML	LR	KNN	SVC	R_Forest	CatBoost	TabNet	FTT	STUNT	Itawa	TabPFN"
+ds_names = "FLAT	FLATadapt	LR	KNN	SVC	R_Forest	CatBoost	TabNet	FTT	STUNT	Itawa	TabPFN"
 ds_names = ds_names.split()
 print(ds_names)
 print(table.shape, len(ds_names))
@@ -25,18 +26,19 @@ x_label = [5, 10, 15, 20, 25, 50, 100, 200, 400]
 for ds, t in zip(ds_names, table, strict=True):
 
     t = [a if a < 200 else 200 for a in t]
-    if ds in ["FLAT", "FLAT-MAML"]:
+    if ds in ["FLAT", "FLATadapt"]:
         plt.plot(t, label=ds)
     else:
         plt.plot(t, label=ds, alpha=0.5, linestyle="--")
 
 
-plt.legend()
+plt.legend(loc='upper left')
 plt.xticks(np.arange(9), x_label)
 plt.ylim(0, 150)
 
 plt.ylabel("t / s")
 plt.xlabel("Ncol")
+plt.tight_layout()
 plt.show()
 
 

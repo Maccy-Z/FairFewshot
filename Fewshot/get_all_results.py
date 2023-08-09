@@ -92,26 +92,56 @@ for ds, results in all_results.items():
         results["FLAT_diff"] = flat_stats["acc"].iloc[0] - max(list(results.values()))
         results["FLAT_maml"] = maml_stats["acc"].iloc[0]
         results["FLAT"] = flat_stats["acc"].iloc[0]
-        results["diff_diff"] = results["FLAT_maml"] - results["FLAT"]
+        #results["diff_diff"] = results["FLAT_maml"] - results["FLAT"]
 
 
 df = pd.DataFrame.from_dict(all_results, orient="index")
 
 
-df = df.sort_values(by='diff_diff', ascending=True)
+df = df.sort_values(by='FLAT_diff', ascending=True)
 
 cols = df.columns.tolist()
 b, c = cols.index('FLAT_diff'), cols.index(get)
 cols[b], cols[c] = cols[c], cols[b]
 df = df[cols]
 df = df.round(3)
+#
+# print()
+# print(df.to_string())
+# #print(df.index.tolist())
+# #print(df['diff_diff'].tolist())
+# print(df["FLAT_diff"].tolist())
 
-print()
-print(df.to_string())
-#print(df.index.tolist())
-print(df['diff_diff'].tolist())
-print(df["FLAT_diff"].tolist())
 
 
+from scipy.stats import ttest_ind
+
+DATADIR = './datasets/data'
+
+data_dim_df = pd.DataFrame(index=df.index)
+data_dim_df['n_classes'] = None
+
+#print(data_dim_df)
+
+# Get the number of columns and no. of original classes of the dataset
+for ds_name in data_dim_df.index:
+    labels = pd.read_csv(f'{DATADIR}/{ds_name}/labels_py.dat', header=None)
+    data = pd.read_csv(f'{DATADIR}/{ds_name}/{ds_name}_py.dat', header=None)
+    n_classes = labels.iloc[:, 0].nunique()
+    n_cols = data.shape[1]
+    #data_dim_df.loc[ds_name, 'n_cols'] = n_cols
+    data_dim_df.loc[ds_name, 'n_classes'] = n_classes
+
+for baseline in df.columns:
+    compare_df = df[['FLAT', baseline]]
+    compare_df["diff"] = df['FLAT'] - df[baseline]
+
+    compare_df = compare_df.join(data_dim_df)
+
+    # Test the hypothesis that the number of original classes influences the performance
+    a = compare_df[compare_df.n_classes == 2]['diff']
+    b = compare_df[compare_df.n_classes > 2]['diff']
+
+    print(baseline, ttest_ind(a, b).pvalue)
 
 

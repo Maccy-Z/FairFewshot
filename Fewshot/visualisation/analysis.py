@@ -76,3 +76,5 @@ print(f"Slope (m): {result.slope}")
 print(f"Intercept (c): {result.intercept}")
 r_squared = result.rvalue ** 2
 print(f"R^2 value: {r_squared}")
+
+
