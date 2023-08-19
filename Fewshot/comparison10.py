@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader2 import SplitDataloader, MyDataSet
+from AllDataloader10 import SplitDataloader
 from config import get_config
 import time, os, toml, random, pickle, warnings
 import numpy as np
@@ -294,8 +294,8 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/old_final/save_{load_no}'
+    def __init__(self, load_no, save_ep=0):
+        save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -303,6 +303,7 @@ class FLAT(Model):
         else:
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
+
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
@@ -317,7 +318,7 @@ class FLAT(Model):
         with torch.no_grad():
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
-        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
+        ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 10), dim=1)
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
@@ -424,7 +425,7 @@ def get_results_by_dataset(test_data_names, models, num_rows):
         print(data_name)
         try:
             #batch = load_batch(ds_name=data_name, num_rows=num_rows)
-            dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
+            dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test")
             batch = get_batch(dl, num_rows=num_rows)
 
         except IndexError as e:
@@ -464,28 +465,6 @@ def get_results_by_dataset(test_data_names, models, num_rows):
 
 
 def main(load_no, num_rows, ds_group):
-    # dir_path = f'{BASEDIR}/saves/old_final'
-    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    # #existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    # #load_no = [existing_saves[num] for num in load_no]
-    # load_dir = f'{dir_path}/save_{load_no[-1]}'
-    #
-    # result_dir = f'{BASEDIR}/Results/maml_redo'
-    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    # existing_results = sorted([int(f) for f in files if f.isdigit()])
-    # result_no = existing_results[-1] + 1
-    #
-    # result_dir = f'{result_dir}/{result_no}'
-    # print(result_dir)
-    #os.mkdir(result_dir)
-
-    #Split
-    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    # cfg = all_cfg["DL_params"]
-    # ds = all_cfg["Settings"]["dataset"]
-    # ds_group = cfg["ds_group"]
-    # print()
-    # print(ds_group)
     fold_no, split_no = ds_group
 
     #fold_no = ds_split
@@ -504,7 +483,7 @@ def main(load_no, num_rows, ds_group):
 
     #test_data_names.remove("semeion")
 
-    models = [FTTrModel()] #[FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), FLAT(29)] #[FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows
@@ -589,4 +568,4 @@ if __name__ == "__main__":
     # np.random.seed(0)
     # torch.manual_seed(0)
 
-    main(load_no=[], num_rows=10, ds_group=(2, -1))
+    main(load_no=[], num_rows=20, ds_group=(0, -1))
