@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
+from AllDataloader2 import SplitDataloader, MyDataSet
 from config import get_config
 import time, os, toml, random, pickle, warnings
 import numpy as np
@@ -33,13 +33,18 @@ class Model(ABC):
         xs_metas, xs_targets, ys_metas, ys_targets = batch
         accs = []
 
+        # n = 200
+        # xs_metas, xs_targets = torch.rand([200, 10, n]), torch.rand([200, 5, n])
+        # st = time.time()
+
         for xs_meta, xs_target, ys_meta, ys_target in zip(xs_metas, xs_targets, ys_metas, ys_targets):
-            # print(xs_meta.shape)
             self.fit(xs_meta, ys_meta)
             a = self.get_acc(xs_target, ys_target)
 
             accs.append(a)
 
+        # print(f'{time.time() - st :.3g}')
+        # exit(6)
         accs = np.concatenate(accs)
 
         mean, std = np.mean(accs), np.std(accs, ddof=1) / np.sqrt(accs.shape[0])
@@ -60,7 +65,7 @@ class STUNT(STUNT_utils, Model):
 
     def __init__(self):
         self.lr = 0.0001
-        self.model_size = (1024, 1024) # num_cols, out_dim, hid_dim
+        self.model_size = (1024, 1024)  # num_cols, out_dim, hid_dim
         self.steps = 5
         self.tasks_per_batch = 4
         self.test_num_way = 2
@@ -68,7 +73,7 @@ class STUNT(STUNT_utils, Model):
         self.kmeans_iter = 5
 
     def fit(self, xs_meta, ys_meta):
-        self.shot = (xs_meta.shape[0] -2)//2
+        self.shot = (xs_meta.shape[0] - 2) // 2
         ys_meta = ys_meta.flatten().long()
 
         # Reset the model
@@ -86,8 +91,7 @@ class STUNT(STUNT_utils, Model):
         with torch.no_grad():
             meta_embed = self.model(xs_meta)
 
-        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
-
+        self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 3)
 
     def get_acc(self, xs_target, ys_target):
         self.model.eval()
@@ -96,7 +100,6 @@ class STUNT(STUNT_utils, Model):
 
         self.prototypes = self.prototypes[0]
         support_target = support_target.unsqueeze(1)
-
 
         sq_distances = torch.sum((self.prototypes
                                   - support_target) ** 2, dim=-1)
@@ -129,7 +132,7 @@ class TabnetModel(Model):
                 warnings.simplefilter("ignore")
 
                 try:
-                    #self.model.fit(xs_meta, ys_meta, drop_last=False)
+                    # self.model.fit(xs_meta, ys_meta, drop_last=False)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_name=["accuracy"], eval_set=[(xs_meta, ys_meta)],
                                    batch_size=self.bs, patience=self.patience, drop_last=False)
@@ -174,7 +177,7 @@ class FTTrModel(Model):
             categories=(),  # tuple containing the number of unique values within each category
             num_continuous=xs_meta.shape[-1],  # number of continuous values
             dim=24,  # dimension, paper set at 32
-            dim_out=2,  # binary prediction, but could be anything
+            dim_out=3,  # binary prediction, but could be anything
             depth=4,  # depth, paper recommended 6
             heads=2,  # heads, paper recommends 8
             attn_dropout=0.1,  # post-attention dropout
@@ -183,7 +186,7 @@ class FTTrModel(Model):
 
         optim = torch.optim.Adam(self.model.parameters(), lr=2.25e-3)
 
-        for _ in range(30):
+        for _ in range(70):
             x_categ = torch.tensor([[]])
             clf = self.model(x_categ, xs_meta)
 
@@ -215,16 +218,20 @@ class BasicModel(Model):
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=200, learning_rate=0.03, allow_const_label=True, verbose=False)
-                    # iterations=20, depth=4, learning_rate=0.5,
-                    #                             loss_function='Logloss', allow_const_label=True, verbose=False)
+                # iterations=20, depth=4, learning_rate=0.5,
+                #                             loss_function='Logloss', allow_const_label=True, verbose=False)
 
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
+
+            case "TabPFN":
+                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=32)
             case _:
                 raise Exception("Invalid model specified")
 
         self.name = name
         self.identical_batch = False
+        self.pfn_error = False
 
     def fit(self, xs_meta, ys_meta):
         ys_meta = ys_meta.flatten().numpy()
@@ -245,11 +252,19 @@ class BasicModel(Model):
                 self.identical_batch = True
                 mode = stats.mode(ys_meta, keepdims=False)[0]
                 self.pred_val = mode
+            except ValueError as e:
+                assert self.name == "TabPFN"
+                # TabPFN cant do more than 100 attributes
+                self.pfn_error = True
+                mode = stats.mode(ys_meta, keepdims=False)[0]
+                self.pred_val = mode
+                print(e)
 
     def get_acc(self, xs_target, ys_target):
         xs_target = xs_target.numpy()
-        if self.identical_batch:
+        if self.identical_batch or self.pfn_error:
             predictions = np.ones_like(ys_target) * self.pred_val
+            self.pfn_error = False
         else:
             predictions = self.model.predict(xs_target)
 
@@ -261,7 +276,7 @@ class BasicModel(Model):
 
 class FLAT(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/old_final/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -270,7 +285,6 @@ class FLAT(Model):
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
-
 
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
@@ -285,7 +299,6 @@ class FLAT(Model):
             ys_pred_target = self.model.forward_target(xs_target, self.embed_meta, self.pos_enc)
 
         ys_pred_target_labels = torch.argmax(ys_pred_target.view(-1, 2), dim=1)
-
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
@@ -294,7 +307,7 @@ class FLAT(Model):
 
 class FLAT_MAML(Model):
     def __init__(self, load_no, save_ep=None):
-        save_dir = f'{BASEDIR}/saves/save_{load_no}'
+        save_dir = f'{BASEDIR}/saves/old_final/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
         if save_ep is None:
@@ -305,6 +318,14 @@ class FLAT_MAML(Model):
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
+
+        if xs_meta.shape[1] > 100:
+            print("FF slow dataset")
+            steps = 1
+        else:
+            steps = 3
+
+
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -315,7 +336,7 @@ class FLAT_MAML(Model):
         optim_pos = torch.optim.Adam([pos_enc], lr=0.001)
         # optim_embed = torch.optim.SGD([embed_meta, ], lr=50, momentum=0.75)
         optim_embed = torch.optim.Adam([embed_meta], lr=0.075)
-        for _ in range(5):
+        for _ in range(steps):
             # Make predictions on meta set and calc loss
             preds = self.model.forward_target(xs_meta, embed_meta, pos_enc)
             loss = torch.nn.functional.cross_entropy(preds.squeeze(), ys_meta.long().squeeze())
@@ -343,9 +364,35 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
-def get_results_by_dataset(
-        test_data_names, models, num_rows=10, num_targets=5, 
-        num_samples=3, agg=False, binarise=True, batch_tag=None):
+class Iwata(Model):
+    def __init__(self, load_no):
+        save_dir = f'{BASEDIR}/iwata/{load_no}'
+        print(f'Loading model at {save_dir = }')
+
+        self.model = torch.load(f'{save_dir}/model.pt')
+
+    def fit(self, xs_meta, ys_meta):
+        xs_meta, ys_meta = xs_meta.unsqueeze(-1).unsqueeze(0), ys_meta.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)
+
+        with torch.no_grad():
+            self.model.forward_meta(xs_meta, ys_meta)
+
+    def get_acc(self, xs_target, ys_target) -> np.array:
+        xs_target = xs_target.unsqueeze(-1).unsqueeze(0)
+        with torch.no_grad():
+            ys_pred_target = self.model.forward_target(xs_target)
+
+        ys_pred_target_labels = torch.argmax(ys_pred_target, dim=-1)
+
+        ys_target = ys_target.squeeze().flatten()
+
+        return (ys_pred_target_labels == ys_target).numpy()
+
+    def __repr__(self):
+        return "Iwata"
+
+
+def get_results_by_dataset(test_data_names, models, num_rows):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -458,21 +505,16 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
         else:
             get_splits = [split_no]
 
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
+    #fold_no = ds_split
 
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
 
-        # print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
+    get_splits = range(6)
 
-    else:
-        raise Exception("Invalid data split")
+    test_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
 
     binarise = cfg["binarise"]
 
@@ -497,7 +539,7 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
 
-    # results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
+    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
     # print("======================================================")
     # print("Test accuracy on unseen datasets")
     # print(results.to_string())
@@ -566,6 +608,9 @@ def main(load_no, num_rows, num_targets=5, save_tag=None, batch_tag=None, eval_a
 
 
 if __name__ == "__main__":
+    # random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
 
     random.seed(0)
     np.random.seed(0)

@@ -7,3 +7,9 @@ saves/
 *.pdf
 /Results/
 andrija_pc_results/
+/iwata/
+.idea/
+*.iml
+*.xml
+*.py[cod]
+

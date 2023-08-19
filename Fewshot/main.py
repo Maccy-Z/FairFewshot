@@ -10,8 +10,13 @@ from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
+<<<<<<< HEAD
 from AllDataloader import SplitDataloader
+=======
+from AllDataloader10 import SplitDataloader
+>>>>>>> 8b33fdc97087a8301898bf2f757e494bff2900bf
 
+N_class = 10
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
@@ -169,7 +174,7 @@ class WeightGenerator(nn.Module):
             self.add_module(f'weight_gen_{i}', model)
 
         # Weights for final linear classificaion layer
-        self.num_classes = 2
+        self.num_classes = 10 # TODO: This better
         self.gat_out_dim = self.out_sizes[-1][-2]
         lin_out_dim = self.gat_out_dim * self.num_classes
         self.w_gen_out = nn.Sequential(
@@ -177,6 +182,7 @@ class WeightGenerator(nn.Module):
             nn.ReLU(),
             nn.Linear(self.gen_hid_dim, lin_out_dim, bias=(weight_bias != "off"))
         )
+
         if weight_bias == "zero":
             print("Weight bias init to 0")
             self.w_gen_out[-1].bias.data.fill_(0)
@@ -409,12 +415,10 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
     if ds == "total":
         dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
+            bs=bs, num_rows=num_rows, num_targets=num_targets, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
         )
         val_dl = SplitDataloader(
-            bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
+            bs=1, num_rows=num_rows, num_targets=num_targets, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
         )
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
@@ -472,7 +476,6 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     decay = cfg["decay"]
 
     model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
-
     optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
     # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
 
@@ -508,7 +511,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
             embed_meta, pos_enc = model.forward_meta(pairs_meta)
             # Second pass using previous embedding and train weight encoder
             # During testing, rows of the dataset don't interact.
-            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+            ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_class)
 
             loss = model.loss_fn(ys_pred_targ, ys_target)
             loss.backward()
@@ -528,6 +531,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
             else:
                 for name, abs_grad in grads.items():
                     save_grads[name] += abs_grad
+
         print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
 
         # Validation loop
@@ -550,7 +554,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
 
             with torch.no_grad():
                 embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, N_class)
                 loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
             # Accuracy recording

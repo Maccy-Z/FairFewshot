@@ -1,7 +1,11 @@
 import pickle
 from Fewshot.comparison_base2 import main as baselines
 
-with open(f'/mnt/storage_ssd/FairFewshot/Results/24/raw.pkl', "rb") as f:
+
+save_no = 13
+num_rows= 15
+
+with open(f'/mnt/storage_ssd/FairFewshot/Results/{save_no}/raw.pkl', "rb") as f:
     flat_results = pickle.load(f)
 
 flat_results = flat_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
@@ -17,7 +21,7 @@ for col in wanted_columns:
     best_flat[col] = ds_results.iloc[0].tolist()
 
 
-baseline_results = baselines(num_rows=3)
+baseline_results = baselines(num_rows=num_rows)
 baseline_results.columns = baseline_results.columns.droplevel(0)
 
 
@@ -27,7 +31,7 @@ for col in wanted_columns:
 
     best_baseline[col] = max(ds_results)
 
-flat_win, maml_win, baseline_win = 0, 0, 0
+flat_win, maml_win, base_flat, base_maml= 0, 0, 0, 0
 for col in wanted_columns:
     flat, maml = best_flat[col]
 
@@ -35,12 +39,19 @@ for col in wanted_columns:
     best_result = max(results)
     idx = results.index(best_result)
 
-    if idx == 0:
+    if flat > best_baseline[col]:
         flat_win += 1
-    elif idx == 1:
+    else:
+        base_flat += 1
+
+    if maml > best_baseline[col]:
         maml_win += 1
     else:
-        baseline_win += 1
+        base_maml += 1
 
-print(flat_win, maml_win, baseline_win)
+
+print("FLAT")
+print(flat_win, base_flat)
+print("MAML")
+print(maml_win, base_maml)
 

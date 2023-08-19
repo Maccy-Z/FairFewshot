@@ -50,6 +50,7 @@ def main(f, num_targets, batch_tag=None):
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
+
     for model in models:
         for num_rows in [2, 6, 10]:
             for num_cols in [-3,]:
@@ -78,6 +79,24 @@ def main(f, num_targets, batch_tag=None):
         writer.writerow(["model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
+
+    # model_accs = []
+    # for model in models:
+    #     print(model)
+    #
+    #     try:
+    #         batch = load_batch(ds_name=fn, only=True)
+    #     except IndexError as e:
+    #         print(e)
+    #         break
+    #     mean_acc, std_acc = model.get_accuracy(batch)
+    #     model_accs.append([model, mean_acc, std_acc])
+    #
+    # with open(f'{data_dir}/{fn}/3_class_only.dat', 'w', newline='') as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+    #     for row in model_accs:
+    #         writer.writerow(row)
 
 if __name__ == "__main__":
     import numpy as np

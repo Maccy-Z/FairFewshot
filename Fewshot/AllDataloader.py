@@ -1,4 +1,4 @@
-#%%
+# %%
 import torch
 import numpy as np
 import pandas as pd
@@ -9,6 +9,8 @@ from itertools import islice
 import matplotlib.pyplot as plt
 
 DATADIR = './datasets'
+
+N_class = 3
 
 
 def to_tensor(array: np.array, device, dtype=torch.float32):
@@ -37,19 +39,19 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, binarise, split, 
+            self, ds_name, num_rows, num_targets, balance, split,
             dtype=torch.float32, device="cpu"):
         self.ds_name = ds_name
         self.num_rows = num_rows
         self.num_targets = num_targets
         self.tot_rows = num_rows + num_targets
-        self.binarise = binarise
+        self.num_meta = num_rows
+        self.balance = balance
 
         self.device = device
         self.dtype = dtype
 
         self.train, self.valid, self.test = False, False, False
-
 
         """
         Dataset format: {folder}_py.dat             predictors
@@ -103,102 +105,76 @@ class MyDataSet:
         self.ds_cols = self.data.shape[-1]
         self.ds_rows = self.data.shape[0]
 
-        # Binarise labels:
-        if self.binarise:
-            self.data[:, -1] = one_vs_all(self.data[:, -1])
-            # Sort based on label
-            ones = (self.data[:, -1] == 1)
-            self.ones = self.data[ones]
-            self.zeros = self.data[torch.logical_not(ones)]
-
-            self.num_1s = self.ones.shape[0]
-            self.num_0s = self.zeros.shape[0]
-
-            if self.num_0s < self.tot_rows or self.num_1s < self.tot_rows:
-                print("WARN: Discarding dataset due to lack of labels", self.ds_name)
-                self.ds_rows = 0
-        else:
-            assert False
-            # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
-            row_probs = np.ones(self.ds_rows)
-
-            col_data = self.data[:, -1]
-            unique_lab, unique_idx, counts = np.unique(
-                col_data, return_counts=True, return_inverse=True)
-            if np.max(counts) / self.ds_rows > 0.5:
-                max_prob = self.ds_rows / np.max(counts) - 1
-
-                # Some cols have all entries identical.
-                if max_prob == 0:
-                    pass
-                    # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
-                    # print(np.max(counts) / self.tot_rows)
-                else:
-                    top_idx = (unique_idx == np.argmax(counts))
-                    row_probs[top_idx] = max_prob
-
-            row_probs = row_probs / np.sum(row_probs)
-
-            self.row_probs = row_probs.T
+        col_data = self.data[:, -1]
+        unique_lab, unique_idx, counts = np.unique(
+            col_data, return_counts=True, return_inverse=True)
 
 
-    def sample(self, num_cols, num_1s=None):
-        targ_col = -1
+
+        sorted_indices = sorted(range(len(counts)), key=lambda i: counts[i], reverse=True)
+        largest_labels = sorted_indices[:N_class]
+
+        row_probs = np.zeros(self.ds_rows)
+        self.wanted_rows, lens = [], []
+        for l in largest_labels:
+            top_idx = (unique_idx == l)
+            row_probs[top_idx] = 1 / counts[l]
+
+            self.wanted_rows.append(np.where(top_idx)[0])
+            lens.append(len(np.where(top_idx)[0]))
+
+        if min(lens) < 5:
+            self.ds_rows = 0
+        if len(counts) < 3:
+            self.ds_rows = 0
+
+        row_probs = row_probs / np.sum(row_probs)
+
+        self.row_probs = row_probs.T
+
+        self.test = len(counts)
+
+    def sample(self, num_cols):
+        # print(self.test, self.min_ds_rows, self)
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
-        if self.binarise:
-            # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
-            if isinstance(num_1s, dict):
-                meta_1s = num_1s['meta']
-                meta_1s = np.random.choice([meta_1s, self.num_rows - meta_1s], size=1)
-            elif num_1s is None:
-                if self.num_rows == 1:
-                    meta_1s = np.random.binomial(1, 0.5)
-                else:
-                    meta_1s = min(max(np.random.binomial(self.num_rows, 0.5), 1), self.num_rows - 1)
-            else:
-                TypeError("num_1s must be either None or a dictionary")
 
-            target_1s = np.random.binomial(self.num_targets, 0.5)
-
-            meta_0s, target_0s = self.num_rows - meta_1s, self.num_targets - target_1s
-
-            meta_0s_row = np.random.choice(
-                self.num_0s, size=meta_0s, replace=False)
-            meta_1s_row = np.random.choice(
-                self.num_1s, size=meta_1s, replace=False)
-
-            rem_0 = np.setdiff1d(np.arange(self.num_0s), meta_0s_row)
-            rem_1 = np.setdiff1d(np.arange(self.num_1s), meta_1s_row)
-            targ_0s_row = np.random.choice(rem_0, size=target_0s, replace=False)
-            targ_1s_row = np.random.choice(rem_1, size=target_1s, replace=False)
-
-            meta_rows = torch.cat(
-                (self.zeros[meta_0s_row], self.ones[meta_1s_row]))
-            targ_rows = torch.cat(
-                (self.zeros[targ_0s_row], self.ones[targ_1s_row]))
-
-            # Join meta and target. Split apart later.
-            select_data = torch.cat([meta_rows, targ_rows])
-
-        else:
-            assert False
+        if self.balance is None:
             rows = np.random.choice(
                 self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
-            select_data = self.data[rows]
+        else:
+            rows = []
+
+            class_split = [self.balance, self.balance, self.num_meta - 2 * self.balance]
+            class_split = np.random.permutation(class_split)
+
+
+            for label, num_rows in enumerate(class_split):
+                wanted_row = np.random.choice(self.wanted_rows[label], size=num_rows, replace=False)
+                rows.append(wanted_row)
+
+            targ_rows = np.random.choice(
+                self.ds_rows, size=self.num_targets, replace=False, p=self.row_probs)
+
+            rows .append(targ_rows)
+            rows = np.concatenate(rows)
+
+        select_data = self.data[rows]
 
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
-        ys = select_data[:, targ_col]
+        ys = select_data[:, -1]
 
         # Normalise xs
         m = xs.mean(0, keepdim=True)
         s = xs.std(0, unbiased=False, keepdim=True)
         xs -= m
         xs /= (s + 10e-4)
-        if not self.binarise:
-            ys = one_vs_all(ys)
-        return xs, ys
 
+        unique_values = torch.unique(ys)
+        mapping = {unique_values[i].item(): i for i in range(len(unique_values))}
+
+        ys = torch.tensor([mapping[v.item()] for v in ys])
+        return xs, ys
 
     def __repr__(self):
         return self.ds_name
@@ -206,13 +182,15 @@ class MyDataSet:
     def __len__(self):
         return self.ds_rows
 
+    def cols(self):
+        return self.ds_cols
+
 
 class SplitDataloader:
     def __init__(
-            self, bs, num_rows, num_targets, binarise=False,
+            self, bs, num_rows, num_targets, balance=None,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
-            split_file='./datasets/grouped_datasets/splits',
-            num_1s = None, decrease_col_prob=-1):
+            split_file='./datasets/grouped_datasets/splits'):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -239,13 +217,12 @@ class SplitDataloader:
         self.tot_rows = num_rows + num_targets
         self.num_rows = num_rows
         self.num_targets = num_targets
-        self.binarise = binarise
+        self.balance = balance
         self.num_cols = num_cols
         self.ds_group = ds_group
         self.ds_split = ds_split
         self.split_file = split_file
-        self.decrease_col_prob = decrease_col_prob
-        self.num_1s = num_1s
+
 
         self.device = device
 
@@ -289,10 +266,10 @@ class SplitDataloader:
             raise Exception("Invalid ds_group")
 
         self.all_datasets = [
-            MyDataSet(name, num_rows=self.num_rows, 
-                        num_targets=self.num_targets,
-                        binarise=self.binarise, 
-                        device=self.device, split="all")
+            MyDataSet(name, num_rows=self.num_rows,
+                      num_targets=self.num_targets,
+                      balance=self.balance,
+                      device=self.device, split="all")
             for name in ds_names]
 
         valid_datasets = []
@@ -303,10 +280,8 @@ class SplitDataloader:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
 
-
         if len(self.all_datasets) == 0:
             raise IndexError(f"No datasets with enough rows. Required: {self.tot_rows}")
-
 
         ds_len = [ds.ds_cols for ds in self.all_datasets]
         self.min_ds_cols = min(ds_len)
@@ -337,7 +312,7 @@ class SplitDataloader:
 
                 else:
                     num_cols_range = self.num_cols
-                
+
                 if self.decrease_col_prob == -1:
                     num_cols = np.random.choice(
                         list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
@@ -363,7 +338,7 @@ class SplitDataloader:
             datanames = [str(d) for d in datasets]
 
             xs, ys = list(zip(*[
-                ds.sample(num_cols=num_cols, num_1s=self.num_1s)
+                ds.sample(num_cols=num_cols)
                 for ds in datasets]))
             xs = torch.stack(xs)
             ys = torch.stack(ys)
@@ -372,17 +347,65 @@ class SplitDataloader:
     def __repr__(self):
         return str(self.all_datasets)
 
+    def __len__(self):
+        return self.all_datasets[0].cols()
+
 
 if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
     random.seed(0)
 
-    dl = SplitDataloader(
-        bs=1, num_rows=5, binarise=True, num_targets=5, 
-        decrease_col_prob=-1, num_cols=-3, ds_group=0, ds_split="train",
-        num_1s={'meta': 1, 'target': 0}
-    )
+    datasets = os.listdir("/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data")
+    datasets = sorted([f for f in datasets if os.path.isdir(f'/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data/{f}')])
+    print(datasets)
 
-    for xs, ys, datanames in islice(dl, 10):
-        print(ys[:, :5].sum(), ys[:, 5:].sum())
+    sizes = []
+    count = 0
+    for ds in ['thyroid', 'synthetic-control', 'nursery', 'libras', 'seeds', 'statlog-landsat', 'statlog-vehicle', 'audiology-std', 'congressional-voting', 'acute-inflammation', 'monks-3', 'statlog-shuttle', 'teaching', 'plant-shape', 'acute-nephritis', 'oocytes_merluccius_nucleus_4d', 'low-res-spect', 'musk-1', 'oocytes_trisopterus_nucleus_2f', 'image-segmentation', 'connect-4', 'statlog-image', 'wine-quality-white', 'car', 'heart-switzerland', 'glass', 'monks-1', 'ozone', 'molec-biol-splice', 'musk-2', 'wine', 'heart-va', 'zoo', 'wall-following', 'spectf', 'vertebral-column-3clases', 'flags', 'twonorm', 'hayes-roth', 'led-display', 'mushroom', 'breast-cancer-wisc-prog', 'primary-tumor', 'waveform', 'statlog-australian-credit', 'post-operative', 'iris', 'annealing', 'contrac', 'planning', 'monks-2', 'hill-valley', 'cardiotocography-10clases', 'pittsburg-bridges-TYPE', 'horse-colic', 'chess-krvkp', 'cylinder-bands', 'balance-scale', 'ilpd-indian-liver', 'parkinsons', 'breast-cancer-wisc', 'conn-bench-sonar-mines-rocks', 'steel-plates', 'oocytes_trisopterus_states_5b', 'energy-y2', 'adult', 'breast-cancer-wisc-diag', 'oocytes_merluccius_states_2f', 'statlog-heart', 'vertebral-column-2clases', 'dermatology', 'cardiotocography-3clases', 'mammographic', 'pittsburg-bridges-REL-L', 'conn-bench-vowel-deterding', 'ionosphere', 'ecoli', 'page-blocks', 'waveform-noise', 'miniboone', 'plant-texture', 'pittsburg-bridges-SPAN', 'hepatitis', 'chess-krvk', 'heart-cleveland', 'haberman-survival', 'letter', 'bank', 'breast-tissue', 'magic', 'optical', 'spect', 'pima', 'yeast', 'wine-quality-red', 'titanic', 'blood', 'energy-y1', 'heart-hungarian', 'tic-tac-toe', 'abalone', 'spambase', 'echocardiogram', 'lymphography', 'breast-cancer', 'pittsburg-bridges-MATERIAL', 'statlog-german-credit', 'pendigits', 'molec-biol-promoter', 'credit-approval', 'soybean', 'arrhythmia', 'semeion', 'plant-margin', 'ringnorm']:
+        try:
+            dl = SplitDataloader(
+                bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group=ds, ds_split="train",
+            )
+            sizes.append(len(dl))
+            count += 1
+
+        except IndexError as e:
+            print(e)
+            pass
+
+    # Acc vs baseline
+    accs = [-0.209, -0.127, -0.12, -0.117, -0.092, -0.091, -0.089, -0.082, -0.081, -0.078, -0.076, -0.07, -0.07, -0.069, -0.064, -0.053, -0.052, -0.051, -0.05, -0.05, -0.043, -0.041, -0.039, -0.038, -0.036, -0.035, -0.034, -0.033, -0.033, -0.031, -0.027, -0.027, -0.026, -0.026, -0.026, -0.025, -0.025, -0.025, -0.022, -0.02, -0.02, -0.017, -0.017, -0.017, -0.016, -0.015, -0.014, -0.014, -0.013, -0.011, -0.01, -0.01, -0.009, -0.008, -0.008, -0.008, -0.007, -0.007, -0.007, -0.006, -0.006, -0.005, -0.004, -0.004, -0.004, -0.003, -0.003, -0.003, -0.002, -0.002, -0.002, -0.0, 0.0, 0.0, 0.0, 0.0, 0.001, 0.001, 0.001, 0.002, 0.002, 0.003, 0.003, 0.004, 0.004, 0.005, 0.005, 0.006, 0.006, 0.007, 0.009, 0.009, 0.01, 0.011, 0.012, 0.013, 0.013, 0.014, 0.016, 0.017, 0.017, 0.018, 0.019, 0.02, 0.02, 0.021, 0.021, 0.022, 0.03, 0.031, 0.033, 0.047, 0.047, 0.052, 0.077]
+
+
+    plt.scatter(sizes, accs, marker="x")
+    plt.xlabel("N cols")
+    plt.ylabel("Acc diff vs base")
+    plt.xlim([0, 100])
+    plt.title("Accuracy diff vs baseline")
+    plt.show()
+
+    sizes = []
+    # Acc vs maml
+    for ds in ['audiology-std', 'car', 'statlog-landsat', 'ringnorm', 'congressional-voting', 'twonorm', 'statlog-vehicle', 'acute-nephritis', 'musk-2', 'molec-biol-splice', 'ozone', 'plant-texture', 'tic-tac-toe', 'musk-1', 'statlog-image', 'low-res-spect', 'ionosphere', 'hayes-roth', 'plant-margin', 'wine-quality-white', 'bank', 'cardiotocography-3clases', 'pima', 'plant-shape', 'nursery', 'post-operative', 'libras', 'conn-bench-sonar-mines-rocks', 'magic', 'optical', 'zoo', 'statlog-shuttle', 'image-segmentation', 'oocytes_merluccius_nucleus_4d', 'ecoli', 'monks-3', 'dermatology', 'pendigits', 'oocytes_trisopterus_nucleus_2f', 'mammographic', 'acute-inflammation', 'synthetic-control', 'wine', 'monks-2', 'page-blocks', 'credit-approval', 'echocardiogram', 'breast-cancer-wisc', 'iris', 'steel-plates', 'molec-biol-promoter', 'heart-switzerland', 'connect-4', 'breast-cancer-wisc-diag', 'haberman-survival', 'teaching', 'heart-cleveland', 'heart-hungarian', 'wall-following', 'statlog-australian-credit', 'miniboone', 'energy-y2', 'vertebral-column-3clases', 'waveform-noise', 'ilpd-indian-liver', 'breast-tissue', 'cardiotocography-10clases', 'breast-cancer', 'parkinsons', 'horse-colic', 'monks-1', 'conn-bench-vowel-deterding', 'chess-krvkp', 'statlog-heart', 'hepatitis', 'semeion', 'soybean', 'flags', 'heart-va', 'annealing', 'pittsburg-bridges-TYPE', 'cylinder-bands', 'primary-tumor', 'seeds', 'letter', 'pittsburg-bridges-REL-L', 'waveform', 'planning', 'oocytes_merluccius_states_2f', 'wine-quality-red', 'statlog-german-credit', 'glass', 'chess-krvk', 'titanic', 'energy-y1', 'led-display', 'lymphography', 'spect', 'pittsburg-bridges-MATERIAL', 'yeast', 'breast-cancer-wisc-prog', 'vertebral-column-2clases', 'abalone', 'thyroid', 'hill-valley', 'mushroom', 'adult', 'spectf', 'contrac', 'spambase', 'balance-scale', 'pittsburg-bridges-SPAN', 'oocytes_trisopterus_states_5b', 'blood', 'arrhythmia']:
+        try:
+            dl = SplitDataloader(
+                bs=1, num_rows=9, balance=1, num_targets=5, num_cols=-3, ds_group=ds, ds_split="train",
+            )
+            sizes.append(len(dl))
+
+        except IndexError as e:
+            print(e)
+            pass
+
+    # Acc vs baseline
+    accs = [-0.082, -0.065, -0.062, -0.059, -0.051, -0.043, -0.037, -0.032, -0.032, -0.031, -0.026, -0.024, -0.024, -0.023, -0.021, -0.02, -0.02, -0.017, -0.017, -0.017, -0.016, -0.015, -0.015, -0.014, -0.014, -0.014, -0.013, -0.013, -0.012, -0.012, -0.011, -0.011, -0.011, -0.01, -0.009, -0.009, -0.009, -0.009, -0.009, -0.008, -0.008, -0.008, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.006, -0.005, -0.005, -0.005, -0.005, -0.004, -0.004, -0.004, -0.003, -0.003, -0.001, -0.001, -0.001, -0.001, -0.0, 0.001, 0.001, 0.001, 0.002, 0.002, 0.002, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.003, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.005, 0.005, 0.005, 0.006, 0.006, 0.006, 0.006, 0.006, 0.007, 0.007, 0.008, 0.008, 0.008, 0.008, 0.009, 0.01, 0.01, 0.01, 0.011, 0.013, 0.013, 0.014, 0.015, 0.016, 0.016, 0.016, 0.019, 0.019, 0.022, 0.026, 0.031, 0.032]
+    accs = - np.array(accs)
+    plt.scatter(sizes, accs, marker="x")
+    plt.xlabel("N cols")
+    plt.ylabel("Acc diff vs base")
+    plt.xlim([0, 100])
+    plt.title("Diff between FLAT and FLAT_maml")
+    plt.show()
+    # for xs, ys, datanames in islice(dl, 5):
+    #     print(ys)

@@ -20,40 +20,27 @@ class Model(ABC):
         self.model_name = model_name
 
 
-    def get_accuracy(self, ds_name, num_rows, num_cols, num_1s=None):
-        if num_1s is None:
-            with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
-                lines = f.read()
+    def get_accuracy(self, ds_name, num_rows):
+        with open(f'./datasets/data/{ds_name}/3_class_base.dat', "r") as f:
+            lines = f.read()
 
-            lines = lines.split("\n")
+        lines = lines.split("\n")
 
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols}'):
-                    config = config.split(",")
+        for config in lines:
+            # print(config, self.model_name, num_rows)
+            if config.startswith(f'{self.model_name},{num_rows}'):
+                config = config.split(",")
 
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
+                mean, std = float(config[-2]), float(config[-1])
+                return mean, std
 
-        else:
-            with open(f'./datasets/data/{ds_name}/base_fix_num_1s.dat', "r") as f:
-                lines = f.read()
-
-            lines = lines.split("\n")[1:]
-
-            for config in lines:
-                if config.startswith(f'{self.model_name},{num_rows},{num_cols},{num_1s}'):
-                    config = config.split(",")
-
-                    mean, std = float(config[-2]), float(config[-1])
-                    return mean, std
-
-        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
+        raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}")
 
     def __repr__(self):
         return self.model_name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
+def get_results_by_dataset(test_data_names, models, num_rows=10):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -66,7 +53,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
         model_acc_std = defaultdict(list)
         for model in models:
             try:
-                mean_acc, std_acc = model.get_accuracy(data_name, num_rows, -3, num_1s=num_1s)
+                mean_acc, std_acc = model.get_accuracy(data_name, num_rows)
             except FileNotFoundError as e:
                 print(e)
                 continue
@@ -99,64 +86,47 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_1s=None):
     return results
 
 
-def main(load_no, num_rows, save_ep=None, num_1s=None):
-    dir_path = f'{BASEDIR}/saves'
-    files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    load_no = [existing_saves[num] for num in load_no]
-    load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+def main(fold_no, num_rows, ):
+    # dir_path = f'{BASEDIR}/saves'
+    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+    # existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    # load_no = [existing_saves[num] for num in load_no]
+    # load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
+    #
+    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    # cfg = all_cfg["DL_params"]
+    # ds = all_cfg["Settings"]["dataset"]
+    # ds_group = cfg["ds_group"]
 
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
 
-    if ds == "my_split":
-        exit(2)
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
+    # ds_group = save_ep
+    # fold_no, split_no = ds_group
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    #print("Testing group:", ds_group)
 
-    elif ds == "total":
-        ds_group = save_ep
-        fold_no, split_no = ds_group
+    get_splits = range(6)
 
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        print("Testing group:", ds_group)
+    test_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
 
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
+    train_data_names = []
+    for split in get_splits:
+        ds_name = splits[str(split)]["train"]
+        train_data_names += ds_name
 
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
+    print("Test datasets:", test_data_names)
 
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
 
-        print("Test datasets:", test_data_names)
-    else:
-        raise Exception("Invalid data split")
 
-    num_targets = 5
-    binarise = cfg["binarise"]
-
-    models = [Model("LR"), Model("R_Forest"), Model("CatBoost"),
+    models = [Model("LR"), Model("SVC"), Model("STUNT")
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_1s=num_1s
+        num_rows=num_rows,
     )
 
 
@@ -220,5 +190,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for i in [0,1,2,3]:
-        col_accs = main(load_no=[0], num_rows=10, save_ep=[i, -1])
+    main(fold_no=0, num_rows=15)
