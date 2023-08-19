@@ -571,11 +571,11 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [5]:
-        for i in range(10):
-            load_no_ls = [30 + 3 * i + j for j in range(3)]
+    for num_row in [3, 5, 10, 15]:
+        for i in range(3):
+            load_no_ls = i
             batch_tag = None
-            save_tag = f'{i}all_fold_{num_row}_rows'
+            save_tag = f'save_{i}_row_{num_row}'
             main(
                 load_no=load_no_ls, 
                 num_rows=num_row,
