@@ -86,7 +86,7 @@ class MyDataSet:
             idx = (vldfold == 1)
         elif split == "test":
             self.test = True
-            idx = (folds == 1)
+            idx = np.logical_or(folds, vldfold)
         elif split == "all":
             idx = np.ones_like(folds).astype(bool)
         else:
@@ -288,7 +288,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows,
                       num_targets=self.num_targets,
                       binarise=self.binarise,
-                      device=self.device, split="all")
+                      device=self.device, split="test")
             for name in ds_names]
 
         valid_datasets = []
@@ -365,3 +365,9 @@ class SplitDataloader:
 
     def __repr__(self):
         return str(self.all_datasets)
+
+
+if __name__ == "__main__":
+    dl = SplitDataloader(ds_group="adult", bs=100, num_rows=10, num_targets=5, num_cols=-3, ds_split="test", binarise=True)
+
+

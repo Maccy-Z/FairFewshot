@@ -1,7 +1,7 @@
 import torch
 from main import *
 from dataloader import d2v_pairer
-from AllDataloader import SplitDataloader, MyDataSet
+from AllDataloader2 import SplitDataloader, MyDataSet
 from config import get_config
 import time, os, toml, random, pickle, warnings
 import numpy as np
@@ -423,9 +423,9 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     for data_name in test_data_names:
         print(data_name)
         try:
-            batch = load_batch(ds_name=data_name, num_rows=num_rows)
-            # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_targets, num_cols=-3, binarise=False)
-            # batch = get_batch(dl, num_rows=num_rows)
+            #batch = load_batch(ds_name=data_name, num_rows=num_rows)
+            dl = SplitDataloader(ds_group=data_name, bs=100, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
+            batch = get_batch(dl, num_rows=num_rows)
 
         except IndexError as e:
             print(e)
@@ -463,29 +463,29 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     return results
 
 
-def main(load_no, num_rows):
-    dir_path = f'{BASEDIR}/saves/old_final'
-    files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    #existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    #load_no = [existing_saves[num] for num in load_no]
-    load_dir = f'{dir_path}/save_{load_no[-1]}'
-
-    result_dir = f'{BASEDIR}/Results/maml_redo'
-    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f) for f in files if f.isdigit()])
-    result_no = existing_results[-1] + 1
-
-    result_dir = f'{result_dir}/{result_no}'
-    print(result_dir)
+def main(load_no, num_rows, ds_group):
+    # dir_path = f'{BASEDIR}/saves/old_final'
+    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
+    # #existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
+    # #load_no = [existing_saves[num] for num in load_no]
+    # load_dir = f'{dir_path}/save_{load_no[-1]}'
+    #
+    # result_dir = f'{BASEDIR}/Results/maml_redo'
+    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
+    # existing_results = sorted([int(f) for f in files if f.isdigit()])
+    # result_no = existing_results[-1] + 1
+    #
+    # result_dir = f'{result_dir}/{result_no}'
+    # print(result_dir)
     #os.mkdir(result_dir)
 
     #Split
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
-    print()
-    print(ds_group)
+    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    # cfg = all_cfg["DL_params"]
+    # ds = all_cfg["Settings"]["dataset"]
+    # ds_group = cfg["ds_group"]
+    # print()
+    # print(ds_group)
     fold_no, split_no = ds_group
 
     #fold_no = ds_split
@@ -499,16 +499,12 @@ def main(load_no, num_rows):
         ds_name = splits[str(split)]["test"]
         test_data_names += ds_name
 
-    train_data_names = []
-    for split in get_splits:
-        ds_name = splits[str(split)]["train"]
-        train_data_names += ds_name
-
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("SVC")] +  [FLAT(num) for num in load_no]
+    #test_data_names.remove("semeion")
 
+    models = [FTTrModel()] #[FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows
@@ -522,9 +518,9 @@ def main(load_no, num_rows):
     detailed_results['acc_std'] = mean_std
 
     results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
-    print("======================================================")
-    print("Test accuracy on unseen datasets")
-    print(results.to_string())
+    # print("======================================================")
+    # print("Test accuracy on unseen datasets")
+    # print(results.to_string())
 
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
@@ -538,10 +534,10 @@ def main(load_no, num_rows):
     agg_results = agg_results.reindex(columns=new_column_order)
 
     # Difference between FLAT and best model
-    agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
-    agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-    agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
+    # agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
+    # agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
+    # agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
+    # agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
 
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
@@ -570,22 +566,22 @@ def main(load_no, num_rows):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    print(agg_results["FLAT_diff"].to_string(index=False))
+    #print(agg_results["FLAT_diff"].to_string(index=False))
     # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
 
-    with open(f'{result_dir}/aggregated', "w") as f:
-        for line in agg_results:
-            f.write(line)
-
-    with open(f'{result_dir}/detailed', "w") as f:
-        for line in det_results:
-            f.write(line)
-
-    with open(f'{result_dir}/raw.pkl', "wb") as f:
-        pickle.dump(unseen_results, f)
+    # with open(f'{result_dir}/aggregated', "w") as f:
+    #     for line in agg_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/detailed', "w") as f:
+    #     for line in det_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/raw.pkl', "wb") as f:
+    #     pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
@@ -593,4 +589,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[26,27,28,29,30], num_rows=5)
+    main(load_no=[], num_rows=10, ds_group=(1, -1))
