@@ -589,4 +589,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=[], num_rows=10, ds_group=(1, -1))
+    main(load_no=[], num_rows=10, ds_group=(2, -1))
