@@ -361,7 +361,7 @@ if __name__ == "__main__":
         bs=1, num_rows=20, num_targets=5, num_cols=-3, ds_group=datasets, ds_split="train",
     )
 
-    print(str(dl))
+    print(str(dl).split(","))
     # formatted_strings = [f"'{item}'" for item in str(dl)]
     # print(formatted_strings)
     # output = ', '.join(formatted_strings)
