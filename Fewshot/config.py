@@ -52,9 +52,9 @@ def write_toml():
                                "num_targets": 10,
                                "ds_group": args.ds_group,          # Group of datasets from which to select from. -1 for full dataset
                                "binarise" : True,
-                               "num_1s": {'meta': 5, 'target': 5},
+                               "num_1s": None, #{'meta': 5, 'target': 5},
                                "num_cols": {'train': -2, 'val': -2},
-                               "split_file" : 'med_splits_2',
+                               "split_file" : 'orig_binary',
                                },
 
                  "Settings": {"num_epochs": 31,      # Number of train epochs

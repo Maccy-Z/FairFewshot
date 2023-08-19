@@ -46,3 +46,17 @@ classes_df['n_class_type'].value_counts()
 
 # medical 38%
 # all 55%
+#%%
+classes_df.n_classes.value_counts()
+# %%
+
+split = {}
+split['0'] = {}
+split['0']['test'] = list(classes_df[classes_df.n_classes == 2]['ds_name'].values)
+split['0']['train'] = list(classes_df[classes_df.n_classes > 2]['ds_name'].values)
+# %%
+import toml
+
+with open("./datasets/grouped_datasets/orig_binary", "w") as fp:
+    toml.dump(split, fp) 
+# %%
