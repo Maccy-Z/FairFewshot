@@ -1,4 +1,5 @@
 
-train = ['arrhythmia', ' audiology-std', ' cardiotocography-10clases', ' chess-krvk', ' conn-bench-vowel-deterding', ' led-display', ' letter', ' libras', ' optical', ' pendigits', ' plant-margin', ' plant-shape', ' plant-texture', ' primary-tumor', ' semeion', ' soybean', ' yeast']
-test = []
+train = ['chess-krvk', 'conn-bench-vowel-deterding', 'led-display', 'arrhythmia', 'audiology-std', 'cardiotocography-10clases',  'letter', 'libras', 'optical', 'plant-margin', 'plant-shape', 'plant-texture', 'primary-tumor',  'soybean', 'yeast']
+test = ['semeion', 'pendigits',  ]
+
 

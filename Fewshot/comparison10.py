@@ -1,5 +1,5 @@
 import torch
-from main import *
+from main import ModelHolder
 from dataloader import d2v_pairer
 from AllDataloader10 import SplitDataloader
 from config import get_config
@@ -39,10 +39,12 @@ def load_batch(ds_name, num_rows):
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
+
     xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+
     return xs_meta, xs_target, ys_meta, ys_target
 
 
@@ -123,10 +125,8 @@ class STUNT(STUNT_utils, Model):
         sq_distances = torch.sum((self.prototypes
                                   - support_target) ** 2, dim=-1)
 
-        # print(sq_distances.shape)
         _, preds = torch.min(sq_distances, dim=-1)
 
-        # print(preds.numpy(), ys_target.numpy())
         return (preds == ys_target).numpy()
 
 
@@ -294,7 +294,7 @@ class BasicModel(Model):
 
 
 class FLAT(Model):
-    def __init__(self, load_no, save_ep=0):
+    def __init__(self, load_no, save_ep=None):
         save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
 
@@ -425,10 +425,10 @@ def get_results_by_dataset(test_data_names, models, num_rows):
         print(data_name)
         try:
             #batch = load_batch(ds_name=data_name, num_rows=num_rows)
-            dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test")
+            dl = SplitDataloader(ds_group=data_name, bs=50, num_rows=num_rows, num_targets=15, num_cols=-3, ds_split="test")
             batch = get_batch(dl, num_rows=num_rows)
 
-        except IndexError as e:
+        except ValueError as e:
             print(e)
             continue
 
@@ -464,29 +464,17 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     return results
 
 
-def main(load_no, num_rows, ds_group):
-    fold_no, split_no = ds_group
+def main(load_no, num_rows, ):
 
-    #fold_no = ds_split
+    splits = toml.load(f'./datasets/grouped_datasets/splits_10')
+    names = splits["test"]
+    #names = ["semeion"]
+    print(names)
 
-    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-
-    get_splits = range(6)
-
-    test_data_names = []
-    for split in get_splits:
-        ds_name = splits[str(split)]["test"]
-        test_data_names += ds_name
-
-    # print("Train datases:", train_data_names)
-    print("Test datasets:", test_data_names)
-
-    #test_data_names.remove("semeion")
-
-    models = [BasicModel("LR"), FLAT(29)] #[FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), FLAT(50)] #[FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models, num_rows
+        names, models, num_rows
     )
 
     # Results for each dataset
@@ -568,4 +556,4 @@ if __name__ == "__main__":
     # np.random.seed(0)
     # torch.manual_seed(0)
 
-    main(load_no=[], num_rows=20, ds_group=(0, -1))
+    main(load_no=[], num_rows=10)

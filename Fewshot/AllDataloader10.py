@@ -39,7 +39,7 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, balance, split,
+            self, ds_name, num_rows, num_targets, balance, split, ds_split,
             dtype=torch.float32, device="cpu"):
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -47,7 +47,7 @@ class MyDataSet:
         self.tot_rows = num_rows + num_targets
         self.num_meta = num_rows
         self.balance = balance
-
+        self.ds_split = ds_split
         self.device = device
         self.dtype = dtype
 
@@ -121,8 +121,8 @@ class MyDataSet:
             self.wanted_rows.append(np.where(top_idx)[0])
             lens.append(len(np.where(top_idx)[0]))
 
-        # if min(lens) < 5:
-        #     self.ds_rows = 0
+        if min(lens) < 70:
+            self.ds_rows = 0
         if len(counts) < N_class:
             self.ds_rows = 0
 
@@ -136,26 +136,22 @@ class MyDataSet:
         # print(self.test, self.min_ds_rows, self)
         predict_cols = np.random.choice(self.ds_cols - 1, size=num_cols, replace=False)
 
-        if self.balance is None:
-            rows = np.random.choice(
-                self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
-        else:
-            exit(5)
-            rows = []
+        assert self.num_rows % 10 == 0
 
-            class_split = [self.balance, self.balance, self.num_meta - 2 * self.balance]
-            class_split = np.random.permutation(class_split)
+        rows = []
+        for label in range(N_class):
+            wanted_row = np.random.choice(self.wanted_rows[label], size=self.num_rows // 10, replace=False)
+            rows.append(wanted_row)
 
+        targ_rows = np.random.choice(
+            self.ds_rows, size=self.num_targets, replace=False, p=self.row_probs)
 
-            for label, num_rows in enumerate(class_split):
-                wanted_row = np.random.choice(self.wanted_rows[label], size=num_rows, replace=False)
-                rows.append(wanted_row)
+        rows.append(targ_rows)
+        rows = np.concatenate(rows)
 
-            targ_rows = np.random.choice(
-                self.ds_rows, size=self.num_targets, replace=False, p=self.row_probs)
+        # rows = np.random.choice(
+        #     self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
 
-            rows .append(targ_rows)
-            rows = np.concatenate(rows)
 
         select_data = self.data[rows]
 
@@ -169,10 +165,25 @@ class MyDataSet:
         xs -= m
         xs /= (s + 10e-4)
 
-        unique_values = torch.unique(ys)
-        mapping = {unique_values[i].item(): i for i in range(len(unique_values))}
+        unique_values = torch.unique(ys).to(int)
 
+        if self.ds_split == "test" or random.random() < 0.4:
+            perm_idx = torch.randperm(unique_values.size(0))
+            unique_values = unique_values[perm_idx]
+
+        num_classes = len(unique_values)
+
+        # if num_classes < 10:
+        #     assert False
+        #     return self.sample(num_cols)
+
+        #order = random.sample(list(range(num_classes)), num_classes)
+
+        mapping = {unique_values[i].item(): i for i in list(range(num_classes))}
         ys = torch.tensor([mapping[v.item()] for v in ys])
+        # print(f'{ys = }')
+        # exit(5)
+
         return xs, ys
 
     def __repr__(self):
@@ -232,35 +243,12 @@ class SplitDataloader:
     def _get_valid_datasets(self):
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, tuple):
-            fold_no, split_no = self.ds_group
-            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-            if split_no == -1:
-                get_splits = range(6)
-            else:
-                get_splits = [split_no]
+            splits = toml.load(f'./datasets/grouped_datasets/splits_10')
 
-            ds_names = []
-            for split in get_splits:
-                names = splits[str(split)][self.ds_split]
-                ds_names += names
-
-        elif isinstance(self.ds_group, int):
-            if self.ds_group == -1:
-                # get all datasets
-                ds_names = os.listdir(ds_dir)
-                ds_names.remove('info.json')
-                if '.DS_Store' in ds_names:
-                    ds_names.remove('.DS_Store')
-            else:
-                # get datasets from pre-defined split
-                splits = toml.load(self.split_file)
-                ds_names = splits[str(self.ds_group)][self.ds_split]
-
+            names = splits[self.ds_split]
+            ds_names = names
         elif isinstance(self.ds_group, str):
             ds_names = [self.ds_group]
-
-        elif isinstance(self.ds_group, list):
-            ds_names = self.ds_group
         else:
             raise Exception("Invalid ds_group")
 
@@ -268,7 +256,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows,
                       num_targets=self.num_targets,
                       balance=self.balance,
-                      device=self.device, split="all")
+                      device=self.device, split="all", ds_split=self.ds_split)
             for name in ds_names]
 
         valid_datasets = []
@@ -299,31 +287,8 @@ class SplitDataloader:
         :return: [bs, num_rows, num_cols], [bs, num_rows, 1]
         """
         while True:
-            # Sample columns uniformly
-            if self.num_cols == 0 or self.num_cols == -1 or isinstance(self.num_cols, list):
-                if isinstance(self.num_cols, int):
-                    if self.num_cols == 0:
-                        max_num_cols = max([d.ds_cols for d in self.all_datasets]) - 1
-
-                    elif self.num_cols == -1:
-                        max_num_cols = min([d.ds_cols for d in self.all_datasets]) - 1
-                    num_cols_range = [2, max_num_cols]
-
-                else:
-                    num_cols_range = self.num_cols
-
-                if self.decrease_col_prob == -1:
-                    num_cols = np.random.choice(
-                        list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
-                else:
-                    num_cols = np.random.geometric(p=self.decrease_col_prob, size=1) + 1
-                    num_cols = max(num_cols_range[0], num_cols)
-                    num_cols = min(num_cols, num_cols_range[1])
-                valid_datasets = [d for d in self.all_datasets if d.ds_cols > num_cols]
-                datasets = random.choices(valid_datasets, k=self.bs)
-
             # Sample datasets uniformly
-            elif self.num_cols == -2:
+            if self.num_cols == -2:
                 datasets = random.choices(self.all_datasets, k=self.bs)
                 max_num_cols = min([d.ds_cols for d in datasets]) - 1
                 num_cols = np.random.randint(2, max_num_cols)
@@ -351,20 +316,20 @@ class SplitDataloader:
 
 
 if __name__ == "__main__":
-    np.random.seed(0)
-    torch.manual_seed(0)
-    random.seed(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
+    # random.seed(0)
 
     datasets = os.listdir("/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data")
     datasets = sorted([f for f in datasets if os.path.isdir(f'/mnt/storage_ssd/fewshot_learning/FairFewshot/datasets/data/{f}')])
     dl = SplitDataloader(
-        bs=1, num_rows=20, num_targets=5, num_cols=-3, ds_group=datasets, ds_split="train",
+        bs=1, num_rows=10, num_targets=5, num_cols=-3, ds_group=(0,), ds_split="train",
     )
 
-    print(str(dl).split(","))
-    # formatted_strings = [f"'{item}'" for item in str(dl)]
-    # print(formatted_strings)
-    # output = ', '.join(formatted_strings)
-    #
-    # print(output)
+    for batch in dl:
+        print(batch[0].shape)
+
+
+        exit(5)
+
 
