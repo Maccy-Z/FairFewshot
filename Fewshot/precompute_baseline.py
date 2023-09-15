@@ -39,20 +39,16 @@ def save_batch(ds_name, num_batches, num_targets, tag=None):
                 pickle.dump(None, f)
 
 
-def main(f, num_targets, batch_tag=None):
+def main(f, num_targets, batch_tag=None, save_tag=None):
     models = [
-              BasicModel("SVC"), BasicModel("LR") , BasicModel("CatBoost"), 
-              BasicModel("R_Forest"),  BasicModel("KNN"),
-              STUNT(),
-              TabnetModel(),
-              FTTrModel(),
+              BasicModel("TabPFN")
     ]
 
     model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
 
 
     for model in models:
-        for num_rows in [2, 6, 10]:
+        for num_rows in [3, 5, 10, 15]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(
@@ -70,7 +66,9 @@ def main(f, num_targets, batch_tag=None):
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
     
-    if batch_tag:
+    if save_tag:
+        file_path = f'{data_dir}/{f}/baselines_{save_tag}.dat'
+    elif batch_tag:
         file_path = f'{data_dir}/{f}/baselines_{batch_tag}.dat'
     else:
         file_path = f'{data_dir}/{f}/baselines.dat'
@@ -105,12 +103,13 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 167
-    num_targs = 6
+    num_bs = 200
+    num_targs = 5
 
     # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+
     files = [
-            'acute-inflammation', 'acute-nephritis', 'arrhythmia',
+            #'acute-inflammation', 'acute-nephritis', 'arrhythmia',
             'blood', 'breast-cancer', 'breast-cancer-wisc', 'breast-cancer-wisc-diag', 
             'breast-cancer-wisc-prog', 'breast-tissue', 'cardiotocography-3clases', 
             'dermatology', 'echocardiogram', 'fertility', 'heart-cleveland', 
@@ -125,6 +124,8 @@ if __name__ == "__main__":
         print(f)
         #save_batch(f, num_bs, num_targs, tag='binomial_v2')
         try:
-            main(f, num_targets=num_targs, batch_tag='binomial_v2')
+            main(f, num_targets=num_targs, save_tag='tabpfn')
         except(FileNotFoundError):
             print(f"No batch file for {f} found")
+        except(ValueError):
+            pass

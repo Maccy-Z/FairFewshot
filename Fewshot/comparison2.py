@@ -18,11 +18,12 @@ from sklearn.ensemble import RandomForestClassifier
 from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
+from tabpfn import TabPFNClassifier
 from utils import load_batch
 from ds_base import InfModel, ff_block
 
-#sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-sys.path.insert(0, '/home/andrija/FairFewshot')
+sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
+#sys.path.insert(0, '/home/andrija/FairFewshot')
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
 BASEDIR = '.'
@@ -244,7 +245,8 @@ class BasicModel(Model):
                 self.model = CatBoostClassifier(iterations=200, learning_rate=0.03, allow_const_label=True, verbose=False)
                     # iterations=20, depth=4, learning_rate=0.5,
                     #                             loss_function='Logloss', allow_const_label=True, verbose=False)
-
+            case "TabPFN":
+                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=32)
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
             case _:
