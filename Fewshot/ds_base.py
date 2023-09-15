@@ -5,8 +5,10 @@ import time
 import itertools
 from AllDataloader import SplitDataloader
 import os
+from config import get_config
+import toml
 
-N_class = 3
+N_class = 2
 
 class ff_block(nn.Module):
     def __init__(self, in_dim):
@@ -165,24 +167,43 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
     return accuracy, loss.item()
 
 
-def main():
-    files = [f for f in os.listdir("./iwata") if os.path.isdir(f'{"./iwata"}/{f}')]
-    existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
-    # print(files, existing_saves)
-    save_no = existing_saves[-1] + 1
+def main(config):
+    # files = [f for f in os.listdir("./iwata") if os.path.isdir(f'{"./iwata"}/{f}')]
+    # existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
+    # # print(files, existing_saves)
+    # if existing_saves:
+    #     save_no = existing_saves[-1] + 1
+    # else:
+    #     save_no = 0
+    cfg = config["DL_params"]
+    ds_group = cfg["ds_group"]
+    save_no = ds_group
     save_dir = f'./iwata/{save_no}'
     print("Making new save folder at: ")
     print(save_dir)
     os.mkdir(save_dir)
+    toml.dump(config, open(f"./iwata/{save_no}/config.toml", "w"))
 
     model = InfModel()
     optim = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
-    num_rows, num_targets = 10, 15
+    num_rows, num_targets = 10, 10
 
+    # dl = SplitDataloader(
+    #     bs=37, num_rows=num_rows, num_targets=num_targets,
+    #     binarise=True, num_cols=-2, ds_group=(0, -1), ds_split="train"
+    # )
+
+    split_file = 'med_splits_2'
+    split_file = f"./datasets/grouped_datasets/{split_file}"
     dl = SplitDataloader(
         bs=37, num_rows=num_rows, num_targets=num_targets,
-        binarise=True, num_cols=-2, ds_group=(0, -1), ds_split="train"
+        binarise=True, 
+        num_1s=None,
+        num_cols=-2,
+        ds_group=ds_group,
+        ds_split="train",
+        split_file=split_file
     )
 
     for epoch in range(75):
@@ -218,4 +239,5 @@ def main():
         f.write("finish")
 
 if __name__ == "__main__":
-    main()
+    config = get_config()
+    main(config)

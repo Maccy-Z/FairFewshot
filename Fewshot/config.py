@@ -54,7 +54,7 @@ def write_toml():
                                "binarise" : True,
                                "num_1s": None, #{'meta': 5, 'target': 5},
                                "num_cols": {'train': -2, 'val': -2},
-                               "split_file" : 'orig_binary',
+                               "split_file" : 'med_splits_2',
                                },
 
                  "Settings": {"num_epochs": 31,      # Number of train epochs

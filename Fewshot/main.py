@@ -10,13 +10,9 @@ from dataloader import d2v_pairer
 from GAtt_Func import GATConvFunc
 from save_holder import SaveHolder
 from config import get_config
-<<<<<<< HEAD
 from AllDataloader import SplitDataloader
-=======
-from AllDataloader10 import SplitDataloader
->>>>>>> 8b33fdc97087a8301898bf2f757e494bff2900bf
 
-N_class = 10
+N_class = 2
 
 class ResBlock(nn.Module):
     def __init__(self, in_size, hid_size, out_size, n_blocks, out_relu=True):
