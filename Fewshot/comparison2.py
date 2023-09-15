@@ -21,8 +21,8 @@ from tab_transformer_pytorch import FTTransformer
 from utils import load_batch
 from ds_base import InfModel, ff_block
 
-sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-#sys.path.insert(0, '/home/andrija/FairFewshot')
+#sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
+sys.path.insert(0, '/home/andrija/FairFewshot')
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
 BASEDIR = '.'
