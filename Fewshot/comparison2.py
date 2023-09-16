@@ -22,8 +22,8 @@ from tabpfn import TabPFNClassifier
 from utils import load_batch
 from ds_base import InfModel, ff_block
 
-sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
-#sys.path.insert(0, '/home/andrija/FairFewshot')
+#sys.path.insert(0, '/Users/kasiakobalczyk/FairFewshot')
+sys.path.insert(0, '/home/andrija/FairFewshot')
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
  
 BASEDIR = '.'
@@ -612,8 +612,8 @@ if __name__ == "__main__":
     for num_row in [2, 6, 10]:
         for i in range(10):
             load_no = i
-            batch_tag = 'binomial_v2'
-            save_tag = f'iwata_binomial_v2_{load_no}_row_{num_row}'
+            batch_tag = 'kshot_v2'
+            save_tag = f'iwata_kshot_v2_{load_no}_row_{num_row}'
             main(
                 load_no=load_no, 
                 num_rows=num_row,
