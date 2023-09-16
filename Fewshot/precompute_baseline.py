@@ -124,7 +124,7 @@ if __name__ == "__main__":
         print(f)
         #save_batch(f, num_bs, num_targs, tag='binomial_v2')
         try:
-            main(f, num_targets=num_targs, batch_tag='binomial_v2')
+            main(f, num_targets=num_targs, batch_tag='kshot_v2')
         except(FileNotFoundError):
             print(f"No batch file for {f} found")
         except(ValueError):
