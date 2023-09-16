@@ -609,16 +609,16 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    for num_row in [3, 5, 10, 15]:
+    for num_row in [2, 6, 10]:
         for i in range(10):
             load_no = i
-            batch_tag = None
-            save_tag = f'iwata_{load_no}_row_{num_row}'
+            batch_tag = 'binomial_v2'
+            save_tag = f'iwata_binomial_v2_{load_no}_row_{num_row}'
             main(
                 load_no=load_no, 
                 num_rows=num_row,
-                num_targets=5, 
+                num_targets=6, 
                 batch_tag=batch_tag, 
                 save_tag=save_tag,
-                eval_all=True
+                eval_all=False
             )

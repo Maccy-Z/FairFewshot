@@ -6,7 +6,8 @@ from main import *
 from AllDataloader import MyDataSet
 
 BASEDIR = '.'
-DATADIR = f'{BASEDIR}/datasets/max_data'
+#DATADIR = f'{BASEDIR}/datasets/max_data'
+DATADIR = f'{BASEDIR}/datasets/data'
 
 def get_batch(dl, num_rows):
     xs, ys, model_id = next(iter(dl))
@@ -21,7 +22,8 @@ def load_batch(ds_name, num_rows, num_targets, num_cols, tag):
     file_name = f'{num_rows}_{num_targets}_{num_cols}'
     if tag:
         file_name += f'_{tag}'
-    with open(f"{DATADIR}/{ds_name}/batches/{file_name}", "rb")  as f:
+    file_name = f"{DATADIR}/{ds_name}/batches/{file_name}"
+    with open(file_name, "rb")  as f:
         batch = pickle.load(f)
 
     if batch is None:

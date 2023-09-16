@@ -48,7 +48,7 @@ def main(f, num_targets, batch_tag=None, save_tag=None):
 
 
     for model in models:
-        for num_rows in [3, 5, 10, 15]:
+        for num_rows in [2, 6, 10]:
             for num_cols in [-3,]:
                 try:
                     batch = load_batch(
@@ -74,7 +74,7 @@ def main(f, num_targets, batch_tag=None, save_tag=None):
         file_path = f'{data_dir}/{f}/baselines.dat'
     with open(file_path, 'a+', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["model", "num_rows", "num_cols", "acc", "std"])
+        #writer.writerow(["model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    num_bs = 200
-    num_targs = 5
+    num_bs = 167
+    num_targs = 6
 
     # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         print(f)
         #save_batch(f, num_bs, num_targs, tag='binomial_v2')
         try:
-            main(f, num_targets=num_targs, save_tag='tabpfn')
+            main(f, num_targets=num_targs, batch_tag='binomial_v2')
         except(FileNotFoundError):
             print(f"No batch file for {f} found")
         except(ValueError):
