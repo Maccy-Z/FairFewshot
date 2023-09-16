@@ -18,12 +18,13 @@ for num_row in num_rows:
         df = pd.read_pickle(f'./results/binomial_results_v2/results_{num_row}_rows/result_binomial_v2_{i}_fold_{num_row}_rows/raw.pkl')
         #df = pd.read_pickle(f'./results/med_results_v2/results_{num_row}_rows/result__{i}_fold_{num_row}_rows/raw.pkl')
         #iwata_df  = pd.read_pickle(f'./andrija_pc_results/iwata/result_iwata_{i}_row_{num_row}/raw.pkl')
-        #iwata_df['num_rows'] = num_row
+        iwata_df  = pd.read_pickle(f'./andrija_pc_results/iwata_binomial_v2/result_iwata_binomial_v2_{i}_row_{num_row}/raw.pkl')
+        iwata_df['num_rows'] = num_row
         # filter to only testing datasets
-        #iwata_df = iwata_df[iwata_df.data_name.isin(df.data_name.unique())]
+        iwata_df = iwata_df[iwata_df.data_name.isin(df.data_name.unique())]
         df['num_rows'] = num_row
         flat_results_df = pd.concat([flat_results_df, df])
-        #iwata_results_df = pd.concat([iwata_results_df, iwata_df])
+        iwata_results_df = pd.concat([iwata_results_df, iwata_df])
 flat_results_df
 
 #%%
@@ -52,7 +53,7 @@ for data_name in data_names:
     base_results_df = pd.concat([base_results_df, df])
 base_results_df
 
-#base_results_df = pd.concat([base_results_df, iwata_results_df])
+base_results_df = pd.concat([base_results_df, iwata_results_df])
 #%%
 
 # combine dataframes
