@@ -3,10 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import time
 import itertools
-from AllDataloader import SplitDataloader
+from AllDataloader2 import SplitDataloader
 import os
 
-N_class = 3
+N_class = 2
+
 
 class ff_block(nn.Module):
     def __init__(self, in_dim):
@@ -116,7 +117,6 @@ class InfModel(nn.Module):
                 proto_val = torch.mean(proto_val, dim=0)
                 protos[y_val] = proto_val
 
-
             self.batch_protos.append(protos)
 
     def forward_target(self, xs):
@@ -178,11 +178,11 @@ def main():
     model = InfModel()
     optim = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
-    num_rows, num_targets = 10, 15
-
+    num_rows, num_targets = 10, 10
+    ds_group = (3, -1)
     dl = SplitDataloader(
         bs=37, num_rows=num_rows, num_targets=num_targets,
-        binarise=True, num_cols=-2, ds_group=(0, -1), ds_split="train"
+        binarise=True, num_cols=-2, ds_group=ds_group, ds_split="train"
     )
 
     for epoch in range(75):
@@ -192,7 +192,6 @@ def main():
         # Train loop
         model.train()
         for xs, ys, _ in itertools.islice(dl, 100):
-
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -215,7 +214,8 @@ def main():
         torch.save(model, f'{save_dir}/model.pt')
 
     with open(f'{save_dir}/finish', "w") as f:
-        f.write("finish")
+        f.write(f"finish, {ds_group}")
+
 
 if __name__ == "__main__":
     main()

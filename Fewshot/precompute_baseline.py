@@ -1,20 +1,21 @@
 import torch
-from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT
+from comparison2 import TabnetModel, FTTrModel, BasicModel, STUNT, Iwata
 from AllDataloader import SplitDataloader
+from ds_base import InfModel, ff_block
+
 import pickle
 import os
 import csv
+
 data_dir = './datasets/data'
 
 
-def load_batch(ds_name, n_meta):
-    batch = None
-
-    if n_meta != 10:
-        with open(f"./datasets/data/{ds_name}/batches/3_class_{n_meta}", "rb") as f:
+def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
+    if num_1s is None:
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
             batch = pickle.load(f)
     else:
-        with open(f"./datasets/data/{ds_name}/batches/3_class_only", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
             batch = pickle.load(f)
 
     if batch is None:
@@ -32,39 +33,40 @@ def get_batch(dl, num_rows):
 
     return xs_meta, xs_target, ys_meta, ys_target
 
+
 # Get batch and save to disk. All columns.
-def save_batch(ds_name, num_batches):
+def save_batch(ds_name, num_batches, num_targets):
     if not os.path.exists(f"{data_dir}/{ds_name}/batches"):
         os.makedirs(f"{data_dir}/{ds_name}/batches")
 
+    num_1s = None
+
     for num_rows in [10]:
         try:
-            #dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=5, num_cols=-3, binarise=False)
-            dl = SplitDataloader(ds_group=ds_name, bs=200, num_rows=num_rows, num_targets=10, num_cols=-3, balance=3, ds_split="test")
+            dl = SplitDataloader(ds_group=ds_name, bs=num_batches, num_rows=num_rows, num_targets=num_targets, num_cols=-3, num_1s={"meta": num_1s},
+                                 binarise=True)
             batch = get_batch(dl, num_rows=num_rows)
 
             # Save format: num_rows, num_targets, num_cols
-            with open(f"{data_dir}/{ds_name}/batches/3_class_bal_3", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
                 pickle.dump(batch, f)
 
 
         except IndexError as e:
             print(e)
-            with open(f"{data_dir}/{ds_name}/batches/3_class_bal_3", "wb") as f:
+            with open(f"{data_dir}/{ds_name}/batches/{num_rows}_{num_targets}_{-3}_{num_1s}", "wb") as f:
                 pickle.dump(None, f)
 
 
-def main_append(f, num_targets):
+def main_append(f, num_targets, load_no):
+    models = [Iwata(load_no)]
 
-    models = [BasicModel("R_Forest")
-              ]
-
-    model_accs = [] # Save format: [model, num_rows, num_cols, acc, std]
+    model_accs = []  # Save format: [model, num_rows, num_cols, acc, std]
 
     for model in models:
         print(model)
-        for num_rows in [10]:
-            for num_cols in [-3,]:
+        for num_rows in [3, 5, 10, 15]:
+            for num_cols in [-3, ]:
                 try:
                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
                 except IndexError as e:
@@ -73,67 +75,65 @@ def main_append(f, num_targets):
                 mean_acc, std_acc = model.get_accuracy(batch)
                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{f}/base_RF_fix.dat', 'w', newline='') as f:
+    with open(f'{data_dir}/{f}/baselines.dat', 'a', newline='') as f:
         writer = csv.writer(f)
         for row in model_accs:
             writer.writerow(row)
 
 
-def main(fn):
+def main(f, num_targets):
+    models = [
+        Iwata(0)
+    ]
 
-    models = [STUNT(),
-              ]
-
-    model_accs = [] # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
-
+    model_accs = []  # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
 
     for model in models:
         print(model)
         for num_rows in [3, 5, 10, 15]:
-            try:
-                batch = load_batch(ds_name=fn, n_meta=num_rows)
-            except IndexError as e:
-                print(e)
-                break
-            mean_acc, std_acc = model.get_accuracy(batch)
-            model_accs.append([model, num_rows, mean_acc, std_acc])
+            for num_cols in [-3, ]:
+                try:
+                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+                except IndexError as e:
+                    print(e)
+                    break
+                mean_acc, std_acc = model.get_accuracy(batch)
+                model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
 
-    with open(f'{data_dir}/{fn}/3_class_base.dat', 'a', newline='') as f:
+    with open(f'{data_dir}/{f}/iwata.dat', 'a', newline='') as f:
         writer = csv.writer(f)
-        # writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+        writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
         for row in model_accs:
             writer.writerow(row)
 
-    # model_accs = []
-    # for model in models:
-    #     print(model)
-    #
-    #     try:
-    #         batch = load_batch(ds_name=fn, only=True)
-    #     except IndexError as e:
-    #         print(e)
-    #         break
-    #     mean_acc, std_acc = model.get_accuracy(batch)
-    #     model_accs.append([model, mean_acc, std_acc])
-    #
-    # with open(f'{data_dir}/{fn}/3_class_only.dat', 'w', newline='') as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
-    #     for row in model_accs:
-    #         writer.writerow(row)
 
 if __name__ == "__main__":
     import numpy as np
     import random
+    import toml
+
     np.random.seed(0)
     random.seed(0)
     torch.manual_seed(0)
 
-    files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    num_bs = 200
+    num_targs = 5
+
+    # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    fold_no = 3
+    load_no = fold_no
+
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    files = []
+    for split in range(6):
+        names = splits[str(split)]["test"]
+        files += names
+
+    print(files)
     for f in files:
         print("---------------------")
         print(f)
 
-        #save_batch(f, num_batches=200)
-        # main_append(f, num_targets=num_targs)
-        main(f)
+        # save_batch(f, num_bs, num_targs)
+        main_append(f, num_targets=num_targs, load_no=load_no)
+        # main(f, num_targets=num_targs)

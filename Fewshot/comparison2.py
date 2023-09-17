@@ -43,6 +43,7 @@ def get_batch(dl, num_rows):
     ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
     xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
     ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+
     return xs_meta, xs_target, ys_meta, ys_target
 
 
@@ -344,7 +345,6 @@ class FLAT_MAML(Model):
         else:
             steps = 3
 
-
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -402,7 +402,6 @@ class Iwata(Model):
             ys_pred_target = self.model.forward_target(xs_target)
 
         ys_pred_target_labels = torch.argmax(ys_pred_target, dim=-1)
-
         ys_target = ys_target.squeeze().flatten()
 
         return (ys_pred_target_labels == ys_target).numpy()
@@ -423,9 +422,9 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     for data_name in test_data_names:
         print(data_name)
         try:
-            #batch = load_batch(ds_name=data_name, num_rows=num_rows)
-            dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
-            batch = get_batch(dl, num_rows=num_rows)
+            batch = load_batch(ds_name=data_name, num_rows=num_rows)
+            #dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
+            #batch = get_batch(dl, num_rows=num_rows)
 
         except IndexError as e:
             print(e)
@@ -477,9 +476,9 @@ def main(load_no, num_rows, ds_group):
     #
     # result_dir = f'{result_dir}/{result_no}'
     # print(result_dir)
-    #os.mkdir(result_dir)
+    # os.mkdir(result_dir)
 
-    #Split
+    # Split
     # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     # cfg = all_cfg["DL_params"]
     # ds = all_cfg["Settings"]["dataset"]
@@ -488,23 +487,21 @@ def main(load_no, num_rows, ds_group):
     # print(ds_group)
     fold_no, split_no = ds_group
 
-    #fold_no = ds_split
+    # fold_no = ds_split
 
     splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
 
-    get_splits = range(6)
-
     test_data_names = []
-    for split in get_splits:
+    for split in range(6):
         ds_name = splits[str(split)]["test"]
         test_data_names += ds_name
 
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    #test_data_names.remove("semeion")
+    # test_data_names.remove("semeion")
 
-    models = [FTTrModel()] #[FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), Iwata(load_no)]  # [FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows
@@ -566,11 +563,10 @@ def main(load_no, num_rows, ds_group):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    #print(agg_results["FLAT_diff"].to_string(index=False))
+    # print(agg_results["FLAT_diff"].to_string(index=False))
     # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
-
 
     # with open(f'{result_dir}/aggregated', "w") as f:
     #     for line in agg_results:
@@ -585,8 +581,8 @@ def main(load_no, num_rows, ds_group):
 
 
 if __name__ == "__main__":
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
-    main(load_no=[], num_rows=10, ds_group=(2, -1))
+    main(load_no=3, num_rows=10, ds_group=(3, -1))

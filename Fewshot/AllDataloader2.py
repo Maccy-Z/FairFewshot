@@ -145,6 +145,7 @@ class MyDataSet:
         if self.binarise:
             # Select meta and target rows separately. Pick number of 1s from binomial then sample without replacement.
             if isinstance(num_1s, dict):
+                assert False
                 meta_1s = num_1s['meta']
                 meta_1s = np.random.choice([meta_1s, self.num_rows - meta_1s], size=1)
             elif num_1s is None:
@@ -288,7 +289,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows,
                       num_targets=self.num_targets,
                       binarise=self.binarise,
-                      device=self.device, split="test")
+                      device=self.device, split="train")
             for name in ds_names]
 
         valid_datasets = []
