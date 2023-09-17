@@ -29,7 +29,7 @@ def get_accuracy(model_name, ds_name, num_rows, num_cols):
 
 
 datasets = sorted([d for d in os.listdir("./datasets/data/") if os.path.isdir(os.path.join("./datasets/data/", d))])
-model_names = ["LR", "KNN", "R_Forest", "CatBoost", "FTTransformer", "STUNT", "SVC", "TabNet", "TabPFN"]
+model_names = ["LR", "KNN", "R_Forest", "CatBoost", "FTTransformer", "STUNT", "SVC", "TabNet", "TabPFN", "Iwata"]
 
 
 all_results = {}
@@ -116,35 +116,35 @@ print(df["FLAT_diff"].tolist())
 
 
 
-from scipy.stats import ttest_ind
-
-DATADIR = './datasets/data'
-
-data_dim_df = pd.DataFrame(index=df.index)
-data_dim_df['n_classes'] = None
-
-print(data_dim_df)
-
-# Get the number of columns and no. of original classes of the dataset
-for ds_name in data_dim_df.index:
-    labels = pd.read_csv(f'{DATADIR}/{ds_name}/labels_py.dat', header=None)
-    data = pd.read_csv(f'{DATADIR}/{ds_name}/{ds_name}_py.dat', header=None)
-    n_classes = labels.iloc[:, 0].nunique()
-    n_cols = data.shape[1]
-    #data_dim_df.loc[ds_name, 'n_cols'] = n_cols
-    data_dim_df.loc[ds_name, 'n_classes'] = n_classes
-
-for baseline in df.columns:
-    compare_df = df[['FLAT', baseline]]
-    compare_df["diff"] = df['FLAT'] - df[baseline]
-
-    compare_df = compare_df.join(data_dim_df)
-
-    # Test the hypothesis that the number of original classes influences the performance
-    a = compare_df[compare_df.n_classes == 2]['diff']
-    b = compare_df[compare_df.n_classes > 2]['diff']
-
-    print("FInal result")
-    print(baseline, ttest_ind(a, b).pvalue)
-    print(a.mean(), b.mean())
-
+# from scipy.stats import ttest_ind
+#
+# DATADIR = './datasets/data'
+#
+# data_dim_df = pd.DataFrame(index=df.index)
+# data_dim_df['n_classes'] = None
+#
+# print(data_dim_df)
+#
+# # Get the number of columns and no. of original classes of the dataset
+# for ds_name in data_dim_df.index:
+#     labels = pd.read_csv(f'{DATADIR}/{ds_name}/labels_py.dat', header=None)
+#     data = pd.read_csv(f'{DATADIR}/{ds_name}/{ds_name}_py.dat', header=None)
+#     n_classes = labels.iloc[:, 0].nunique()
+#     n_cols = data.shape[1]
+#     #data_dim_df.loc[ds_name, 'n_cols'] = n_cols
+#     data_dim_df.loc[ds_name, 'n_classes'] = n_classes
+#
+# for baseline in df.columns:
+#     compare_df = df[['FLAT', baseline]]
+#     compare_df["diff"] = df['FLAT'] - df[baseline]
+#
+#     compare_df = compare_df.join(data_dim_df)
+#
+#     # Test the hypothesis that the number of original classes influences the performance
+#     a = compare_df[compare_df.n_classes == 2]['diff']
+#     b = compare_df[compare_df.n_classes > 2]['diff']
+#
+#     print("FInal result")
+#     print(baseline, ttest_ind(a, b).pvalue)
+#     print(a.mean(), b.mean())
+#
