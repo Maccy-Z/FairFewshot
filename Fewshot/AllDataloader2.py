@@ -369,6 +369,14 @@ class SplitDataloader:
 
 
 if __name__ == "__main__":
-    dl = SplitDataloader(ds_group="adult", bs=100, num_rows=10, num_targets=5, num_cols=-3, ds_split="test", binarise=True)
+    dl = SplitDataloader(ds_group=-1, bs=3, num_rows=3, num_targets=5, num_cols=-3, ds_split="all", binarise=True)
+
+    a = []
+    for ds in dl.all_datasets:
+        c = ds.ds_cols
 
 
+        if c > 99:
+            a.append(ds)
+
+    print(a)

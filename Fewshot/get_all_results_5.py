@@ -2,6 +2,7 @@ import pickle
 import os
 import pandas as pd
 
+
 def get_accuracy(model_name, ds_name, num_rows, num_cols):
     with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
         lines = f.read()
@@ -31,13 +32,12 @@ def get_accuracy(model_name, ds_name, num_rows, num_cols):
 datasets = sorted([d for d in os.listdir("./datasets/data/") if os.path.isdir(os.path.join("./datasets/data/", d))])
 model_names = ["LR", "KNN", "R_Forest", "CatBoost", "FTTransformer", "STUNT", "SVC", "TabNet", "TabPFN", "Iwata"]
 
-
 all_results = {}
 for ds in datasets:
     ds_result = {}
     for model in model_names:
         try:
-            m, std = get_accuracy(model, ds_name=ds, num_rows=10, num_cols=-3)
+            m, std = get_accuracy(model, ds_name=ds, num_rows=5, num_cols=-3)
             ds_result[model] = m
 
         except FileNotFoundError as e:
@@ -48,39 +48,34 @@ df = pd.DataFrame.from_dict(all_results, orient="index")
 
 get = "FLAT"
 
-with open("./Results/old_final/2/raw.pkl", "rb") as f:
+with open("./Results/old_final/5.1/raw.pkl", "rb") as f:
     results = pickle.load(f)
 
     results = results[results["model"].isin(["FLAT", "FLAT_maml"])]
     s1 = results.drop("num_cols", axis=1)
 
-    #print(s1)
-    #s1 = r.drop("model", axis=1)
+    # print(s1)
+    # s1 = r.drop("model", axis=1)
 
-with open("./Results/old_final/10/raw.pkl", "rb") as f:
+with open("./Results/old_final/9/raw.pkl", "rb") as f:
     results = pickle.load(f)
     results = results[results["model"].isin(["FLAT", "FLAT_maml"])]
     s2 = results.drop("num_cols", axis=1)
-    #s2 = r.drop("model", axis=1)
+    # s2 = r.drop("model", axis=1)
 
-
-with open("./Results/old_final/11/raw.pkl", "rb") as f:
+with open("./Results/old_final/8/raw.pkl", "rb") as f:
     results = pickle.load(f)
     results = results[results["model"].isin(["FLAT", "FLAT_maml"])]
     s3 = results.drop("num_cols", axis=1)
-    #s3 = r.drop("model", axis=1)
+    # s3 = r.drop("model", axis=1)
 
-
-with open("./Results/old_final/4.1/raw.pkl", "rb") as f:
+with open("./Results/old_final/7/raw.pkl", "rb") as f:
     results = pickle.load(f)
     results = results[results["model"].isin(["FLAT", "FLAT_maml"])]
     s0 = results.drop("num_cols", axis=1)
-    #s0 = r.drop("model", axis=1)
-
-
+    # s0 = r.drop("model", axis=1)
 
 s_all = pd.concat([s0, s1, s2, s3]).reset_index(drop=True)
-
 
 for ds, results in all_results.items():
     s = s_all[(s_all["data_name"] == ds)].squeeze()
@@ -92,11 +87,9 @@ for ds, results in all_results.items():
         results["FLAT_diff"] = flat_stats["acc"].iloc[0] - max(list(results.values()))
         results["FLAT_maml"] = maml_stats["acc"].iloc[0]
         results["FLAT"] = flat_stats["acc"].iloc[0]
-        #results["diff_diff"] = results["FLAT_maml"] - results["FLAT"]
-
+        # results["diff_diff"] = results["FLAT_maml"] - results["FLAT"]
 
 df = pd.DataFrame.from_dict(all_results, orient="index")
-
 
 df = df.sort_values(by='FLAT_diff', ascending=True)
 
@@ -107,13 +100,26 @@ df = df[cols]
 df = df.round(3)
 
 print()
+df = df.sort_index()
+df.rename(columns={"FLAT_maml": "FLATadapt"}, inplace=True)
+df.drop(columns="FLAT_diff", inplace=True)
+
+# Replace certain rows with NaN
+rows = ["hill-valley", "musk-1", "low-res-spect", "musk-2", "arrhythmia", "semeion"]
+for row in rows:
+    df.loc[row, "TabPFN"] = "NaN"
+
+print()
 print(df.to_string())
 
-df.to_csv("./all_binary_results")
-#print(df.index.tolist())
-#print(df['diff_diff'].tolist())
-print(df["FLAT_diff"].tolist())
+df.to_csv("./all_binary_results5")
 
+print(df["LR"].mean())
+
+
+# print(df.index.tolist())
+# print(df['diff_diff'].tolist())
+# print(df["FLAT_diff"].tolist())
 
 
 # from scipy.stats import ttest_ind

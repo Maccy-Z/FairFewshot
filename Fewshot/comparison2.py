@@ -499,9 +499,10 @@ def main(load_no, num_rows, ds_group):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
+    test_data_names = ["semeion"]
     # test_data_names.remove("semeion")
 
-    models = [BasicModel("LR"), Iwata(load_no)]  # [FLAT(num) for num in load_no]
+    models = [BasicModel("TabPFN")]  # [FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows
