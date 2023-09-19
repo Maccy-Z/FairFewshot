@@ -119,7 +119,7 @@ for row in rows:
 print()
 print(df.to_string())
 
-df.to_csv("./all_binary_results")
+df.to_csv("./all_binary_results10")
 
 
 
