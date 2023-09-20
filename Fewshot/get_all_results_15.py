@@ -15,7 +15,6 @@ def get_accuracy(model_name, ds_name, num_rows, num_cols):
             mean, std = float(config[-2]), float(config[-1])
             return mean, std
 
-
     raise FileNotFoundError(f"Requested config does not exist: {model_name}, {ds_name}, {num_rows=}, {num_cols=}")
 
 
@@ -94,7 +93,6 @@ df = df.sort_index()
 df.rename(columns={"FLAT_maml": "FLATadapt"}, inplace=True)
 df.drop(columns="FLAT_diff", inplace=True)
 
-
 # Replace certain rows with NaN
 rows = ["hill-valley", "musk-1", "low-res-spect", "musk-2", "arrhythmia", "semeion"]
 for row in rows:
@@ -104,6 +102,3 @@ print()
 print(df.to_string())
 
 df.to_csv("./all_binary_results15")
-
-
-
