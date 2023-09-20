@@ -15,16 +15,7 @@ def get_accuracy(model_name, ds_name, num_rows, num_cols):
             mean, std = float(config[-2]), float(config[-1])
             return mean, std
 
-    with open(f'./datasets/data/{ds_name}/base_tabpfn.dat', "r") as f:
-        lines = f.read()
-        lines = lines.split("\n")
 
-    for config in lines:
-        if config.startswith(f'{model_name}'):
-            config = config.split(",")
-
-            mean, std = float(config[-2]), float(config[-1])
-            return mean, std
 
     raise FileNotFoundError(f"Requested config does not exist: {model_name}, {ds_name}, {num_rows=}, {num_cols=}")
 
