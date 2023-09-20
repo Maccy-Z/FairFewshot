@@ -114,7 +114,18 @@ print(df.to_string())
 
 df.to_csv("./all_binary_results3")
 
-print(df["LR"].mean())
+# print(df["LR"].mean())
+#
+# print("LR", df["LR"].mean())
+# print("R_Forest", df['R_Forest'].mean())
+# print("SVC", df['SVC'].mean())
+# print("CatBoost", df['CatBoost'].mean())
+# print("TabPFN", df['TabPFN'].mean())
+# print("Iwata", df['Iwata'].mean())
+#
+# print("FLAT", df['FLAT'].mean())
+# print("FLATadapt", df['FLATadapt'].mean())
+
 
 
 # print(df.index.tolist())

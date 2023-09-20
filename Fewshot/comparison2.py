@@ -499,10 +499,10 @@ def main(load_no, num_rows, ds_group):
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    test_data_names = ["semeion"]
+    #test_data_names = ["semeion"]
     # test_data_names.remove("semeion")
 
-    models = [BasicModel("TabPFN")]  # [FLAT(num) for num in load_no]
+    models = [BasicModel("TabPFN"), BasicModel("LR")]  # [FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows
@@ -586,4 +586,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(load_no=3, num_rows=10, ds_group=(3, -1))
+    main(load_no=3, num_rows=5, ds_group=(0, -1))

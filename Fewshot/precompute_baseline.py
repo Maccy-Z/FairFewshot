@@ -59,7 +59,7 @@ def save_batch(ds_name, num_batches, num_targets):
 
 
 def main_append(f, num_targets, load_no):
-    models = [Iwata(load_no)]
+    models = [BasicModel("TabPFN")]
 
     model_accs = []  # Save format: [model, num_rows, num_cols, acc, std]
 
@@ -80,31 +80,32 @@ def main_append(f, num_targets, load_no):
         for row in model_accs:
             writer.writerow(row)
 
-
-def main(f, num_targets):
-    models = [
-        Iwata(0)
-    ]
-
-    model_accs = []  # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
-
-    for model in models:
-        print(model)
-        for num_rows in [3, 5, 10, 15]:
-            for num_cols in [-3, ]:
-                try:
-                    batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
-                except IndexError as e:
-                    print(e)
-                    break
-                mean_acc, std_acc = model.get_accuracy(batch)
-                model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
-
-    with open(f'{data_dir}/{f}/iwata.dat', 'a', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
-        for row in model_accs:
-            writer.writerow(row)
+#
+# def main(f, num_targets):
+#     models = [
+#         Iwata(0)
+#     ]
+#
+#     model_accs = []  # Save format: [model, num_rows, num_cols, (num_1s), acc, std]
+#
+#     for model in models:
+#         print(model)
+#         for num_rows in [3, 5, 10, 15]:
+#             for num_cols in [-3, ]:
+#                 try:
+#                     batch = load_batch(ds_name=f, num_rows=num_rows, num_cols=-3, num_targets=num_targets)
+#                 except IndexError as e:
+#                     print(e)
+#                     break
+#                 mean_acc, std_acc = model.get_accuracy(batch)
+#                 model_accs.append([model, num_rows, num_cols, mean_acc, std_acc])
+#
+#     with open(f'{data_dir}/{f}/iwata.dat', 'a', newline='') as f:
+#         writer = csv.writer(f)
+#         writer.writerow(["Model", "num_rows", "num_cols", "acc", "std"])
+#         for row in model_accs:
+#             writer.writerow(row)
+#
 
 
 if __name__ == "__main__":
@@ -119,15 +120,15 @@ if __name__ == "__main__":
     num_bs = 200
     num_targs = 5
 
-    # files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
-    fold_no = 3
-    load_no = fold_no
-
-    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-    files = []
-    for split in range(6):
-        names = splits[str(split)]["test"]
-        files += names
+    files = [f for f in sorted(os.listdir(data_dir)) if os.path.isdir(f'{data_dir}/{f}')]
+    # fold_no = 3
+    # load_no = fold_no
+    #
+    # splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+    # files = []
+    # for split in range(6):
+    #     names = splits[str(split)]["test"]
+    #     files += names
 
     print(files)
     for f in files:
@@ -135,5 +136,5 @@ if __name__ == "__main__":
         print(f)
 
         # save_batch(f, num_bs, num_targs)
-        main_append(f, num_targets=num_targs, load_no=load_no)
+        main_append(f, num_targets=num_targs, load_no=None)
         # main(f, num_targets=num_targs)

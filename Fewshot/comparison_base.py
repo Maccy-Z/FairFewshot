@@ -121,7 +121,7 @@ def main(fold_no, num_rows, ):
 
 
 
-    models = [Model("LR"), Model("SVC"), Model("STUNT")
+    models = [Model("TabPFN")
               ]
 
     unseen_results = get_results_by_dataset(
@@ -190,4 +190,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    main(fold_no=0, num_rows=15)
+    main(fold_no=1, num_rows=15)

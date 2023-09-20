@@ -6,10 +6,10 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from collections import defaultdict
 
-
 import sys
+
 sys.path.append('/mnt/storage_ssd/FairFewshot/STUNT_main')
-#from STUNT_interface import STUNT_utils, MLPProto
+# from STUNT_interface import STUNT_utils, MLPProto
 
 BASEDIR = '.'
 
@@ -19,9 +19,8 @@ class Model(ABC):
     def __init__(self, model_name):
         self.model_name = model_name
 
-
     def get_accuracy(self, ds_name, num_rows, num_cols):
-        with open(f'./datasets/data/{ds_name}/3_class.dat', "r") as f:
+        with open(f'./datasets/data/{ds_name}/baselines.dat', "r") as f:
             lines = f.read()
 
         lines = lines.split("\n")[1:]
@@ -33,14 +32,13 @@ class Model(ABC):
                 mean, std = float(config[-2]), float(config[-1])
                 return mean, std
 
-
         raise FileNotFoundError(f"Requested config does not exist: {self.model_name}, {ds_name}, {num_rows=}, {num_cols=}")
 
     def __repr__(self):
         return self.model_name
 
 
-def get_results_by_dataset(test_data_names, models, num_rows=10,):
+def get_results_by_dataset(test_data_names, models, num_rows=10, ):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -74,33 +72,38 @@ def get_results_by_dataset(test_data_names, models, num_rows=10,):
                 std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
 
             result = pd.DataFrame({
-                        'data_name': data_name,
-                        'model': str(model_name),
-                        'num_cols': -1,
-                        'acc': mean_acc,
-                        'std': std_acc
-                        }, index=[0])
+                'data_name': data_name,
+                'model': str(model_name),
+                'num_cols': -1,
+                'acc': mean_acc,
+                'std': std_acc
+            }, index=[0])
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
     return results
 
 
-def main(num_rows):
-
+def main(num_rows, fold_no):
     ds_dir = "./datasets/data"
-    test_data_names = [f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')]
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
 
-    #print("Test datasets:", test_data_names)
+    test_data_names = []
+    for split in range(6):
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
 
-    models = [Model("LR"), Model("CatBoost"),# Model("R_Forest"),  Model("KNN"), Model("TabNet"), Model("FTTransformer")
+    #test_data_names = [f for f in os.listdir(ds_dir) if os.path.isdir(f'{ds_dir}/{f}')]
+
+    print("Test datasets:", test_data_names)
+
+    models = [Model("TabPFN"),  # Model("R_Forest"),  Model("KNN"), Model("TabNet"), Model("FTTransformer")
               ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
         num_rows=num_rows
     )
-
 
     # Results for each dataset
     detailed_results = unseen_results.copy()
@@ -117,13 +120,11 @@ def main(num_rows):
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
 
-
     # Aggreate results
     agg_results = unseen_results.copy()
 
     # Move flat to first column
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-
 
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
@@ -152,19 +153,15 @@ def main(num_rows):
     # print()
     # print("======================================================")
     # print("Test accuracy on unseen datasets (aggregated)")
-    # print(agg_results.to_string(index=False))
-    #print(agg_results.to_string())
+    print(agg_results.to_string(index=False))
 
     return unseen_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
 
 
 if __name__ == "__main__":
-
     random.seed(0)
     np.random.seed(0)
     torch.manual_seed(0)
 
-
-    det_res = main( num_rows=10)
-    print(det_res)
-
+    det_res = main(num_rows=15, fold_no=3)
+    #print(det_res)
