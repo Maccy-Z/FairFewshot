@@ -1,5 +1,5 @@
 import torch
-#from main import *
+# from main import *
 from dataloader import d2v_pairer
 from AllDataloader2 import SplitDataloader, MyDataSet
 from config import get_config
@@ -21,6 +21,7 @@ from tabpfn import TabPFNClassifier
 from ds_base import InfModel, ff_block
 
 import sys
+
 #
 # sys.path.append('/mnt/storage_ssd/fewshot_learning/FairFewshot/STUNT_main')
 # from STUNT_interface import STUNT_utils, MLPProto
@@ -344,7 +345,6 @@ class FLAT_MAML(Model):
         else:
             steps = 3
 
-
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
         pairs_meta = d2v_pairer(xs_meta, ys_meta)
         with torch.no_grad():
@@ -463,26 +463,12 @@ def get_results_by_dataset(test_data_names, models, num_rows, shots):
     return results
 
 
-def main(shots, num_rows, ds_group):
-    # fold_no, split_no = ds_group
-    #
-    # splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-    #
-    # get_splits = range(6)
-    #
-    # test_data_names = []
-    # for split in get_splits:
-    #     ds_name = splits[str(split)]["test"]
-    #     test_data_names += ds_name
-
+def main(shots, num_rows):
     directory = f'./datasets/data'
     test_data_names = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
-    # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
-    #test_data_names.remove("semeion")
-
-    models = [BasicModel("LR"), BasicModel("TabPFN")] #[FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), BasicModel("TabPFN")]  # [FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows, shots=shots
@@ -494,14 +480,6 @@ def main(shots, num_rows, ds_group):
     mean, std = detailed_results["acc"], detailed_results["std"]
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
-
-    results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets")
-    # print(results.to_string())
-
-    det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
-    det_results = det_results.to_string()
 
     # Aggreate results
     agg_results = unseen_results.copy()
@@ -535,30 +513,14 @@ def main(shots, num_rows, ds_group):
 
         agg_results[model_name] = mean_stds
 
-    # print()
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets (aggregated)")
-    #print(agg_results["FLAT_diff"].to_string(index=False))
-    # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
-
-    # with open(f'{result_dir}/aggregated', "w") as f:
-    #     for line in agg_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/detailed', "w") as f:
-    #     for line in det_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/raw.pkl', "wb") as f:
-    #     pickle.dump(unseen_results, f)
+    with open(f'{shots}_{num_rows}/aggregated', "w") as f:
+        for line in agg_results:
+            f.write(line)
 
 
 if __name__ == "__main__":
-    # random.seed(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
-
-    main(shots=4, num_rows=10, ds_group=(2, -1))
+    for shots in [1, 2, 3, 4, 5]:
+        main(shots=4, num_rows=10)
