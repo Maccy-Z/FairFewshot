@@ -1,5 +1,5 @@
 import torch
-from main import *
+#from main import *
 from dataloader import d2v_pairer
 from AllDataloader2 import SplitDataloader, MyDataSet
 from config import get_config
@@ -28,8 +28,8 @@ import sys
 BASEDIR = '.'
 
 
-def load_batch(ds_name, num_rows):
-    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_5_-3", "rb") as f:
+def load_batch(ds_name, num_rows, shots):
+    with open(f"./datasets/data/{ds_name}/batches/{num_rows}_5_-3_{shots}", "rb") as f:
         batch = pickle.load(f)
 
     if batch is None:
@@ -244,7 +244,7 @@ class BasicModel(Model):
                 self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
 
             case "TabPFN":
-                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=32)
+                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=16)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -411,7 +411,7 @@ class Iwata(Model):
         return "Iwata"
 
 
-def get_results_by_dataset(test_data_names, models, num_rows):
+def get_results_by_dataset(test_data_names, models, num_rows, shots):
     """
     Evaluates the model and baseline_models on the test data sets.
     Results are groupped by: data set, model, number of test columns.
@@ -423,9 +423,9 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     for data_name in test_data_names:
         print(data_name)
         try:
-            #batch = load_batch(ds_name=data_name, num_rows=num_rows)
-            dl = SplitDataloader(ds_group=data_name, bs=75, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
-            batch = get_batch(dl, num_rows=num_rows)
+            batch = load_batch(ds_name=data_name, num_rows=num_rows, shots=shots)
+            # dl = SplitDataloader(ds_group=data_name, bs=200, num_rows=num_rows, num_targets=num_rows, num_cols=-3, ds_split="test", binarise=True)
+            # batch = get_batch(dl, num_rows=num_rows)
 
         except IndexError as e:
             print(e)
@@ -463,51 +463,29 @@ def get_results_by_dataset(test_data_names, models, num_rows):
     return results
 
 
-def main(load_no, num_rows, ds_group):
-    # dir_path = f'{BASEDIR}/saves/old_final'
-    # files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
-    # #existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
-    # #load_no = [existing_saves[num] for num in load_no]
-    # load_dir = f'{dir_path}/save_{load_no[-1]}'
+def main(shots, num_rows, ds_group):
+    # fold_no, split_no = ds_group
     #
-    # result_dir = f'{BASEDIR}/Results/maml_redo'
-    # files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    # existing_results = sorted([int(f) for f in files if f.isdigit()])
-    # result_no = existing_results[-1] + 1
+    # splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
     #
-    # result_dir = f'{result_dir}/{result_no}'
-    # print(result_dir)
-    #os.mkdir(result_dir)
+    # get_splits = range(6)
+    #
+    # test_data_names = []
+    # for split in get_splits:
+    #     ds_name = splits[str(split)]["test"]
+    #     test_data_names += ds_name
 
-    #Split
-    # all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
-    # cfg = all_cfg["DL_params"]
-    # ds = all_cfg["Settings"]["dataset"]
-    # ds_group = cfg["ds_group"]
-    # print()
-    # print(ds_group)
-    fold_no, split_no = ds_group
-
-    #fold_no = ds_split
-
-    splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-
-    get_splits = range(6)
-
-    test_data_names = []
-    for split in get_splits:
-        ds_name = splits[str(split)]["test"]
-        test_data_names += ds_name
-
+    directory = f'./datasets/data'
+    test_data_names = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
     # print("Train datases:", train_data_names)
     print("Test datasets:", test_data_names)
 
     #test_data_names.remove("semeion")
 
-    models = [FTTrModel()] #[FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), BasicModel("TabPFN")] #[FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
-        test_data_names, models, num_rows
+        test_data_names, models, num_rows, shots=shots
     )
 
     # Results for each dataset
@@ -532,12 +510,6 @@ def main(load_no, num_rows, ds_group):
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
     new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
     agg_results = agg_results.reindex(columns=new_column_order)
-
-    # Difference between FLAT and best model
-    # agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    # agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
-    # agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-    # agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
 
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
@@ -589,4 +561,4 @@ if __name__ == "__main__":
     # np.random.seed(0)
     # torch.manual_seed(0)
 
-    main(load_no=[], num_rows=10, ds_group=(2, -1))
+    main(shots=4, num_rows=10, ds_group=(2, -1))
