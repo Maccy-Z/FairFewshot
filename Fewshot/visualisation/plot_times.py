@@ -17,7 +17,7 @@ rows = accs.strip().split("\n")
 table = [row.split("\t") for row in rows]
 table = np.array(table, dtype=float).T
 
-ds_names = "FLAT	FLATadapt	LR	KNN	SVC	R_Forest	CatBoost	TabNet	FTT	STUNT	Itawa	TabPFN"
+ds_names = "FLAT	FLATadapt	LR	KNN	SVC	RForest	CatBoost	TabNet	FTT	STUNT	Iwata	TabPFN"
 ds_names = ds_names.split()
 print(ds_names)
 print(table.shape, len(ds_names))
@@ -34,11 +34,14 @@ for ds, t in zip(ds_names, table, strict=True):
 
 plt.legend(loc='upper left')
 plt.xticks(np.arange(9), x_label)
+#plt.xticks(np.arange(9), x_label)
+plt.yticks(np.arange(0, 151, 25))
 plt.ylim(0, 150)
 
-plt.ylabel("t / s")
-plt.xlabel("Ncol")
+plt.ylabel("Time / s")
+plt.xlabel("Number of features")
 plt.tight_layout()
+plt.savefig("./test2.pdf")
 plt.show()
 
 
