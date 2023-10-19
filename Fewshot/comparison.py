@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from collections import defaultdict
 
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
@@ -19,15 +18,20 @@ from sklearn.ensemble import RandomForestClassifier
 from pytorch_tabnet.tab_model import TabNetClassifier
 from catboost import CatBoostClassifier, CatboostError
 from tab_transformer_pytorch import FTTransformer
+from tabpfn import TabPFNClassifier
+from iwata import InfModel, ff_block
 
+import sys
+
+sys.path.append("/home/maccyz/Documents/FairFewshot/STUNT_main")
 from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
 
-BASEDIR = '.'
+BASEDIR = '../'
 
 
 def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
     if num_1s is None:
-        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+        with open(f"../datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
             batch = pickle.load(f)
     else:
         with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
@@ -71,7 +75,7 @@ class STUNT(STUNT_utils, Model):
 
     def __init__(self):
         self.lr = 0.0001
-        self.model_size = (1024, 1024) # num_cols, out_dim, hid_dim
+        self.model_size = (1024, 1024)  # num_cols, out_dim, hid_dim
         self.steps = 5
         self.tasks_per_batch = 4
         self.test_num_way = 2
@@ -79,7 +83,7 @@ class STUNT(STUNT_utils, Model):
         self.kmeans_iter = 5
 
     def fit(self, xs_meta, ys_meta):
-        self.shot = (xs_meta.shape[0] -2)//2
+        self.shot = (xs_meta.shape[0] - 2) // 2
         ys_meta = ys_meta.flatten().long()
 
         # Reset the model
@@ -99,7 +103,6 @@ class STUNT(STUNT_utils, Model):
 
         self.prototypes = self.get_prototypes(meta_embed.unsqueeze(0), ys_meta.unsqueeze(0), 2)
 
-
     def get_acc(self, xs_target, ys_target):
         self.model.eval()
         with torch.no_grad():
@@ -107,7 +110,6 @@ class STUNT(STUNT_utils, Model):
 
         self.prototypes = self.prototypes[0]
         support_target = support_target.unsqueeze(1)
-
 
         sq_distances = torch.sum((self.prototypes
                                   - support_target) ** 2, dim=-1)
@@ -140,7 +142,7 @@ class TabnetModel(Model):
                 warnings.simplefilter("ignore")
 
                 try:
-                    #self.model.fit(xs_meta, ys_meta, drop_last=False)
+                    # self.model.fit(xs_meta, ys_meta, drop_last=False)
                     self.model.fit(xs_meta, ys_meta,
                                    eval_name=["accuracy"], eval_set=[(xs_meta, ys_meta)],
                                    batch_size=self.bs, patience=self.patience, drop_last=False)
@@ -226,11 +228,10 @@ class BasicModel(Model):
                 self.model = KNN(n_neighbors=2, p=1, weights="distance")
             case "CatBoost":
                 self.model = CatBoostClassifier(iterations=200, learning_rate=0.03, allow_const_label=True, verbose=False)
-                    # iterations=20, depth=4, learning_rate=0.5,
-                    #                             loss_function='Logloss', allow_const_label=True, verbose=False)
-
             case "R_Forest":
                 self.model = RandomForestClassifier(n_estimators=150, n_jobs=5)
+            case "TabPFN":
+                self.model = TabPFNClassifier(device="cpu", N_ensemble_configurations=16)
             case _:
                 raise Exception("Invalid model specified")
 
@@ -282,7 +283,6 @@ class FLAT(Model):
         self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
-
     def fit(self, xs_meta, ys_meta):
         xs_meta, ys_meta = xs_meta.unsqueeze(0), ys_meta.unsqueeze(0)
 
@@ -303,7 +303,7 @@ class FLAT(Model):
         return "FLAT"
 
 
-class FLAT_MAML(Model):
+class FLATadapt(Model):
     def __init__(self, load_no, save_ep=None):
         save_dir = f'{BASEDIR}/saves/save_{load_no}'
         print(f'Loading model at {save_dir = }')
@@ -354,6 +354,34 @@ class FLAT_MAML(Model):
         return "FLAT_maml"
 
 
+class Iwata(Model):
+    def __init__(self, load_no):
+        save_dir = f'{BASEDIR}/iwata/{load_no}'
+        print(f'Loading model at {save_dir = }')
+
+        self.model = torch.load(f'{save_dir}/model.pt')
+
+    def fit(self, xs_meta, ys_meta):
+        xs_meta, ys_meta = xs_meta.unsqueeze(-1).unsqueeze(0), ys_meta.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)
+
+        with torch.no_grad():
+            self.model.forward_meta(xs_meta, ys_meta)
+
+    def get_acc(self, xs_target, ys_target) -> np.array:
+        xs_target = xs_target.unsqueeze(-1).unsqueeze(0)
+        with torch.no_grad():
+            ys_pred_target = self.model.forward_target(xs_target)
+
+        ys_pred_target_labels = torch.argmax(ys_pred_target, dim=-1)
+
+        ys_target = ys_target.squeeze().flatten()
+
+        return (ys_pred_target_labels == ys_target).numpy()
+
+    def __repr__(self):
+        return "Iwata"
+
+
 def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, num_1s=None):
     """
     Evaluates the model and baseline_models on the test data sets.
@@ -367,7 +395,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
         print(data_name)
         try:
             batch = load_batch(ds_name=data_name, num_rows=num_rows, num_cols=-3, num_targets=num_targets, num_1s=num_1s)
-        except IndexError as e :
+        except IndexError as e:
             print(e)
             continue
 
@@ -391,12 +419,12 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 std_acc = np.std(means, ddof=1) / np.sqrt(means.shape[0])
 
             result = pd.DataFrame({
-                        'data_name': data_name,
-                        'model': str(model_name),
-                        'num_cols': -1,
-                        'acc': mean_acc,
-                        'std': std_acc
-                        }, index=[0])
+                'data_name': data_name,
+                'model': str(model_name),
+                'num_cols': -1,
+                'acc': mean_acc,
+                'std': std_acc
+            }, index=[0])
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
@@ -405,20 +433,11 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
 
 def main(load_no, num_rows, num_1s=None):
     dir_path = f'{BASEDIR}/saves'
+    print(dir_path)
     files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
     existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
-
-    result_dir = f'{BASEDIR}/Results'
-    files = [f for f in os.listdir(result_dir) if os.path.isdir(f'{result_dir}/{f}')]
-    existing_results = sorted([int(f) for f in files])
-
-    result_no = existing_results[-1] + 1
-
-    result_dir = f'{result_dir}/{result_no}'
-    print(result_dir)
-    os.mkdir(result_dir)
 
     all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
     cfg = all_cfg["DL_params"]
@@ -439,7 +458,7 @@ def main(load_no, num_rows, num_1s=None):
 
     elif ds == "total":
         fold_no, split_no = ds_group
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+        splits = toml.load(f'../datasets/grouped_datasets/splits_{fold_no}')
         if split_no == -1:
             get_splits = range(6)
         else:
@@ -464,14 +483,14 @@ def main(load_no, num_rows, num_1s=None):
     num_targets = 5
 
     models = [BasicModel("R_Forest"), BasicModel("LR")]
-    #[FLAT(num) for num in load_no] + \
-             # [FLAT_MAML(num) for num in load_no] + \
-             #  [
-             #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-             #  # TabnetModel(),
-             #  # FTTrModel(),
-             #  # STUNT(),
-             #  ]
+    # [FLAT(num) for num in load_no] + \
+    # [FLAT_MAML(num) for num in load_no] + \
+    #  [
+    #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
+    #  # TabnetModel(),
+    #  # FTTrModel(),
+    #  # STUNT(),
+    #  ]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
@@ -493,7 +512,6 @@ def main(load_no, num_rows, num_1s=None):
     det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
     det_results = det_results.to_string()
 
-
     # Aggreate results
     agg_results = unseen_results.copy()
 
@@ -507,7 +525,7 @@ def main(load_no, num_rows, num_1s=None):
     agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
     agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
-    
+
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
@@ -540,24 +558,21 @@ def main(load_no, num_rows, num_1s=None):
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
-
-    with open(f'{result_dir}/aggregated', "w") as f:
-        for line in agg_results:
-            f.write(line)
-
-    with open(f'{result_dir}/detailed', "w") as f:
-        for line in det_results:
-            f.write(line)
-
-    with open(f'{result_dir}/raw.pkl', "wb") as f:
-        pickle.dump(unseen_results, f)
+    # with open(f'{result_dir}/aggregated', "w") as f:
+    #     for line in agg_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/detailed', "w") as f:
+    #     for line in det_results:
+    #         f.write(line)
+    #
+    # with open(f'{result_dir}/raw.pkl', "wb") as f:
+    #     pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
-
     random.seed(0)
     np.random.seed(0)
     torch.manual_seed(0)
 
-
-    col_accs = main(load_no=[10], num_rows=10)
+    col_accs = main(load_no=[1], num_rows=10)

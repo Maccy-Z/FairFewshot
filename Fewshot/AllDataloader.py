@@ -49,7 +49,7 @@ class MyDataSet:
         
         Here, combine test and valid folds. 
         """
-        ds_dir = f'{DATADIR}/data'
+        ds_dir = f'../{DATADIR}/data'
         # get train fold
         folds = pd.read_csv(
             f"{ds_dir}/{ds_name}/folds_py.dat", header=None)[0]
@@ -244,7 +244,7 @@ class SplitDataloader:
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, tuple):
             fold_no, split_no = self.ds_group
-            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
+            splits = toml.load(f'../datasets/grouped_datasets/splits_{fold_no}')
             if split_no == -1:
                 get_splits = range(6)
             else:

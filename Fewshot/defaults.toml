@@ -4,6 +4,7 @@ set_out_dim = 64
 d2v_layers = [ 4, 2, 4,]
 pos_depth = 2
 pos_enc_dim = 15
+model_load = "model_3"
 weight_hid_dim = 64
 gen_layers = 1
 gat_heads = 2
@@ -25,13 +26,13 @@ decay = 0.0001
 [DL_params]
 bs = 3
 num_rows = 10
-num_targets = 15
-ds_group = [1, -1]
+num_targets = 10
+ds_group = [ 0, -1,]
 binarise = true
 split_file = ""
 
 [Settings]
-num_epochs = 31
+num_epochs = 51
 val_duration = 100
 val_interval = 2000
 dataset = "total"
