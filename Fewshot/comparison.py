@@ -236,7 +236,7 @@ class BasicModel(Model):
                 raise Exception("Invalid model specified")
 
         self.name = name
-        self.identical_batch = False
+        self.identical_batch, self.pfn_error = False, False
 
     def fit(self, xs_meta, ys_meta):
         ys_meta = ys_meta.flatten().numpy()
@@ -250,17 +250,13 @@ class BasicModel(Model):
 
             try:
                 self.model.fit(xs_meta, ys_meta)
-                # print(self.model.get_all_params())
-                # exit(2)
             except CatboostError:
-                # Catboost fails if every input element is the same
                 self.identical_batch = True
                 mode = stats.mode(ys_meta, keepdims=False)[0]
                 self.pred_val = mode
 
             except ValueError as e:
                 assert self.name == "TabPFN"
-                # TabPFN cant do more than 100 attributes
                 self.pfn_error = True
                 mode = stats.mode(ys_meta, keepdims=False)[0]
                 self.pred_val = mode
@@ -268,7 +264,7 @@ class BasicModel(Model):
 
     def get_acc(self, xs_target, ys_target):
         xs_target = xs_target.numpy()
-        if self.identical_batch:
+        if self.identical_batch or self.pfn_error:
             predictions = np.ones_like(ys_target) * self.pred_val
         else:
             predictions = self.model.predict(xs_target)
@@ -489,7 +485,7 @@ def main(load_no, num_rows, num_1s=None):
     else:
         raise Exception("Invalid data split")
 
-    models = [FLAT(load_no[0]), Iwata(0), BasicModel("LR"), BasicModel("TabPFN")] # FLATadapt(load_no[0]), BasicModel("SVC"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),  # TabnetModel(), # FTTrModel(), # STUNT(),]
+    models = [FLAT(load_no[0]), BasicModel("LR")] # FLATadapt(load_no[0]), Iwata(0), BasicModel("TabPFN"), BasicModel("SVC"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),  # TabnetModel(), # FTTrModel(), # STUNT(),]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,

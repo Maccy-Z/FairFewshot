@@ -157,10 +157,10 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
 
 
 def main():
-    files = [f for f in os.listdir("../iwata") if os.path.isdir(f'{"./iwata"}/{f}')]
+    files = [f for f in os.listdir("../iwata") if os.path.isdir(f'../iwata/{f}')]
     existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
     save_no = existing_saves[-1] + 1
-    save_dir = f'./iwata/{save_no}'
+    save_dir = f'../iwata/{save_no}'
     print("Making new save folder at: ")
     print(save_dir)
     os.mkdir(save_dir)
@@ -176,8 +176,6 @@ def main():
     )
 
     for epoch in range(75):
-        print()
-        st = time.time()
 
         # Train loop
         model.train()
@@ -194,10 +192,7 @@ def main():
             acc, loss = fit(optim, model, xs_meta, ys_meta, xs_target, ys_target)
 
         print(f'{acc:.3g}')
-
-        duration = time.time() - st
-        print(f'{epoch = }, {duration = :.2g}s')
-
+        print(f'{epoch = }')
         torch.save(model, f'{save_dir}/model.pt')
 
     with open(f'{save_dir}/finish', "w") as f:
