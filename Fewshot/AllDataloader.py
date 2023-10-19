@@ -26,7 +26,7 @@ def one_vs_all(ys):
 
 class MyDataSet:
     def __init__(
-            self, ds_name, num_rows, num_targets, binarise, split, 
+            self, ds_name, num_rows, num_targets, binarise, split,
             dtype=torch.float32, device="cpu"):
         self.ds_name = ds_name
         self.num_rows = num_rows
@@ -38,7 +38,6 @@ class MyDataSet:
         self.dtype = dtype
 
         self.train, self.valid, self.test = False, False, False
-
 
         """
         Dataset format: {folder}_py.dat             predictors
@@ -107,29 +106,7 @@ class MyDataSet:
                 print("WARN: Discarding dataset due to lack of labels", self.ds_name)
                 self.ds_rows = 0
         else:
-            assert False
-            # If one label makes up more than 50% of the column, downweight its sampling probability of category to 50%.
-            row_probs = np.ones(self.ds_rows)
-
-            col_data = self.data[:, -1]
-            unique_lab, unique_idx, counts = np.unique(
-                col_data, return_counts=True, return_inverse=True)
-            if np.max(counts) / self.ds_rows > 0.5:
-                max_prob = self.ds_rows / np.max(counts) - 1
-
-                # Some cols have all entries identical.
-                if max_prob == 0:
-                    pass
-                    # print(f"Warning: Entire column contains 1 unique entry, ds={self.data_name}, {col_no=}")
-                    # print(np.max(counts) / self.tot_rows)
-                else:
-                    top_idx = (unique_idx == np.argmax(counts))
-                    row_probs[top_idx] = max_prob
-
-            row_probs = row_probs / np.sum(row_probs)
-
-            self.row_probs = row_probs.T
-
+            assert False, "Not implemented"
 
     def sample(self, num_cols, num_1s=None):
         targ_col = -1
@@ -170,11 +147,7 @@ class MyDataSet:
             select_data = torch.cat([meta_rows, targ_rows])
 
         else:
-            assert False
-            rows = np.random.choice(
-                self.ds_rows, size=self.tot_rows, replace=False, p=self.row_probs)
-            select_data = self.data[rows]
-
+            assert False, "Not implemented"
         # Pick out wanted columns
         xs = select_data[:, predict_cols]
         ys = select_data[:, targ_col]
@@ -188,7 +161,6 @@ class MyDataSet:
             ys = one_vs_all(ys)
         return xs, ys
 
-
     def __repr__(self):
         return self.ds_name
 
@@ -201,7 +173,7 @@ class SplitDataloader:
             self, bs, num_rows, num_targets, binarise=False,
             num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
             split_file='./datasets/grouped_datasets/splits',
-            num_1s = None, decrease_col_prob=-1):
+            num_1s=None, decrease_col_prob=-1):
         """
 
         :param bs: Number of datasets to sample from each batch
@@ -278,10 +250,10 @@ class SplitDataloader:
             raise Exception("Invalid ds_group")
 
         self.all_datasets = [
-            MyDataSet(name, num_rows=self.num_rows, 
-                        num_targets=self.num_targets,
-                        binarise=self.binarise, 
-                        device=self.device, split="all")
+            MyDataSet(name, num_rows=self.num_rows,
+                      num_targets=self.num_targets,
+                      binarise=self.binarise,
+                      device=self.device, split="all")
             for name in ds_names]
 
         valid_datasets = []
@@ -292,10 +264,8 @@ class SplitDataloader:
                 print(f"WARN: Discarding {d}, due to not enough rows")
         self.all_datasets = valid_datasets
 
-
         if len(self.all_datasets) == 0:
             raise IndexError(f"No datasets with enough rows. Required: {self.tot_rows}")
-
 
         ds_len = [ds.ds_cols for ds in self.all_datasets]
         self.min_ds_cols = min(ds_len)
@@ -326,7 +296,7 @@ class SplitDataloader:
 
                 else:
                     num_cols_range = self.num_cols
-                
+
                 if self.decrease_col_prob == -1:
                     num_cols = np.random.choice(
                         list(range(num_cols_range[0], num_cols_range[1] + 1)), size=1)[0]
@@ -360,4 +330,3 @@ class SplitDataloader:
 
     def __repr__(self):
         return str(self.all_datasets)
-
