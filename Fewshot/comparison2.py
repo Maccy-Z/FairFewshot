@@ -464,11 +464,19 @@ def get_results_by_dataset(test_data_names, models, num_rows, shots):
 
 
 def main(shots, num_rows):
-    directory = f'./datasets/data'
-    test_data_names = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
+    # directory = f'./datasets/data'
+    # test_data_names = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
+    #
+    split_no = 3
+    splits = toml.load(f'./datasets/grouped_datasets/splits_{split_no}')
+
+    test_data_names = []
+    for split in range(6):
+        ds_name = splits[str(split)]["test"]
+        test_data_names += ds_name
     print("Test datasets:", test_data_names)
 
-    models = [BasicModel("LR"), BasicModel("TabPFN")]  # [FLAT(num) for num in load_no]
+    models = [BasicModel("LR"), Iwata(split_no)]  # [FLAT(num) for num in load_no]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models, num_rows, shots=shots
@@ -516,11 +524,11 @@ def main(shots, num_rows):
     print(agg_results.to_string())
     agg_results = agg_results.to_string()
 
-    with open(f'{shots}_{num_rows}/aggregated', "w") as f:
+    with open(f'./{shots}_{num_rows}', "w") as f:
         for line in agg_results:
             f.write(line)
 
 
 if __name__ == "__main__":
     for shots in [1, 2, 3, 4, 5]:
-        main(shots=4, num_rows=10)
+        main(shots=shots, num_rows=10)
