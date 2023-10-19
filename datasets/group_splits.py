@@ -1,4 +1,4 @@
-# Split into 4 folds. Group each fold by t-SNE/NN group.
+# Split into 4 folds.
 import os
 import random
 import toml

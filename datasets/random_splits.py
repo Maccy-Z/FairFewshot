@@ -1,3 +1,4 @@
+"""Generate medical dataset splits"""
 import random
 import numpy as np
 import toml

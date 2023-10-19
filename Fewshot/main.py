@@ -1,5 +1,5 @@
 """
-This file trains a new model.
+Train a FLAT models.
 """
 import torch
 import torch.nn as nn
@@ -339,7 +339,7 @@ class ModelHolder(nn.Module):
         return cross_entropy
 
 
-def main(all_cfgs, device="cpu", nametag=None, train_split=None):
+def main(all_cfgs, nametag=None):
     save_holder = None
 
     cfg = all_cfgs["DL_params"]
@@ -405,7 +405,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
     eps = cfg["eps"]
     decay = cfg["decay"]
 
-    model = ModelHolder(cfg_all=all_cfgs, device=device).to(device)
+    model = ModelHolder(cfg_all=all_cfgs)
 
     optim = torch.optim.AdamW(model.parameters(), lr=lr, eps=eps, weight_decay=decay)
     # optim_sched = StepLR(optim, step_size=20, gamma=0.5)
@@ -422,7 +422,6 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
         # Train loop
         model.train()
         for xs, ys, _ in itertools.islice(dl, val_interval):
-            xs, ys = xs.to(device), ys.to(device)
             # Train loop
             # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
@@ -460,9 +459,7 @@ def main(all_cfgs, device="cpu", nametag=None, train_split=None):
         epoch_accs, epoch_losses = [], []
         save_ys_targ, save_pred_labs = [], []
         for xs, ys, _ in itertools.islice(val_dl, val_duration):
-            xs, ys = xs.to(device), ys.to(device)
             # xs.shape = [bs, num_rows+1, num_cols]
-
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
             # Splicing like this changes the tensor's stride. Fix here:
@@ -503,7 +500,7 @@ if __name__ == "__main__":
 
     dev = torch.device("cpu")
 
-    main(all_cfgs=get_config(), device=dev, train_split=[0, -1])
+    main(all_cfgs=get_config())
 
     print("")
     print("Training Completed")

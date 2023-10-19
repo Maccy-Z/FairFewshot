@@ -1,5 +1,5 @@
 """
-This file contains all baseline implementations and compares against baselines.
+This file contains all baseline implementations and compares FLAT(adapt) against baselines.
 """
 from main import *
 from dataloader import d2v_pairer
@@ -258,6 +258,14 @@ class BasicModel(Model):
                 mode = stats.mode(ys_meta, keepdims=False)[0]
                 self.pred_val = mode
 
+            except ValueError as e:
+                assert self.name == "TabPFN"
+                # TabPFN cant do more than 100 attributes
+                self.pfn_error = True
+                mode = stats.mode(ys_meta, keepdims=False)[0]
+                self.pred_val = mode
+                print(e)
+
     def get_acc(self, xs_target, ys_target):
         xs_target = xs_target.numpy()
         if self.identical_batch:
@@ -351,7 +359,7 @@ class FLATadapt(Model):
         return (ys_pred_target_labels == ys_target).numpy()
 
     def __repr__(self):
-        return "FLAT_maml"
+        return "FLATadapt"
 
 
 class Iwata(Model):
@@ -411,7 +419,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
             if len(acc_stds) == 1:
                 mean_acc, std_acc = acc_stds[0, 0], acc_stds[0, 1]
 
-            # Average over all FLAT and FLAT_MAML models.
+            # Average over all FLAT and FLATadapt models.
             # For FLAT, variance is variance between models
             else:
                 means, std = acc_stds[:, 0], acc_stds[:, 1]
@@ -425,6 +433,7 @@ def get_results_by_dataset(test_data_names, models, num_rows=10, num_targets=5, 
                 'acc': mean_acc,
                 'std': std_acc
             }, index=[0])
+            # print(result)
             results = pd.concat([results, result])
 
     results.reset_index(drop=True, inplace=True)
@@ -480,21 +489,11 @@ def main(load_no, num_rows, num_1s=None):
     else:
         raise Exception("Invalid data split")
 
-    num_targets = 5
-
-    models = [BasicModel("R_Forest"), BasicModel("LR")]
-    # [FLAT(num) for num in load_no] + \
-    # [FLAT_MAML(num) for num in load_no] + \
-    #  [
-    #  BasicModel("LR"), # BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),
-    #  # TabnetModel(),
-    #  # FTTrModel(),
-    #  # STUNT(),
-    #  ]
+    models = [FLAT(load_no[0]), Iwata(0), BasicModel("LR"), BasicModel("TabPFN")] # FLATadapt(load_no[0]), BasicModel("SVC"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),  # TabnetModel(), # FTTrModel(), # STUNT(),]
 
     unseen_results = get_results_by_dataset(
         test_data_names, models,
-        num_rows=num_rows, num_targets=num_targets, num_1s=num_1s
+        num_rows=num_rows, num_targets=5, num_1s=num_1s
     )
 
     # Results for each dataset
@@ -504,28 +503,18 @@ def main(load_no, num_rows, num_1s=None):
     mean_std = [f'{m * 100:.2f}±{s * 100:.2f}' for m, s in zip(mean, std)]
     detailed_results['acc_std'] = mean_std
 
-    # results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc_std'])
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets")
-    # print(results.to_string())
-
-    det_results = detailed_results.pivot(columns=['data_name', 'model'], index='num_cols', values=['acc'])
-    det_results = det_results.to_string()
-
     # Aggreate results
     agg_results = unseen_results.copy()
 
     # Move flat to first column
     agg_results = agg_results.groupby(['num_cols', 'model'])['acc'].mean().unstack()
-    new_column_order = ["FLAT", "FLAT_maml"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLAT_maml")]
+    new_column_order = ["FLAT", "FLATadapt"] + [col for col in agg_results.columns if (col != "FLAT" and col != "FLATadapt")]
     agg_results = agg_results.reindex(columns=new_column_order)
-
     # Difference between FLAT and best model
     agg_results["FLAT_diff"] = (agg_results["FLAT"] - agg_results.iloc[:, 2:].max(axis=1)) * 100
-    agg_results["FLAT_maml_diff"] = (agg_results["FLAT_maml"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
+    agg_results["FLATadapt_diff"] = (agg_results["FLATadapt"] - agg_results.iloc[:, 2:-1].max(axis=1)) * 100
     agg_results["FLAT_diff"] = agg_results["FLAT_diff"].apply(lambda x: f'{x:.2f}')
-    agg_results["FLAT_maml_diff"] = agg_results["FLAT_maml_diff"].apply(lambda x: f'{x:.2f}')
-
+    agg_results["FLATadapt_diff"] = agg_results["FLATadapt_diff"].apply(lambda x: f'{x:.2f}')
     # Get errors using appropriate formulas.
     pivot_acc = unseen_results.pivot(
         columns=['data_name', 'model'], index='num_cols', values=['acc'])
@@ -550,24 +539,8 @@ def main(load_no, num_rows, num_1s=None):
 
         agg_results[model_name] = mean_stds
 
-    # print()
-    # print("======================================================")
-    # print("Test accuracy on unseen datasets (aggregated)")
     print(agg_results["FLAT_diff"].to_string(index=False))
-    # print(agg_results.to_string(index=False))
     print(agg_results.to_string())
-    agg_results = agg_results.to_string()
-
-    # with open(f'{result_dir}/aggregated', "w") as f:
-    #     for line in agg_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/detailed', "w") as f:
-    #     for line in det_results:
-    #         f.write(line)
-    #
-    # with open(f'{result_dir}/raw.pkl', "wb") as f:
-    #     pickle.dump(unseen_results, f)
 
 
 if __name__ == "__main__":
@@ -575,4 +548,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[1], num_rows=10)
+    col_accs = main(load_no=[2], num_rows=10)

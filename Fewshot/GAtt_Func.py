@@ -1,3 +1,4 @@
+"""Helper code for functional GAT implementation."""
 from typing import Optional, Tuple, Union
 
 import torch

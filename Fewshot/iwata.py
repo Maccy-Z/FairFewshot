@@ -1,3 +1,4 @@
+"""Implementation of Iwata et al. 2020 Meta-learning from Tasks with Heterogeneous Attribute Spaces"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +8,7 @@ from AllDataloader import SplitDataloader
 import os
 
 N_class = 3
+
 
 class ff_block(nn.Module):
     def __init__(self, in_dim):
@@ -47,13 +49,11 @@ class InfModel(nn.Module):
         self.g_z = ff_block(32)
 
     def forward_meta(self, xs, ys):
-        # xs.shape = [BS, n, i, 1], ys.shape = [BS, n, 1, 1]
         n = xs.shape[1]
         i = xs.shape[2]
         ys_int = ys.clone()
         ys = ys.to(torch.float)
 
-        # Part 1
         f_v_bar = self.f_v_bar(xs)
         f_v_bar = torch.mean(f_v_bar, dim=-3)
         v_bar = self.g_v_bar(f_v_bar)
@@ -62,46 +62,40 @@ class InfModel(nn.Module):
         f_c_bar = torch.mean(f_c_bar, dim=-3)
         c_bar = self.g_c_bar(f_c_bar)
 
-        # Part 2
-        # v_bar.shape = [BS, i, 32]
         v_bar = v_bar.unsqueeze(1)
         v_bar = torch.tile(v_bar, (1, n, 1, 1))
         us1 = torch.cat([v_bar, xs], dim=-1)
         us1 = self.f_u(us1)
         us1 = torch.mean(us1, dim=-2)
-
-        # Part 3
         c_bar = c_bar.unsqueeze(1)
         c_bar = torch.tile(c_bar, (1, n, 1, 1))
         us2 = torch.cat([c_bar, ys], dim=-1)
         us2 = torch.mean(us2, dim=-2)
         us2 = self.f_u(us2)
 
-        us = self.g_u(us1 + us2)  # us.shape = [BS, n, 32]
+        us = self.g_u(us1 + us2)
 
-        # Part 4
         us = us.unsqueeze(2)
 
         cs = torch.cat([us, ys], dim=-1)
         cs = self.f_c(cs)
         cs = torch.mean(cs, dim=-3)
-        cs = self.g_c(cs)  # cs.shape = [BS, 1, 32]
+        cs = self.g_c(cs)
 
         us = torch.tile(us, (1, 1, i, 1))
         vs = torch.cat([us, xs], dim=-1)
         vs = self.f_v(vs)
         vs = torch.mean(vs, dim=-3)
-        vs = self.g_v(vs)  # vs.shape = [BS, i, 32]
+        vs = self.g_v(vs)
 
         self.vs, self.cs = vs, cs
 
-        # Classification
         vs = self.vs.unsqueeze(1)
         vs = torch.tile(vs, (1, n, 1, 1))
         fz = torch.cat([vs, xs], dim=-1)
         fz = self.f_z(fz)
         fz = torch.mean(fz, dim=-2)
-        zs = self.g_z(fz)  # zs.shape = [BS, N, 32]
+        zs = self.g_z(fz)
 
         self.batch_protos = []
         for z_batch, y_batch in zip(zs, ys_int.squeeze(dim=-1), strict=True):
@@ -116,12 +110,9 @@ class InfModel(nn.Module):
                 proto_val = torch.mean(proto_val, dim=0)
                 protos[y_val] = proto_val
 
-
             self.batch_protos.append(protos)
 
     def forward_target(self, xs):
-        # xs.shape = [BS, n, i, 1]
-        # print(xs.shape)
         n = xs.shape[1]
 
         vs = self.vs.unsqueeze(1)
@@ -129,7 +120,7 @@ class InfModel(nn.Module):
         fz = torch.cat([vs, xs], dim=-1)
         fz = self.f_z(fz)
         fz = torch.mean(fz, dim=-2)
-        zs = self.g_z(fz)  # zs.shape = [BS, N, 32]
+        zs = self.g_z(fz)
 
         batch_probs = []
         for bs_zs, protos in zip(zs, self.batch_protos):
@@ -168,7 +159,6 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
 def main():
     files = [f for f in os.listdir("../iwata") if os.path.isdir(f'{"./iwata"}/{f}')]
     existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
-    # print(files, existing_saves)
     save_no = existing_saves[-1] + 1
     save_dir = f'./iwata/{save_no}'
     print("Making new save folder at: ")
@@ -192,12 +182,8 @@ def main():
         # Train loop
         model.train()
         for xs, ys, _ in itertools.islice(dl, 100):
-
-            # Train loop
-            # xs.shape = [bs, num_rows+num_targets, num_cols]
             xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
             ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # Splicing like this changes the tensor's stride. Fix here:
             xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
             ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
             ys_target = ys_target.view(-1)
@@ -216,6 +202,7 @@ def main():
 
     with open(f'{save_dir}/finish', "w") as f:
         f.write("finish")
+
 
 if __name__ == "__main__":
     main()
