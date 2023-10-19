@@ -253,7 +253,7 @@ class SplitDataloader:
             MyDataSet(name, num_rows=self.num_rows,
                       num_targets=self.num_targets,
                       binarise=self.binarise,
-                      device=self.device, split="all")
+                      device=self.device, split=self.ds_split)
             for name in ds_names]
 
         valid_datasets = []
