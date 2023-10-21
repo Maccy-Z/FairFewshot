@@ -32,5 +32,5 @@
     models = [Iwata(0), BasicModel("LR")]
     ``` 
 
-    For Iwata, we have 4 pretrained models, saved in `iwata/{model_no}`, corresponding to each of the 4 dataset folds in Section 4.2. To load these models, use `Iwata({model_no})`. The code to train Iwata models is in `iwata.py`. 
+    For Iwata, we have 10+4 pretrained models, saved in `iwata/{model_no}`. The first 10 models (from 0 to 9) correspond to each of th 10 folds from Section 4.1. Models 10 to 13 correspond to each of the 4 dataset folds from Section 4.2. To load these models, use `Iwata({model_no})`. The code to train Iwata models is in `iwata.py`. 
 
