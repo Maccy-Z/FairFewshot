@@ -526,4 +526,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[5], num_rows=10)
+    main(load_no=[5], num_rows=10)
