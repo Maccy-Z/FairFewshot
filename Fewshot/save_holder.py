@@ -7,7 +7,7 @@ import shutil
 # Save into file. Automatically make a new folder for every new save.
 class SaveHolder:
     def __init__(self, base_dir, nametag=None):
-        dir_path = f'../{base_dir}/saves'
+        dir_path = f'{base_dir}/saves'
         files = [f for f in os.listdir(dir_path) if os.path.isdir(f'{dir_path}/{f}')]
         existing_saves = sorted([int(f[5:]) for f in files if f.startswith("save")])  # format: save_{number}
 
@@ -16,13 +16,13 @@ class SaveHolder:
         else:
             save_no = 0
 
-        self.save_dir = f'../{base_dir}/saves/save_{save_no}'
+        self.save_dir = f'{base_dir}/saves/save_{save_no}'
 
         print("Making new save folder at: ")
         print(self.save_dir)
         os.mkdir(self.save_dir)
 
-        shutil.copy(f'../{base_dir}/Fewshot/defaults.toml', f'{self.save_dir}/defaults.toml')
+        shutil.copy(f'{base_dir}/Fewshot/configs.toml', f'{self.save_dir}/configs.toml')
         if nametag is not None:
             with open(f'{self.save_dir}/tag.txt', 'w') as f:
                 f.write(nametag)
@@ -35,4 +35,3 @@ class SaveHolder:
     def save_history(self, hist_dict: dict):
         with open(f'{self.save_dir}/history.pkl', 'wb') as f:
             pickle.dump(hist_dict, f)
-

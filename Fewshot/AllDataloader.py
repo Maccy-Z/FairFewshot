@@ -50,7 +50,7 @@ class MyDataSet:
         
         Here, combine test and valid folds. 
         """
-        ds_dir = f'../{DATADIR}/data'
+        ds_dir = f'{DATADIR}/data'
         # get train fold
         folds = pd.read_csv(
             f"{ds_dir}/{ds_name}/folds_py.dat", header=None)[0]
@@ -218,7 +218,7 @@ class SplitDataloader:
         ds_dir = f'{DATADIR}/data/'
         if isinstance(self.ds_group, tuple):
             fold_no, split_no = self.ds_group
-            splits = toml.load(f'../datasets/grouped_datasets/splits_{fold_no}')
+            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
             if split_no == -1:
                 get_splits = range(6)
             else:
@@ -232,10 +232,7 @@ class SplitDataloader:
         elif isinstance(self.ds_group, int):
             if self.ds_group == -1:
                 # get all datasets
-                ds_names = os.listdir(ds_dir)
-                ds_names.remove('info.json')
-                if '.DS_Store' in ds_names:
-                    ds_names.remove('.DS_Store')
+                ds_names = [d for d in os.listdir(ds_dir) if d.endswith('.dat')]
             else:
                 # get datasets from pre-defined split
                 splits = toml.load(self.split_file)

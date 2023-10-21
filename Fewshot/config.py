@@ -3,7 +3,7 @@ import toml
 
 def get_config(cfg_file=None):
     if cfg_file is None:
-        cfg_file = "../Fewshot/defaults.toml"
+        cfg_file = "./Fewshot/configs.toml"
 
     with open(cfg_file, "r") as f:
         config = toml.load(f)
@@ -45,21 +45,21 @@ def write_toml():
                                "binarise": True,
                                "num_1s": None,
                                "num_cols": {'train': -2, 'val': -2},
-                               "split_file": '',
+                               "split_file": 'splits',
                                },
 
                  "Settings": {"num_epochs": 31,  # Number of train epochs
                               "val_duration": 100,  # Number of batches of validation
                               "val_interval": 2000,  # Number of batches to train for each epoch
-                              "dataset": "total",
+                              "dataset": 'total',
                               },
                  }
 
     save_dict["NN_dims"]["gat_in_dim"] = save_dict["NN_dims"]["pos_enc_dim"] + 1
-    with open("./defaults.toml", "w") as f:
+    with open("./Fewshot/configs.toml", "w") as f:
         toml.dump(save_dict, f)
 
 
 if __name__ == "__main__":
-    print("Resetting config to defaults")
+    print("Setting up config file")
     write_toml()

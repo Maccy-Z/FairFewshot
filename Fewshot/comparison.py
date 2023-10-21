@@ -23,15 +23,23 @@ from iwata import InfModel, ff_block
 
 import sys
 
-sys.path.append("/home/maccyz/Documents/FairFewshot/STUNT_main")
-from STUNT_main.STUNT_interface import STUNT_utils, MLPProto
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(os.path.join(parent, 'STUNT_main'))
+from STUNT_interface import STUNT_utils, MLPProto
 
-BASEDIR = '../'
+BASEDIR = '.'
 
+def get_batch(dl, num_rows):
+    xs, ys, model_id = next(iter(dl))
+    xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+    ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+    xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+    ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
 
 def load_batch(ds_name, num_rows, num_targets, num_cols, num_1s=None):
     if num_1s is None:
-        with open(f"../datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
+        with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}", "rb") as f:
             batch = pickle.load(f)
     else:
         with open(f"./datasets/data/{ds_name}/batches/{num_rows}_{num_targets}_{num_cols}_{num_1s}", "rb") as f:
@@ -284,7 +292,7 @@ class FLAT(Model):
             state_dict = torch.load(f'{save_dir}/model.pt')
         else:
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
-        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
+        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/configs.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
@@ -316,7 +324,7 @@ class FLATadapt(Model):
             state_dict = torch.load(f'{save_dir}/model.pt')
         else:
             state_dict = torch.load(f'{save_dir}/model_{save_ep}.pt')
-        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/defaults.toml'))
+        self.model = ModelHolder(cfg_all=get_config(cfg_file=f'{save_dir}/configs.toml'))
         self.model.load_state_dict(state_dict['model_state_dict'])
 
     def fit(self, xs_meta, ys_meta):
@@ -444,14 +452,14 @@ def main(load_no, num_rows, num_1s=None):
     load_no = [existing_saves[num] for num in load_no]
     load_dir = f'{BASEDIR}/saves/save_{load_no[-1]}'
 
-    all_cfg = toml.load(os.path.join(load_dir, 'defaults.toml'))
+    all_cfg = toml.load(os.path.join(load_dir, 'configs.toml'))
     cfg = all_cfg["DL_params"]
     ds = all_cfg["Settings"]["dataset"]
     ds_group = cfg["ds_group"]
     print()
     print(ds_group)
 
-    if ds == "my_split":
+    if ds == "medical":
         split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
         with open(split_file) as f:
             split = toml.load(f)
@@ -463,7 +471,7 @@ def main(load_no, num_rows, num_1s=None):
 
     elif ds == "total":
         fold_no, split_no = ds_group
-        splits = toml.load(f'../datasets/grouped_datasets/splits_{fold_no}')
+        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
         if split_no == -1:
             get_splits = range(6)
         else:
@@ -544,4 +552,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[2], num_rows=10)
+    col_accs = main(load_no=[3], num_rows=10)

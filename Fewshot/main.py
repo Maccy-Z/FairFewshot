@@ -372,9 +372,8 @@ def main(all_cfgs, nametag=None):
         print("Training data names:", dl)
         print("\nTest data names:", val_dl)
 
-    elif ds == "my_split":
-        split_file = f"../datasets/grouped_datasets/{split_file}"
-        print(num_cols)
+    elif ds == "medical":
+        split_file = f"./datasets/grouped_datasets/{split_file}"
         dl = SplitDataloader(
             bs=bs, num_rows=num_rows, num_targets=num_targets,
             binarise=binarise,
