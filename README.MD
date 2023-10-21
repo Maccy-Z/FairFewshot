@@ -14,7 +14,7 @@
 
     To train the model on all UCI datasets set (Section 4.2):
     ```
-    fold_no=[{fold_no}, -1]
+    fold_no={fold_no}
     folds_file="folds"
     ```
 
