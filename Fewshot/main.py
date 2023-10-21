@@ -346,58 +346,33 @@ def main(all_cfgs, nametag=None):
     bs = cfg["bs"]
     num_rows = cfg["num_rows"]
     num_targets = cfg["num_targets"]
-    ds_group = cfg["ds_group"]
+    fold_no = cfg["fold_no"]
     num_cols = cfg.get("num_cols")
     decrease_col_prob = cfg.get("decrease_col_prob")
     num_1s = cfg.get("num_1s")
     binarise = cfg["binarise"]
-    split_file = cfg.get("split_file")
+    folds_file = cfg.get("folds_file")
 
     cfg = all_cfgs["Settings"]
-    ds = cfg["dataset"]
     num_epochs = cfg["num_epochs"]
 
     val_interval = cfg["val_interval"]
     val_duration = cfg["val_duration"]
 
-    if ds == "total":
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-2, ds_group=tuple(ds_group), ds_split="train"
-        )
-        val_dl = SplitDataloader(
-            bs=1, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise, num_cols=-3, ds_group=tuple(ds_group), ds_split="test"
-        )
-        print("Training data names:", dl)
-        print("\nTest data names:", val_dl)
+    folds_file = f"./datasets/grouped_datasets/{folds_file}"
+    dl = SplitDataloader(
+        bs=bs, num_rows=num_rows, num_targets=num_targets,
+        binarise=binarise,
+        num_1s=num_1s,
+        num_cols=num_cols['train'],
+        decrease_col_prob=decrease_col_prob,
+        fold_no=fold_no, ds_split="train",
+        folds_file=folds_file
+    )
+    print("Training data names:", dl.all_datasets)
 
-    elif ds == "medical":
-        split_file = f"./datasets/grouped_datasets/{split_file}"
-        dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise,
-            num_1s=num_1s,
-            num_cols=num_cols['train'],
-            decrease_col_prob=decrease_col_prob,
-            ds_group=ds_group, ds_split="train",
-            split_file=split_file
-        )
-        print("Training data names:", dl.all_datasets)
-
-        val_dl = SplitDataloader(
-            bs=bs, num_rows=num_rows, num_targets=num_targets,
-            binarise=binarise,
-            num_1s=num_1s,
-            num_cols=num_cols['val'],
-            decrease_col_prob=decrease_col_prob,
-            ds_group=ds_group, ds_split="test",
-            split_file=split_file
-        )
-        print("Testing data names:", val_dl.all_datasets)
-
-    else:
-        raise Exception("Invalid dataset")
+    # val_dl =  SplitDataloader() # optional validation loader
+    val_dl = None
 
     cfg = all_cfgs["Optim"]
     lr = cfg["lr"]
@@ -453,39 +428,40 @@ def main(all_cfgs, nametag=None):
 
         print(f"Training accuracy : {np.mean(accs[-val_interval:]) * 100:.2f}%")
 
-        # Validation loop
-        model.eval()
-        epoch_accs, epoch_losses = [], []
-        save_ys_targ, save_pred_labs = [], []
-        for xs, ys, _ in itertools.islice(val_dl, val_duration):
-            # xs.shape = [bs, num_rows+1, num_cols]
-            xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
-            ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
-            # Splicing like this changes the tensor's stride. Fix here:
-            xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
-            ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
-            ys_target = ys_target.view(-1)
+        if val_dl:
+            # Validation loop
+            model.eval()
+            epoch_accs, epoch_losses = [], []
+            save_ys_targ, save_pred_labs = [], []
+            for xs, ys, _ in itertools.islice(val_dl, val_duration):
+                # xs.shape = [bs, num_rows+1, num_cols]
+                xs_meta, xs_target = xs[:, :num_rows], xs[:, num_rows:]
+                ys_meta, ys_target = ys[:, :num_rows], ys[:, num_rows:]
+                # Splicing like this changes the tensor's stride. Fix here:
+                xs_meta, xs_target = xs_meta.contiguous(), xs_target.contiguous()
+                ys_meta, ys_target = ys_meta.contiguous(), ys_target.contiguous()
+                ys_target = ys_target.view(-1)
 
-            # Reshape for dataset2vec
-            pairs_meta = d2v_pairer(xs_meta, ys_meta)
+                # Reshape for dataset2vec
+                pairs_meta = d2v_pairer(xs_meta, ys_meta)
 
-            with torch.no_grad():
-                embed_meta, pos_enc = model.forward_meta(pairs_meta)
-                ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
-                loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
+                with torch.no_grad():
+                    embed_meta, pos_enc = model.forward_meta(pairs_meta)
+                    ys_pred_targ = model.forward_target(xs_target, embed_meta, pos_enc).view(-1, 2)
+                    loss = torch.nn.functional.cross_entropy(ys_pred_targ, ys_target.long())
 
-            # Accuracy recording
-            predicted_labels = torch.argmax(ys_pred_targ, dim=1)
-            accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
+                # Accuracy recording
+                predicted_labels = torch.argmax(ys_pred_targ, dim=1)
+                accuracy = (predicted_labels == ys_target).sum().item() / len(ys_target)
 
-            epoch_accs.append(accuracy), epoch_losses.append(loss.item())
-            save_ys_targ.append(ys_target)
-            save_pred_labs.append(predicted_labels)
+                epoch_accs.append(accuracy), epoch_losses.append(loss.item())
+                save_ys_targ.append(ys_target)
+                save_pred_labs.append(predicted_labels)
 
-        val_losses.append(epoch_losses), val_accs.append(epoch_accs)
+            val_losses.append(epoch_losses), val_accs.append(epoch_accs)
 
-        print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
-
+            print(f'Validation accuracy: {np.mean(val_accs[-1]) * 100:.2f}%')
+        
         # Save stats
         if save_holder is None:
             save_holder = SaveHolder(".", nametag=nametag)

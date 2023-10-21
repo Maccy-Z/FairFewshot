@@ -1,12 +1,16 @@
-"""Generate medical dataset splits"""
+"""Generate medical dataset folds"""
 import random
 import numpy as np
 import toml
 import os
-from Fewshot.AllDataloader import MyDataSet, SplitDataloader
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import sys
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(os.path.join(parent, 'Fewshot'))
+from AllDataloader import MyDataSet, SplitDataloader
 
 random.seed(123)
 np.random.seed(123)
@@ -31,7 +35,7 @@ def get_datasets(ds_type, num_rows, num_targets, binarise=True):
         ]
     dl = SplitDataloader(
         bs=1, num_rows=num_rows, num_targets=num_targets, 
-        ds_group=all_data_names, binarise=binarise
+        fold_no=all_data_names, binarise=binarise
     )
     all_datasets = [d for d in dl.all_datasets]
     all_data_names = [d.ds_name for d in all_datasets]
@@ -47,7 +51,7 @@ def get_ds_df(all_data_names):
     df['size'] = pd.qcut(df['n_col'], 3, labels=[0, 1, 2])
     return df
 
-def split_datasets(all_data_names, get_val=False, n_splits=10, stratify=True):
+def split_datasets(all_data_names, n_splits=10, stratify=True):
     df = get_ds_df(all_data_names)
 
     if stratify:
@@ -57,31 +61,22 @@ def split_datasets(all_data_names, get_val=False, n_splits=10, stratify=True):
         kf = KFold(n_splits=n_splits, shuffle=True)
         kf.get_n_splits(X=df['data_name'], y=df['size'])
         
-    splits = {}
+    folds = {}
 
     for i, (train_index, test_index) in enumerate(kf.split(df['data_name'], df['size'])):
         df_train = df.iloc[train_index, :]
         test_ds = df.iloc[test_index, :]['data_name']
-        if get_val:
-            train_ds , val_ds = train_test_split(df_train['data_name'], test_size=3, shuffle=True, stratify=df_train['size'])
-        else:
-            val_ds = []
-            train_ds = df_train['data_name']
-        splits[str(i)] = {
+        train_ds = df_train['data_name']
+        folds[str(i)] = {
             'train': list(train_ds),
-            'val': list(val_ds),
-            'test': list(test_ds),
-            'max_train_col':  int(df_train['n_col'].max()),
-            'max_val_col':  int(df[df.data_name.isin(val_ds)]['n_col'].max()) if val_ds else 0,
-            'max_test_col':  int(df[df.data_name.isin(test_ds)]['n_col'].max())
+            'test': list(test_ds)
         }
-    print(splits)
-    return splits
+    print(folds)
+    return folds
 
 if __name__ == "__main__":
     all_data_names = get_datasets("medical", num_rows=10, num_targets=15)
-    #all_data_names = ['fertility', 'lung-cancer', 'breast-cancer', 'mammographic', 'echocardiogram', 'heart-va', 'post-operative', 'heart-switzerland']
-    splits = split_datasets(all_data_names, n_splits=10, stratify=False)
+    folds = split_datasets(all_data_names, n_splits=10, stratify=False)
 
-    with open("./datasets/grouped_datasets/med_splits_3", "w") as fp:
-      toml.dump(splits, fp) 
+    with open("./datasets/grouped_datasets/med_folds_2", "w") as fp:
+      toml.dump(folds, fp) 

@@ -8,22 +8,20 @@
     Most of the settings here are pre-selected model hyperparamters. 
     To train the model on the medical datasets set (Section 4.1):
     ```
-    ds_group={split_no}
-    split_file="med_splits"
-    dataset="medical"
+    fold_no={fold_no}
+    folds_file="med_folds"
     ```
 
     To train the model on all UCI datasets set (Section 4.2):
     ```
-    ds_group=[{split_no}, -1]
-    split_file="splits"
-    dataset="total"
+    fold_no=[{fold_no}, -1]
+    folds_file="folds"
     ```
 
-    `{split_no}` should be an integer between 0 to $N-1$, which indicates which of the $N$-folds within the dataset collection is held-out for testing.
+    `{fold_no}` should be an integer between 0 to $N-1$, which indicates which of the $N$-folds within the dataset collection is held-out for testing.
     For the medical example, $N=10$. For all datasets $N=4$.
 
-2. To train the FLAT model, run `python Fewshot/main.py`. Models are automatically saved in `/saves/{run_no}`.
+2. To train the FLAT model, run `python Fewshot/main.py`. Models are automatically saved in `saves/{run_no}`.
 
 3. To evaluate FLAT models and the baselines run `python Fewshot/comparison.py`. 
 

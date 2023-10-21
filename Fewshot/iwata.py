@@ -172,7 +172,7 @@ def main():
 
     dl = SplitDataloader(
         bs=37, num_rows=num_rows, num_targets=num_targets,
-        binarise=True, num_cols=-2, ds_group=(0, -1), ds_split="train"
+        binarise=True, num_cols=-2, fold_no=(0, -1), ds_split="train"
     )
 
     for epoch in range(75):

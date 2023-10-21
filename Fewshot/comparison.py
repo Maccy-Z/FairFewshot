@@ -454,44 +454,18 @@ def main(load_no, num_rows, num_1s=None):
 
     all_cfg = toml.load(os.path.join(load_dir, 'configs.toml'))
     cfg = all_cfg["DL_params"]
-    ds = all_cfg["Settings"]["dataset"]
-    ds_group = cfg["ds_group"]
+    fold_no = cfg["fold_no"]
     print()
-    print(ds_group)
+    print(fold_no)
 
-    if ds == "medical":
-        split_file = f"./datasets/grouped_datasets/{cfg['split_file']}"
-        with open(split_file) as f:
-            split = toml.load(f)
-        train_data_names = split[str(ds_group)]["train"]
-        test_data_names = split[str(ds_group)]["test"]
+    folds_file = f"./datasets/grouped_datasets/{cfg['folds_file']}"
+    with open(folds_file) as f:
+        split = toml.load(f)
+    train_data_names = split[str(fold_no)]["train"]
+    test_data_names = split[str(fold_no)]["test"]
 
-        print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
-    elif ds == "total":
-        fold_no, split_no = ds_group
-        splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-        if split_no == -1:
-            get_splits = range(6)
-        else:
-            get_splits = [split_no]
-
-        test_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["test"]
-            test_data_names += ds_name
-
-        train_data_names = []
-        for split in get_splits:
-            ds_name = splits[str(split)]["train"]
-            train_data_names += ds_name
-
-        # print("Train datases:", train_data_names)
-        print("Test datasets:", test_data_names)
-
-    else:
-        raise Exception("Invalid data split")
+    print("Train datases:", train_data_names)
+    print("Test datasets:", test_data_names)
 
     models = [FLAT(load_no[0]), BasicModel("LR")] # FLATadapt(load_no[0]), Iwata(0), BasicModel("TabPFN"), BasicModel("SVC"), BasicModel("CatBoost"), BasicModel("R_Forest"),  BasicModel("KNN"),  # TabnetModel(), # FTTrModel(), # STUNT(),]
 
@@ -552,4 +526,4 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    col_accs = main(load_no=[3], num_rows=10)
+    col_accs = main(load_no=[5], num_rows=10)

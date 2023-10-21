@@ -41,17 +41,16 @@ def write_toml():
                  "DL_params": {"bs": 3,
                                "num_rows": 10,
                                "num_targets": 15,
-                               "ds_group": [0, -1],  # Group of datasets from which to select from. -1 for full dataset
+                               "fold_no": 0, # Fold no
                                "binarise": True,
                                "num_1s": None,
-                               "num_cols": {'train': -2, 'val': -2},
-                               "split_file": 'splits',
+                               "num_cols": {'train': -2},
+                               "folds_file": 'med_folds', # File defining the dataset folds
                                },
 
                  "Settings": {"num_epochs": 31,  # Number of train epochs
                               "val_duration": 100,  # Number of batches of validation
                               "val_interval": 2000,  # Number of batches to train for each epoch
-                              "dataset": 'total',
                               },
                  }
 

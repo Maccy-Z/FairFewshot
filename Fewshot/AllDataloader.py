@@ -171,8 +171,8 @@ class MyDataSet:
 class SplitDataloader:
     def __init__(
             self, bs, num_rows, num_targets, binarise=False,
-            num_cols=-1, ds_group=-1, ds_split="train", device="cpu",
-            split_file='./datasets/grouped_datasets/splits',
+            num_cols=-1, fold_no=0, ds_split="train", device="cpu",
+            folds_file='./datasets/grouped_datasets/splits',
             num_1s=None, decrease_col_prob=-1):
         """
 
@@ -188,12 +188,8 @@ class SplitDataloader:
             If -2, sample datasets with equal probability, then sample valid number of columns.
             If -3, sample datasets with equal probability, take max allowed number of columns.
             If list, sample from a range of no. columns specified in the list
-        :param ds_group: Which datasets to sample from. 
-            If -1, sample all available datasets
-            If int >= 0, referes to premade group specified in the split_file 
-            If string or list of strings, sample from that specified dataset(s).
-        :param ds_split: If ds_group is int >= 0, the test or train split.
-        :param split_fmt: format of data to load.
+        :param ds_split:  test or train split.
+        :param folds_file: file with dataset folds
         """
 
         self.bs = bs
@@ -202,9 +198,9 @@ class SplitDataloader:
         self.num_targets = num_targets
         self.binarise = binarise
         self.num_cols = num_cols
-        self.ds_group = ds_group
         self.ds_split = ds_split
-        self.split_file = split_file
+        self.fold_no = fold_no
+        self.folds_file = folds_file
         self.decrease_col_prob = decrease_col_prob
         self.num_1s = num_1s
 
@@ -215,36 +211,10 @@ class SplitDataloader:
             self._check_num_cols()
 
     def _get_valid_datasets(self):
+
         ds_dir = f'{DATADIR}/data/'
-        if isinstance(self.ds_group, tuple):
-            fold_no, split_no = self.ds_group
-            splits = toml.load(f'./datasets/grouped_datasets/splits_{fold_no}')
-            if split_no == -1:
-                get_splits = range(6)
-            else:
-                get_splits = [split_no]
-
-            ds_names = []
-            for split in get_splits:
-                names = splits[str(split)][self.ds_split]
-                ds_names += names
-
-        elif isinstance(self.ds_group, int):
-            if self.ds_group == -1:
-                # get all datasets
-                ds_names = [d for d in os.listdir(ds_dir) if d.endswith('.dat')]
-            else:
-                # get datasets from pre-defined split
-                splits = toml.load(self.split_file)
-                ds_names = splits[str(self.ds_group)][self.ds_split]
-
-        elif isinstance(self.ds_group, str):
-            ds_names = [self.ds_group]
-
-        elif isinstance(self.ds_group, list):
-            ds_names = self.ds_group
-        else:
-            raise Exception("Invalid ds_group")
+        folds = toml.load(self.folds_file)
+        ds_names = folds[str(self.fold_no)][self.ds_split]
 
         self.all_datasets = [
             MyDataSet(name, num_rows=self.num_rows,
