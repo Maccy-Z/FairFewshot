@@ -3,7 +3,7 @@
 
 ### How to run the main experiments:
 
-1. Download the data from the [google drive](https://drive.google.com/file/d/11FAi02DqcWpqHUwKnc8JWSQHIfpwy6R9/view?usp=sharingand) and put the content in the `datasetes/data` directory
+1. Download the data from this [google drive](https://drive.google.com/file/d/11FAi02DqcWpqHUwKnc8JWSQHIfpwy6R9/view?usp=sharingand) and put the content in the `datasetes/data` directory
 
 2. Set the configuration file in `Fewshot/configs.toml`
 
