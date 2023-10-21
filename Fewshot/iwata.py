@@ -157,10 +157,15 @@ def fit(optim, model, meta_xs, meta_ys, targ_xs, targ_ys):
 
 
 def main():
-    files = [f for f in os.listdir("../iwata") if os.path.isdir(f'../iwata/{f}')]
+    if not os.path.exists("iwata"):
+        os.mkdir("iwata")
+    files = [f for f in os.listdir("iwata") if os.path.isdir(f'iwata/{f}')]
     existing_saves = sorted([int(f) for f in files if f.isdigit()])  # format: save_{number}
-    save_no = existing_saves[-1] + 1
-    save_dir = f'../iwata/{save_no}'
+    if existing_saves:
+        save_no = existing_saves[-1] + 1
+    else:
+        save_no = 0
+    save_dir = f'iwata/{save_no}'
     print("Making new save folder at: ")
     print(save_dir)
     os.mkdir(save_dir)
@@ -169,10 +174,19 @@ def main():
     optim = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
     num_rows, num_targets = 10, 15
+    folds_file = "folds"
+    folds_file = f"./datasets/grouped_datasets/{folds_file}"
+    fold_no = 0
 
     dl = SplitDataloader(
-        bs=37, num_rows=num_rows, num_targets=num_targets,
-        binarise=True, num_cols=-2, fold_no=(0, -1), ds_split="train"
+        bs=37, 
+        num_rows=num_rows, 
+        num_targets=num_targets,
+        binarise=True,
+        num_cols=-2,
+        fold_no=fold_no, 
+        ds_split="train",
+        folds_file=folds_file
     )
 
     for epoch in range(75):
