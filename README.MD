@@ -27,7 +27,7 @@
 
     Select which FLAT model from saved models to evaluate by setting `load_no=[{run_no}]` and `num_rows={num_rows}`, where `num_rows` is the number of meta rows used during inference, $N^{meta}$. 
 
-    `Fewshot/comparison.py` contains the code for the baselines, including the hyperparamters used in all our testing. Baselines can also be evaluated by setting line 496, e.g. 
+    `Fewshot/comparison.py` contains the code for the baselines, including the hyperparamters used in all our testing. Baselines can also be evaluated by setting line 470, e.g. 
     ```
     models = [Iwata(0), BasicModel("LR")]
     ``` 
